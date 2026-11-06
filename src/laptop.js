@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { profile } from './data.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { box, cylinder, createRenderer, lampRig, stageLoop, surface } from './scene.js';
 
@@ -16,7 +15,7 @@ const editorLines = [
   ['fieldNotes.open();', '#c3d89d'],
 ];
 
-function makeDisplay() {
+function makeDisplay({ profile, t }) {
   const canvas = document.createElement('canvas');
   canvas.width = 768;
   canvas.height = 470;
@@ -52,7 +51,7 @@ function makeDisplay() {
         context.arc(23 + index * 17, 22, 4, 0, Math.PI * 2);
         context.fill();
       });
-      label('PROFILE / ACTIVE', 312, 28, '#d3decd');
+      label(t.profile.toUpperCase() + ' / ACTIVE', 312, 28, '#d3decd');
       label('01 / ' + profile.name.toUpperCase().replace(' ', '.'), 32, 89, '#bcd69b');
       context.font = '700 68px Arial, sans-serif';
       label(profile.firstName, 27, 166, '#f1f4e8');
@@ -64,7 +63,7 @@ function makeDisplay() {
       label(profile.current, 32, 337, '#d8e5cd');
       label(profile.focus, 32, 372, '#c4d2bd');
       context.font = '16px monospace';
-      label('● WORKBENCH ONLINE', 30, 456, '#c3d89d');
+      label('● ' + t.ready.toUpperCase(), 30, 456, '#c3d89d');
       label('FOI   /   MT-LAB', 573, 456);
       label('FIELDNOTES.JS', 524, 86, '#d2e3af');
       for (let i = 0; i < count; i++) {
@@ -88,12 +87,12 @@ function rounded(parent, material, width, height, depth, radius, x, y, z) {
   return mesh;
 }
 
-export function mountLaptop(host, motion, intro) {
+export function mountLaptop(host, motion, intro, locale) {
   const renderer = createRenderer(host, { alpha: true });
   if (!renderer) return;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(31, 1, .1, 40);
-  camera.zoom = .91;
+  camera.zoom = 1.01;
   const light = lampRig(scene, 7, 1024);
   light(0, 0);
   const fill = new THREE.DirectionalLight('#e0ebea', .85);
@@ -103,6 +102,15 @@ export function mountLaptop(host, motion, intro) {
   table.rotation.x = -Math.PI / 2;
   table.receiveShadow = true;
   scene.add(table);
+
+  const wire = new THREE.LineBasicMaterial({ color: '#758b6b', transparent: true, opacity: .43 });
+  const tokenShape = new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1, 0));
+  const ambient = Array.from({ length: 9 }, (_, index) => {
+    const token = new THREE.LineSegments(tokenShape, wire);
+    token.scale.setScalar(.075 + (index % 4) * .027);
+    scene.add(token);
+    return token;
+  });
 
   const laptop = new THREE.Group();
   laptop.rotation.y = -.20;
@@ -152,7 +160,7 @@ export function mountLaptop(host, motion, intro) {
   laptop.add(lid);
   rounded(lid, metal, 5.11, 3.14, .118, .052, 0, 1.57, 0);
   rounded(lid, dark, 5.0, 3.04, .040, .018, 0, 1.57, .055);
-  const display = makeDisplay();
+  const display = makeDisplay(locale);
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(4.82, 2.87), new THREE.MeshBasicMaterial({ map: display.texture, toneMapped: false }));
   screen.position.set(0, 1.53, .079);
   lid.add(screen);
@@ -188,13 +196,20 @@ export function mountLaptop(host, motion, intro) {
     const wake = progress > .76;
     display.paint(settled ? 1 : (time - 1.04) / 1.15, time, wake, motion.matches);
     laptop.rotation.y = motion.matches ? -.20 : THREE.MathUtils.damp(laptop.rotation.y, -.20 + pointerX * .12, 4, dt);
+    ambient.forEach((token, index) => {
+      const phase = index * 2.4 + (motion.matches ? 0 : time * .16);
+      token.position.set((index % 2 ? 1 : -1) * (3.28 + Math.sin(phase) * .63),
+        .55 + (index % 4) * .72 + Math.sin(phase * 1.4) * .21,
+        Math.sin(phase) * 2.75 - .33);
+      token.rotation.set(phase * .55, phase * .71, phase);
+    });
     camera.position.set(3.35 + (motion.matches ? 0 : pointerX * .15), 4.4, cameraDistance);
-    camera.lookAt(.18, 1.25, .0);
+    camera.lookAt(.22, 1.31, .0);
     if (!motion.matches || !settledFrame) renderer.draw(scene, camera);
     settledFrame = motion.matches;
   }, (width, height) => {
     camera.aspect = width / height;
-    cameraDistance = Math.max(9.45, 8.7 / camera.aspect);
+    cameraDistance = Math.max(8.9, 8.15 / camera.aspect);
     camera.updateProjectionMatrix();
     renderer.size(width, height);
     settledFrame = false;

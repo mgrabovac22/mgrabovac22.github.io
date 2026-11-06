@@ -3,11 +3,11 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import fontData from './world-font.json';
 import { towers } from './data.js';
+import { floorText } from './floor-text.js';
 import { ball, box, cylinder, surface } from './scene.js';
 
 const font = new FontLoader().parse(fontData);
 const mat = {
-  rug: surface('#b0ba9b'),
   frame: surface('#87978a'),
   cork: surface('#ae9775'),
   glass: new THREE.MeshStandardMaterial({ color: '#c3d7bf', opacity: .27, transparent: true, depthWrite: false, roughness: .4 }),
@@ -45,7 +45,7 @@ function lettering(parent, word) {
   const text = new THREE.Mesh(geometry, [mat.title, mat.titleEdge]);
   text.scale.x = Math.min(1.17, 13.1 / width);
   text.rotation.x = -Math.PI / 2;
-  text.position.set(0, .065, 2.45);
+  text.position.set(0, .055, -5.37);
   text.castShadow = true;
   text.receiveShadow = true;
   parent.add(text);
@@ -138,6 +138,8 @@ function person(parent, x, z, outfit, behavior, phase = 0) {
   rig.position.set(x, 0, z);
   rig.userData.dynamic = true;
   const seated = behavior === 'type';
+  const carrying = behavior === 'carry';
+  const walking = carrying || behavior === 'walk';
   const hips = seated ? .42 : .47;
   parent.add(rig);
   ball(rig, outfit, .145, .205, .086, 0, hips + .15, 0);
@@ -171,15 +173,19 @@ function person(parent, x, z, outfit, behavior, phase = 0) {
     ball(knee, mat.ink, .054, .04, .084, 0, -.205, .031);
     return { shoulder, elbow, hip, knee };
   });
+  if (carrying) {
+    box(rig, mat.cork, .32, .21, .26, 0, .63, .28);
+    box(rig, mat.paper, .055, .01, .27, 0, .738, .28);
+  }
 
   function animate(time, active) {
     const t = time + phase;
     const movement = active ? 1 : .45;
-    if (behavior === 'walk') {
+    if (walking) {
       const heading = t * .34;
       rig.position.x = x + Math.sin(heading) * 2.6;
-      rig.position.z = z + Math.cos(heading) * .48;
-      rig.rotation.y = Math.atan2(Math.cos(heading) * 2.6, -Math.sin(heading) * .48);
+      rig.position.z = z + Math.cos(heading) * .29;
+      rig.rotation.y = Math.atan2(Math.cos(heading) * 2.6, -Math.sin(heading) * .29);
       rig.position.y = Math.abs(Math.sin(t * 6.4)) * .035;
     } else if (seated) {
       rig.rotation.y = Math.PI;
@@ -189,10 +195,11 @@ function person(parent, x, z, outfit, behavior, phase = 0) {
     head.rotation.y = Math.sin(t * .8) * .23 * movement;
     limbs.forEach(({ shoulder, elbow, hip, knee }, index) => {
       const gait = Math.sin(t * 6.4 + index * Math.PI);
-      if (behavior === 'walk') {
+      if (walking) {
         hip.rotation.x = gait * .46;
         knee.rotation.x = Math.max(0, -gait) * .61;
-        shoulder.rotation.x = -gait * .34;
+        shoulder.rotation.x = carrying ? -.72 : -gait * .34;
+        elbow.rotation.x = carrying ? -.86 : 0;
       } else if (seated) {
         hip.rotation.x = -1.4;
         knee.rotation.x = 1.36;
@@ -209,17 +216,11 @@ function person(parent, x, z, outfit, behavior, phase = 0) {
 }
 
 function floorMarkings(parent, title) {
-  const carpet = box(parent, mat.rug, 13.8, .014, 4.55, 0, .004, -1.85);
-  carpet.castShadow = false;
-  for (const z of [-4.22, .48, 3.92]) {
-    const line = box(parent, mat.line, 14.15, .012, .035, 0, .01, z);
-    line.castShadow = false;
+  if (title) lettering(parent, title);
+  for (const side of [-1, 1]) {
+    box(parent, mat.felt, .72, .013, .027, side * 7.52, .013, 4.38).castShadow = false;
+    box(parent, mat.felt, .027, .013, .53, side * 7.87, .013, 4.13).castShadow = false;
   }
-  for (let i = -7; i <= 7; i++) {
-    const tick = box(parent, mat.line, .023, .016, i % 5 === 0 ? .21 : .09, i, .015, 3.92);
-    tick.castShadow = false;
-  }
-  lettering(parent, title);
 }
 
 function cabinet(parent, x, z, rotation = 0) {
@@ -272,62 +273,141 @@ function printer(parent, x, z) {
   return stand;
 }
 
-function officeDetails(parent, index) {
-  const edge = index % 2 ? 1 : -1;
-  divider(parent, -4.68, -4.55, 5.55);
-  divider(parent, 3.9, -4.55, 6.03);
-  for (const side of [-1, 1]) {
-    cabinet(parent, side * 6.86, -3.78, side * .15);
-    plant(parent, side * 7.22, .65, side === edge ? .97 : .7);
-    const utility = desk(parent, side * 5.57, 4.76, 2.22, .87);
-    if (side === edge) {
-      monitor(utility, .42, -.12);
-      lamp(utility, -.86, -.10);
-      chair(parent, side * 5.57 + .42, 5.53, Math.PI);
-      mug(utility, .84, .18);
+function officeDetails(parent, index, decorated) {
+  const side = index % 2 ? 1 : -1;
+  const row = index % 4;
+  if (!decorated) {
+    const bench = desk(parent, side * 3.7, -6.43, 2.85, 1.28);
+    monitor(bench, -.51, -.23);
+    if (row === 0) monitor(bench, .51, -.23);
+    else tray(bench, .67, .14);
+    lamp(bench, -1.17, -.25);
+    mug(bench, 1.1, .26);
+    chair(parent, side * 3.7 - .49, -5.37, Math.PI);
+    if (row !== 1) divider(parent, side * 4.3, -7.61, 3.92);
+    plant(parent, -side * 5.88, -6.31, 1.28);
+    if (row === 0 || row === 2) {
+      shelving(parent, -side * 2.95, -7.34);
+      cabinet(parent, -side * 6.35, -7.61);
     } else {
-      tray(utility, -.73, .12);
-      papers(utility, .15, .12);
-      box(utility, mat.woodEdge, .52, .10, .26, .74, .768, -.02);
-      box(utility, mat.ink, .49, .018, .24, .74, .826, -.03);
+      printer(parent, -side * 3.68, -7.50);
+      const huddle = desk(parent, -side * 4.22, -5.79, 2.12, 1.25);
+      papers(huddle, .39, .25);
+      mug(huddle, -.52, -.22);
+      chair(parent, -side * 4.25, -4.85, Math.PI);
     }
   }
-  printer(parent, -edge * 7.27, -1.1);
-  cabinet(parent, edge * 7.04, 4.47, edge * .45);
-  for (let i = 0; i < 3; i++) {
-    const parcel = box(parent, [mat.wood, mat.paper, mat.felt][i], .42 - i * .054, .25 - i * .029, .38 - i * .029,
-      edge * 4.0 + i * .52, .145, -3.91);
-    parcel.rotation.y = (i - 1) * .15;
+
+  for (const edge of [-1, 1]) {
+    plant(parent, edge * 8.62, 6.72, edge === side ? 1.27 : .92);
+    const utility = desk(parent, edge * 8.31, edge === side ? 3.57 : 1.18, 1.8, .89);
+    if (edge === side) {
+      papers(utility, -.28, .13);
+      monitor(utility, .39, -.17);
+      chair(parent, edge * 8.36, 4.43, Math.PI);
+    } else {
+      tray(utility, -.36, .12);
+      box(utility, mat.woodEdge, .51, .10, .27, .38, .763, -.02);
+      box(utility, mat.ink, .49, .018, .24, .38, .821, -.03);
+    }
+    cabinet(parent, edge * 8.39, -1.85, edge * .38);
   }
-  box(parent, mat.ink, .36, .055, .24, 1.52, .035, -.08).castShadow = false;
-  const rear = desk(parent, edge * 1.34, -6.35, 4.05, 1.52);
-  monitor(rear, -.98, -.25);
-  monitor(rear, .62, -.25);
-  tray(rear, 1.53, .18);
-  lamp(rear, -1.72, -.31);
-  mug(rear, .97, .41);
-  chair(parent, edge * 1.34 - 1, -5.2, Math.PI);
-  chair(parent, edge * 1.34 + .63, -5.25, Math.PI);
-  shelving(parent, -4.75, -6.98);
-  plant(parent, 5.36, -6.24, 1.42);
-  cabinet(parent, 6.88, -6.51, -.13);
-  const sideDesk = desk(parent, edge * 3.7, 7.55, 3.05, 1.19);
-  papers(sideDesk, .84, .17);
-  mug(sideDesk, -.32, .19);
-  lamp(sideDesk, -1.12, -.24);
-  chair(parent, edge * 3.7 + .1, 8.47, Math.PI);
-  plant(parent, -edge * 5.78, 7.25, .93);
-  const grate = box(parent, mat.frame, 1.75, .015, .37, -edge * 2.6, .006, 5.38);
+
+  for (let n = 0; n < 3; n++) {
+    const parcel = box(parent, [mat.wood, mat.paper, mat.felt][n], .49 - n * .06, .29 - n * .028, .40 - n * .025,
+      side * 8.53, .145 + n * .22, -4.9 + n * .09);
+    parcel.rotation.y = (n - 1) * .15;
+  }
+  const grate = box(parent, mat.frame, 1.8, .016, .28, side * 8.6, .007, -1.58);
   grate.castShadow = false;
-  for (let i = 0; i < 14; i++) box(parent, mat.ink, .04, .017, .285, -edge * 2.6 - .78 + i * .12, .007, 5.38).castShadow = false;
+  for (let n = 0; n < 13; n++) box(parent, mat.ink, .043, .018, .21, side * 8.6 - .76 + n * .126, .009, -1.58).castShadow = false;
+
+  const actor = person(parent, side * 8.34, -.21, mat.navy, 'gesture', index * .63);
+  const seated = !decorated && person(parent, side * 3.7 - .49, -5.37, mat.jacket, 'type', index * .91);
+  const walker = person(parent, -side * 1.9, 4.65, mat.jacket, 'walk', 1.1 + index * .53);
+  const passerby = person(parent, side * 6.72, 7.11, mat.navy, index % 3 ? 'walk' : 'carry', 2.7 + index * .63);
+  const scanner = new THREE.Group();
+  scanner.userData.dynamic = true;
+  scanner.position.set(-side * 7.14, 0, 5.43);
+  parent.add(scanner);
+  cylinder(scanner, mat.ink, .24, .26, 0, .14, 0);
+  cylinder(scanner, mat.gray, .076, .53, 0, .46, 0);
+  const sensor = new THREE.Group();
+  sensor.position.y = .77;
+  scanner.add(sensor);
+  box(sensor, mat.ink, .44, .19, .22, 0, 0, 0);
+  box(sensor, mat.light, .38, .087, .031, 0, .02, .126);
+  const cart = new THREE.Group();
+  cart.userData.dynamic = true;
+  parent.add(cart);
+  box(cart, mat.ink, .72, .08, .40, 0, .19, 0);
+  box(cart, mat.wood, .66, .24, .34, 0, .35, 0);
+  for (const x of [-.24, .24]) {
+    for (const z of [-.13, .13]) ball(cart, mat.ink, .08, .08, .044, x, .084, z);
+  }
+  const beacon = new THREE.MeshStandardMaterial({ color: '#c6dba0', emissive: '#92b966' });
+  box(cart, beacon, .11, .043, .045, .24, .30, .192);
+  return function animate(time, active) {
+    actor(time, active);
+    if (seated) seated(time, active);
+    walker(time, active);
+    passerby(time, active);
+    sensor.rotation.y = Math.sin(time * .72 + index) * 1.15;
+    const cycle = time * .46 + index * 1.8;
+    cart.position.set(-side * 8.37, 0, 5.28 + Math.sin(cycle) * .72);
+    cart.rotation.y = Math.cos(cycle) < 0 ? Math.PI : 0;
+    beacon.emissiveIntensity = .55 + Math.sin(time * 2.3 + index) * .35;
+  };
 }
 
-function batchFurnishings(parent, interactive) {
+function sharedSpace(parent, index) {
+  const style = index % 3;
+  if (style === 0) {
+    const rug = cylinder(parent, mat.felt, 1, .016, 0, .008, 3.18);
+    rug.scale.x = 4.4;
+    rug.scale.z = 2.55;
+    rug.castShadow = false;
+    const low = desk(parent, 0, 3.21, 3.42, 1.78);
+    low.scale.y = .65;
+    papers(low, .86, .18);
+    mug(low, -.82, .14);
+    tray(low, .11, -.28);
+    for (const side of [-1, 1]) {
+      box(parent, mat.ink, 1.13, .33, 2.65, side * 2.54, .185, 3.15);
+      box(parent, mat.jacket, 1.10, .22, 2.59, side * 2.54, .46, 3.15);
+      box(parent, mat.titleEdge, .23, .67, 2.59, side * 2.98, .67, 3.15);
+      plant(parent, side * 4.19, 5.16, 1.44);
+    }
+  } else if (style === 1) {
+    const island = desk(parent, 0, 3.83, 4.8, 2.28);
+    monitor(island, -1.47, -.61);
+    monitor(island, .03, -.61);
+    monitor(island, 1.45, -.61);
+    papers(island, .84, .52);
+    papers(island, -.56, .62);
+    for (const x of [-1.47, .03, 1.45]) chair(parent, x, 5.41, Math.PI);
+    cabinet(parent, 3.85, 3.25);
+    plant(parent, -3.89, 3.39, 1.33);
+  } else {
+    for (const x of [-2.75, 0, 2.75]) {
+      shelving(parent, x, 1.65);
+      box(parent, mat.line, 1.78, .012, .037, x, .015, 2.8).castShadow = false;
+    }
+    const reading = desk(parent, 0, 5.37, 3.76, 1.40);
+    lamp(reading, -1.38, -.35);
+    papers(reading, .72, .16);
+    tray(reading, .13, -.29);
+    for (const x of [-.88, .87]) chair(parent, x, 6.53, Math.PI);
+    plant(parent, 3.97, 4.15, 1.57);
+  }
+}
+
+function batchFurnishings(parent) {
   parent.updateWorldMatrix(true, true);
   const inverse = parent.matrixWorld.clone().invert();
   const batches = new Map();
   function collect(object) {
-    if (object === interactive || object.userData.dynamic) return;
+    if (object.userData.dynamic) return;
     if (object.isMesh && !Array.isArray(object.material) && !object.material.transparent) {
       const key = [object.geometry.id, object.material.id, object.castShadow, object.receiveShadow].join('/');
       if (!batches.has(key)) batches.set(key, []);
@@ -514,22 +594,45 @@ function postroom(parent) {
 
 const layouts = { about: studio, career: office, projects: workshop, qualifications: lab, education: library, contact: postroom };
 
-export function addDiorama(scene, stops) {
-  return stops.map(({ id, title, position: [x, z] }, index) => {
-    const room = new THREE.Group();
-    room.position.set(x, 0, z);
-    scene.add(room);
-    floorMarkings(room, title);
-    officeDetails(room, index);
-    const { target, actors, ambient, markerHeight = 1.82 } = layouts[id](room);
-    batchFurnishings(room, target);
-    const marker = new THREE.Group();
-    marker.position.copy(target.position);
-    marker.position.y = markerHeight;
-    room.add(marker);
-    box(marker, mat.ink, .27, .27, .27, 0, 0, 0);
-    box(marker, mat.light, .23, .23, .23, 0, .034, .018);
-    marker.rotation.set(.36, .35, Math.PI / 4);
-    return { room, target, actors, ambient, marker, markerHeight };
-  });
+export function addRoom(scene, page, index) {
+  const [x, z] = page.position;
+  const room = new THREE.Group();
+  room.position.set(x, 0, z);
+  scene.add(room);
+  floorMarkings(room, page.first ? page.chapterTitle : '');
+  const detailMotion = officeDetails(room, index, page.first);
+  let exhibit;
+  let corridorMotion;
+  if (page.first) {
+    const layout = new THREE.Group();
+    layout.position.z = -7.35;
+    room.add(layout);
+    exhibit = layouts[page.id](layout);
+  }
+  if (page.title) {
+    floorText(room, page);
+    const below = new THREE.Group();
+    below.position.set(index % 2 ? -.55 : .63, 0, 3.92);
+    below.scale.setScalar(.88);
+    room.add(below);
+    sharedSpace(below, index);
+    const corridor = new THREE.Group();
+    corridor.position.set(index % 2 ? -1.65 : 1.85, 0, 11.25);
+    corridor.scale.setScalar(.92);
+    room.add(corridor);
+    sharedSpace(corridor, index + 1);
+    corridorMotion = person(room, index % 2 ? 2.8 : -2.8, 12.07, mat.jacket, 'carry', index * 1.07);
+  } else {
+    sharedSpace(room, index);
+  }
+  batchFurnishings(room);
+  return {
+    room,
+    animate(time, active) {
+      detailMotion(time, active);
+      corridorMotion?.(time, active);
+      exhibit?.actors.forEach(actor => actor(time, active));
+      exhibit?.ambient?.(time, active);
+    },
+  };
 }

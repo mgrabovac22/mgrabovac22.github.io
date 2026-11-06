@@ -12,7 +12,7 @@ export const profile = {
   email: 'grabovacmarin000@gmail.com',
   linkedin: 'https://www.linkedin.com/in/marin-grabovac-7bb447260/',
   cv: { file: 'files/Marin-Grabovac-CV.pdf' },
-  portrait: { isPlaceholder: true, image: '', drawing: 'art/portrait.svg' },
+  portrait: { image: 'art/marin-portrait.webp', drawing: 'art/portrait.svg' },
 };
 
 export const projects = [

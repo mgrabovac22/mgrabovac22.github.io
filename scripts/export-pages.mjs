@@ -36,4 +36,6 @@ async function syncDirectory(source, destination) {
 for (const directory of ['site-assets', 'art', 'files', 'legal']) {
   await syncDirectory(join(dist, directory), join(root, directory));
 }
-await copyFile(join(dist, 'index.html'), join(root, 'index.html'));
+for (const page of ['index.html', 'hr.html']) {
+  await copyFile(join(dist, page), join(root, page));
+}

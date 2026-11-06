@@ -48,12 +48,27 @@ export async function mountPortrait(host, motion, intro) {
 
   const pen = makePen();
   const paths = [...svg.querySelectorAll('path')];
+  const mask = svgNode('mask', { id: 'portrait-trace', maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: 230, height: 230 });
+  const filter = svgNode('filter', { id: 'portrait-ink-edge', x: '-20%', y: '-20%', width: '140%', height: '140%' });
+  filter.append(svgNode('feGaussianBlur', { stdDeviation: 5 }));
+  const brushLayer = svgNode('g', { fill: 'none', stroke: '#fff', 'stroke-width': 39, 'stroke-linecap': 'round', filter: 'url(#portrait-ink-edge)' });
+  const wash = svgNode('rect', { width: 230, height: 230, fill: '#fff', opacity: 0 });
+  const brushes = paths.map(path => {
+    const brush = svgNode('path', { d: path.getAttribute('d') });
+    brushLayer.append(brush);
+    return brush;
+  });
+  mask.append(brushLayer, wash);
+  const defs = svgNode('defs');
+  defs.append(filter, mask);
+  const photo = svgNode('image', { href: host.dataset.photo, x: 2, y: 2, width: 226, height: 226, mask: 'url(#portrait-trace)' });
+  svg.prepend(defs, photo);
   svg.append(pen);
   fallback.replaceWith(svg);
   let total = 0;
-  const strokes = paths.map(path => {
+  const strokes = paths.map((path, index) => {
     const length = path.getTotalLength();
-    const stroke = { path, start: total, length, dash: path.getAttribute('stroke-dasharray') };
+    const stroke = { path, brush: brushes[index], start: total, length, dash: path.getAttribute('stroke-dasharray') };
     total += length;
     return stroke;
   });
@@ -67,6 +82,8 @@ export async function mountPortrait(host, motion, intro) {
       else path.removeAttribute('stroke-dasharray');
       path.removeAttribute('stroke-dashoffset');
     });
+    wash.setAttribute('opacity', 1);
+    paths[0].parentElement.setAttribute('opacity', .22);
     pose(restX, restY, 27);
     intro.drawingDone = true;
   }
@@ -75,9 +92,11 @@ export async function mountPortrait(host, motion, intro) {
     return;
   }
 
-  strokes.forEach(({ path, length }) => {
-    path.setAttribute('stroke-dasharray', `${length} ${length}`);
-    path.setAttribute('stroke-dashoffset', length);
+  strokes.forEach(({ path, brush, length }) => {
+    for (const line of [path, brush]) {
+      line.setAttribute('stroke-dasharray', `${length} ${length}`);
+      line.setAttribute('stroke-dashoffset', length);
+    }
   });
   pose(restX, restY, 27);
   let elapsed = 0;
@@ -110,6 +129,7 @@ export async function mountPortrait(host, motion, intro) {
     for (const stroke of strokes) {
       const ink = Math.min(stroke.length, Math.max(0, distance - stroke.start));
       stroke.path.setAttribute('stroke-dashoffset', stroke.length - ink);
+      stroke.brush.setAttribute('stroke-dashoffset', stroke.length - ink);
       if (distance < stroke.start + stroke.length) {
         current = stroke;
         break;
@@ -118,6 +138,9 @@ export async function mountPortrait(host, motion, intro) {
     const offset = Math.max(0, Math.min(current.length, distance - current.start));
     const tip = current.path.getPointAtLength(offset);
     const near = current.path.getPointAtLength(Math.min(current.length, offset + 2));
+    const inkWash = Math.max(0, Math.min(1, (elapsed - 3.05) / .87));
+    wash.setAttribute('opacity', inkWash);
+    paths[0].parentElement.setAttribute('opacity', 1 - inkWash * .78);
     const angle = 32 + Math.atan2(near.y - tip.y, near.x - tip.x) * 5;
     if (elapsed < 1.12) {
       const t = Math.min(1, Math.max(0, (elapsed - .28) / .84));
