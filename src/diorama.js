@@ -4,7 +4,8 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import fontData from './world-font.json';
 import { towers } from './data.js';
 import { furnishDetails } from './fixtures.js';
-import { addOfficeCorners, addOfficeScene } from './office-scenes.js';
+import { addOfficeScene } from './office-scenes.js';
+import { addOfficeDistricts } from './office-districts.js';
 import { floorText } from './floor-text.js';
 import { ball, box, cylinder, surface } from './scene.js';
 
@@ -611,7 +612,7 @@ export function addRoom(scene, page, index) {
   scene.add(room);
   floorMarkings(room, page.first ? page.chapterTitle : '');
   const detailMotion = officeDetails(room, page, index);
-  const cornerMotion = page.title ? addOfficeCorners(room, index, person) : null;
+  const districtMotion = page.title ? addOfficeDistricts(room, index, person) : null;
   let exhibit;
   let activity;
   const giant = page.id === 'projects'
@@ -641,7 +642,7 @@ export function addRoom(scene, page, index) {
     room,
     animate(time, active) {
       detailMotion(time, active);
-      cornerMotion?.(time);
+      districtMotion?.(time);
       activity?.(time, active);
       if (giant) {
         if (active) arrivedAt ??= time;

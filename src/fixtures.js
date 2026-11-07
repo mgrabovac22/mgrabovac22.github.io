@@ -157,7 +157,7 @@ const catalog = [coffee, servers, workshop, copier, terrarium, bench, signage, f
 export function furnishDetails(parent, index, branch) {
   const places = branch
     ? [[-3.8, -1.9], [3.3, .2], [-.6, -4.9], [2.0, 6.4]]
-    : [[-6.6, 6.4], [7.0, -5.85], [-6.25, -6.75], [5.65, 12.6], [-7.6, 2.6]];
+    : [[-6.6, 6.4], [7.0, -5.85], [-6.25, -6.75], [5.65, 12.6], [-10.25, 2.6]];
   const updates = [];
   places.forEach(([x, z], slot) => {
     const design = (index * 3 + slot * 5 + Math.floor(index / 4)) % catalog.length;
