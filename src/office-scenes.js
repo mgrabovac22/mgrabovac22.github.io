@@ -10,6 +10,11 @@ const amber = surface('#bd9461');
 const paper = surface('#e6e8df');
 const teal = new THREE.MeshBasicMaterial({ color: '#95cabc' });
 const gold = new THREE.MeshBasicMaterial({ color: '#e8bb73' });
+const linen = surface('#a3ada5');
+const oat = surface('#b6ad98');
+const clearTube = new THREE.MeshStandardMaterial({
+  color: '#aecdc6', transparent: true, opacity: .21, roughness: .33, depthWrite: false,
+});
 
 function group(parent, x, z, rotation = 0) {
   const item = new THREE.Group();
@@ -240,5 +245,207 @@ export function addOfficeScene(parent, page, index, person) {
     ambient(local);
     extra?.(local);
     for (const actor of actors) actor(local, active);
+  };
+}
+
+const cycle = (time, period) => (time % period) / period;
+const ease = THREE.MathUtils.smoothstep;
+
+function scheduleWall(parent, person) {
+  for (const x of [-1.79, 1.79]) box(parent, metal, .067, 1.53, .076, x, .77, -.53);
+  box(parent, ink, 3.62, .92, .11, 0, 1.02, -.52);
+  box(parent, metal, 3.61, .065, .16, 0, 1.49, -.52);
+  const tiles = Array.from({ length: 6 }, (_, i) => {
+    const tile = moving(group(parent, (i % 3 - 1) * 1.13, -.435));
+    tile.position.y = i < 3 ? 1.19 : .81;
+    box(tile, i % 3 ? fabric : amber, .94, .27, .041, 0, 0, 0);
+    box(tile, i % 2 ? amber : green, .94, .27, .035, 0, 0, -.025);
+    for (const side of [-1, 1]) {
+      box(tile, paper, .44, .023, .011, -.13, .046, side * .031);
+      box(tile, pale, .29, .019, .011, -.20, -.042, side * .031);
+      box(tile, side === 1 ? teal : gold, .068, .074, .013, .32, .005, side * .032).castShadow = false;
+    }
+    return tile;
+  });
+  const clerk = person(parent, -1.15, .48, fabric, 'present', 1.8, { facing: 2.72 });
+  return time => {
+    tiles.forEach((tile, i) => {
+      const turn = (time + i * .36) % 9;
+      tile.rotation.y = Math.PI * (ease(turn, 1.2, 1.76) + ease(turn, 5.8, 6.36));
+    });
+    clerk(time, true);
+  };
+}
+
+const tubePath = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-1.67, .64, -.38), new THREE.Vector3(-1.67, 1.39, -.38),
+  new THREE.Vector3(-1.24, 1.66, -.38), new THREE.Vector3(1.24, 1.66, -.38),
+  new THREE.Vector3(1.67, 1.39, -.38), new THREE.Vector3(1.67, .64, -.38),
+]);
+const tubeGeometry = new THREE.TubeGeometry(tubePath, 40, .092, 10, false);
+const vertical = new THREE.Vector3(0, 1, 0);
+
+function pneumaticMail(parent, person) {
+  for (const x of [-1.67, 1.67]) {
+    box(parent, ink, .62, .65, .53, x, .34, -.38);
+    box(parent, pale, .65, .075, .58, x, .665, -.38);
+    box(parent, amber, .42, .135, .022, x, .43, -.103);
+    box(parent, metal, .10, 1.36, .10, x, .70, -.57);
+  }
+  box(parent, metal, 3.08, .092, .106, 0, 1.64, -.54);
+  parent.add(new THREE.Mesh(tubeGeometry, clearTube));
+  const capsule = moving(group(parent, 0, 0));
+  cylinder(capsule, amber, .068, .253, 0, 0, 0);
+  cylinder(capsule, gold, .07, .051, 0, .096, 0).castShadow = false;
+  cylinder(capsule, metal, .070, .042, 0, -.108, 0);
+  const reader = person(parent, .99, .56, fabric, 'gesture', 2.4, { facing: 2.76 });
+  const direction = new THREE.Vector3();
+  return time => {
+    const phase = time % 10;
+    const progress = ease(phase, 1, 4.5) - ease(phase, 6.1, 9.5);
+    tubePath.getPointAt(progress, capsule.position);
+    tubePath.getTangentAt(progress, direction);
+    capsule.quaternion.setFromUnitVectors(vertical, direction);
+    reader(time, phase > 3.5 && phase < 7);
+  };
+}
+
+const fiberPath = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-1.02, 1.34, .17), new THREE.Vector3(-.51, 1.39, .18),
+  new THREE.Vector3(-.31, .92, .21), new THREE.Vector3(.25, .83, .25),
+  new THREE.Vector3(.77, 1.06, .18), new THREE.Vector3(1.07, 1.32, .15),
+]);
+const fiberGeometry = new THREE.TubeGeometry(fiberPath, 25, .023, 6, false);
+
+function networkBench(parent) {
+  const lamps = [];
+  for (const x of [-1.02, 1.02]) {
+    box(parent, ink, .85, 1.42, .67, x, .725, -.21);
+    box(parent, metal, .91, .055, .74, x, 1.445, -.21);
+    for (let i = 0; i < 4; i++) {
+      const y = .40 + i * .23;
+      box(parent, fabric, .68, .153, .032, x, y, .13);
+      box(parent, ink, .30, .058, .016, x - .11, y, .152);
+      const led = moving(box(parent, i % 3 ? teal : gold, .054, .037, .023, x + .24, y, .159));
+      led.castShadow = false;
+      lamps.push(led);
+    }
+  }
+  parent.add(new THREE.Mesh(fiberGeometry, metal));
+  const pulse = moving(ball(parent, teal, .054, .054, .054, 0, 0, 0));
+  pulse.castShadow = false;
+  const station = table(parent, 0, .47, 1.10, .58);
+  box(station, ink, .49, .04, .28, 0, .75, 0);
+  box(station, teal, .30, .016, .17, -.043, .78, -.014).castShadow = false;
+  return time => {
+    const progress = cycle(time, 3.5);
+    fiberPath.getPointAt(progress, pulse.position);
+    lamps.forEach((led, i) => { led.scale.x = .055 * (i < 4 ? .68 + .32 * Math.sin(time * 2.4 + i) : .65 + .35 * Math.cos(time * 2.9 + i)); });
+  };
+}
+
+function printFinisher(parent, person) {
+  const bench = table(parent, 0, -.11, 4.26, 1.28);
+  box(bench, ink, 2.83, .052, .83, .32, .738, 0);
+  for (let i = 0; i < 15; i++) {
+    cylinder(bench, i % 4 === 0 ? amber : metal, .035, .78, -.97 + i * .182, .771, 0).rotation.x = Math.PI / 2;
+  }
+  box(bench, fabric, .94, .67, 1.04, -1.60, .94, 0);
+  box(bench, paper, .98, .075, 1.09, -1.60, 1.304, 0);
+  box(bench, ink, .024, .061, .60, -1.119, .813, 0);
+  box(bench, teal, .14, .054, .025, -1.34, 1.121, .534);
+  for (const z of [-.39, .39]) box(bench, metal, .073, .37, .059, .54, .975, z);
+  box(bench, ink, .30, .105, .85, .54, 1.157, 0);
+  const scanner = moving(box(bench, gold, .052, .058, .20, .54, 1.077, -.33));
+  scanner.castShadow = false;
+  const sheets = Array.from({ length: 3 }, (_, i) => {
+    const sheet = moving(group(bench, -1.13, 0));
+    box(sheet, paper, .32, .016, .57, 0, 0, 0);
+    box(sheet, i % 2 ? green : amber, .12, .008, .29, .036, .012, -.072);
+    box(sheet, metal, .17, .008, .03, -.025, .013, .146);
+    return sheet;
+  });
+  const operator = person(parent, 1.55, .87, fabric, 'gesture', 1.25, { facing: 2.41 });
+  return time => {
+    scanner.position.z = Math.sin(time * 2.1) * .33;
+    sheets.forEach((sheet, i) => {
+      const progress = cycle(time + i * 2.26, 6.8);
+      sheet.position.set(THREE.MathUtils.lerp(-1.10, 1.74, ease(progress, .01, .88)),
+        .816 + Math.sin(Math.PI * progress) * .028, 0);
+      sheet.visible = progress < .93;
+    });
+    operator(time, true);
+  };
+}
+
+function standingDesk(parent, person) {
+  for (const x of [-1.25, 1.25]) {
+    box(parent, metal, .09, .86, .17, x, .44, -.23);
+    box(parent, ink, .16, .072, .86, x, .051, -.23);
+  }
+  const lift = moving(group(parent, 0, -.23));
+  box(lift, paper, 3.08, .081, 1.05, 0, 0, 0);
+  box(lift, metal, 2.77, .076, .66, 0, -.084, 0);
+  for (const x of [-1.25, 1.25]) box(lift, ink, .057, .48, .102, x, -.29, 0);
+  box(lift, ink, .83, .49, .075, -.57, .357, -.27);
+  box(lift, fabric, .75, .40, .017, -.57, .365, -.223);
+  box(lift, teal, .39, .025, .018, -.68, .363, -.211).castShadow = false;
+  box(lift, metal, .055, .195, .059, -.57, .149, -.296);
+  box(lift, ink, .59, .03, .22, -.53, .058, .155);
+  box(lift, amber, .40, .038, .29, .71, .059, .015).rotation.y = .18;
+  box(lift, gold, .088, .029, .022, 1.08, -.051, .535).castShadow = false;
+  const visitor = person(parent, .77, .72, green, 'gesture', 1.86, { facing: 2.97 });
+  stool(parent, -1.07, .72);
+  return time => {
+    const phase = time % 11;
+    lift.position.y = .73 + .43 * (ease(phase, 1, 3.9) - ease(phase, 7.3, 9.8));
+    visitor(time, phase > 1 && phase < 4);
+  };
+}
+
+function telepresence(parent, person) {
+  box(parent, pale, 3.35, .083, .42, 0, .48, -.77);
+  for (const x of [-1.40, 1.40]) box(parent, metal, .09, .45, .33, x, .24, -.77);
+  for (const x of [-1.07, .96]) box(parent, amber, .32, .027, .22, x, .539, -.77);
+  for (let i = 0; i < 9; i++) {
+    box(parent, metal, .22, .018, .045, (i - 4) * .37, .035, -.29).castShadow = false;
+  }
+  const cart = moving(group(parent, 0, -.26));
+  cylinder(cart, ink, .24, .126, 0, .08, 0);
+  cylinder(cart, pale, .22, .075, 0, .174, 0);
+  cylinder(cart, metal, .046, .71, 0, .53, 0);
+  box(cart, ink, .42, .30, .095, 0, .983, .012);
+  box(cart, fabric, .35, .243, .021, 0, .984, .073);
+  ball(cart, teal, .069, .073, .024, 0, 1.022, .083).castShadow = false;
+  box(cart, teal, .16, .038, .023, 0, .935, .085).castShadow = false;
+  box(cart, gold, .085, .035, .04, 0, .169, .213).castShadow = false;
+  const host = person(parent, 1.28, .74, green, 'gesture', 1.72, { facing: -2.73 });
+  const guest = person(parent, -1.41, .72, fabric, 'gesture', 2.64, { facing: 2.86 });
+  return time => {
+    const phase = time % 13;
+    const trip = ease(phase, 1.5, 5.5) - ease(phase, 7.9, 12.3);
+    cart.position.set(THREE.MathUtils.lerp(-1.51, 1.51, trip), 0, -.33 + Math.sin(Math.PI * trip) * .40);
+    cart.rotation.y = THREE.MathUtils.lerp(.49, -.48, trip);
+    host(time, trip > .66);
+    guest(time, trip < .35);
+  };
+}
+
+const upperDetails = [scheduleWall, pneumaticMail, networkBench];
+const lowerDetails = [printFinisher, standingDesk, telepresence];
+
+export function addOfficeInfill(room, page, index, person) {
+  const upperX = page.links.length ? 6.15 : page.first || index % 2 === 0 ? 2.75 : -2.84;
+  const upper = group(room, upperX, -9.25, .025);
+  upper.scale.setScalar(page.links.length ? .81 : .9);
+  const lower = group(room, index % 2 ? -.34 : .38, 6.87, -.035);
+  const upperPad = box(upper, linen, 4.18, .023, 1.96, 0, .014, 0);
+  const lowerPad = box(lower, oat, 4.79, .024, 2.43, 0, .014, 0);
+  upperPad.castShadow = lowerPad.castShadow = false;
+  const upperMotion = upperDetails[(index + page.chapter) % upperDetails.length](upper, person);
+  const lowerMotion = lowerDetails[(index * 2 + page.chapter) % lowerDetails.length](lower, person);
+  return time => {
+    upperMotion(time + index * .76 + .8);
+    lowerMotion(time + index * 1.15 + 1.7);
   };
 }

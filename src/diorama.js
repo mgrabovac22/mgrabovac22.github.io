@@ -4,7 +4,7 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import fontData from './world-font.json';
 import { towers } from './data.js';
 import { furnishDetails } from './fixtures.js';
-import { addOfficeScene } from './office-scenes.js';
+import { addOfficeInfill, addOfficeScene } from './office-scenes.js';
 import { addOfficeDistricts } from './office-districts.js';
 import { floorText } from './floor-text.js';
 import { ball, box, cylinder, surface } from './scene.js';
@@ -354,7 +354,7 @@ function officeDetails(parent, page, index) {
     actors.push(person(parent, side * 1.9 - .34, -5.35, mat.jacket, 'type', index * .91));
   }
   if (!branch) {
-    actors.push(person(parent, -side * 3.4, 6.21, mat.jacket, 'walk', 1.1 + index * .53, { stride: 1.7 }));
+    actors.push(person(parent, -side * 4.0, 6.21, mat.jacket, 'walk', 1.1 + index * .53, { stride: 1.1 }));
     actors.push(person(parent, side * 7.7, 7.91, mat.navy, index % 3 ? 'walk' : 'carry', 2.7 + index * .63));
     plant(parent, -side * 8.28, 7.23, 1.22);
     if (index % 3 === 0) divider(parent, side * 4.1, 9.24, 4.64);
@@ -614,6 +614,7 @@ export function addRoom(scene, page, index) {
   floorMarkings(room, page.first ? page.chapterTitle : '');
   const detailMotion = officeDetails(room, page, index);
   const districtMotion = page.title ? addOfficeDistricts(room, page, index, person) : null;
+  const infillMotion = page.title ? addOfficeInfill(room, page, index, person) : null;
   let exhibit;
   let activity;
   let panel;
@@ -648,6 +649,7 @@ export function addRoom(scene, page, index) {
     animate(time, active) {
       detailMotion(time, active);
       districtMotion?.(time);
+      infillMotion?.(time);
       activity?.(time, active);
       if (giant) {
         if (active) arrivedAt ??= time;
