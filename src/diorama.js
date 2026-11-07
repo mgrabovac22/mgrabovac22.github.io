@@ -617,7 +617,7 @@ export function addRoom(scene, page, index) {
   let exhibit;
   let activity;
   let panel;
-  const giant = page.id === 'projects'
+  const giant = page.first && page.chapterId === 'projects'
     ? person(room, 0, -14.1, mat.gray, 'carry', 0, { scale: 5.7, stride: 20, pace: .32, beat: 3.5 })
     : null;
   let arrivedAt = null;
@@ -626,7 +626,7 @@ export function addRoom(scene, page, index) {
     layout.position.set(-4.72, 0, -9.65);
     layout.scale.setScalar(.80);
     room.add(layout);
-    exhibit = layouts[page.id](layout, page);
+    exhibit = layouts[page.chapterId](layout, page);
   }
   if (page.title) {
     panel = floorText(room, page);

@@ -2,7 +2,7 @@ import './style.css';
 import './studio.css';
 import './world.css';
 import { mountPortrait } from './portrait.js';
-import { createStory } from './story.js';
+import { createStory, storyIndexForHash } from './story.js';
 import { loadPortfolio, localAsset } from './portfolio.js';
 import { contentCards, heroActions, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
 import { studioDispatch } from './studio.js';
@@ -37,7 +37,7 @@ function refreshPortfolio() {
   setAttribute('.cv-control', 'href', localAsset(profile.cv.file));
   setAttribute('.portrait-fallback', 'src', localAsset(profile.portrait.image));
   setAttribute('.portrait-fallback', 'alt', t.portrait);
-  document.querySelector('.studio-dispatch').outerHTML = studioDispatch(t.studio);
+  document.querySelector('.studio-dispatch').outerHTML = studioDispatch(locale);
   document.querySelector('.stops').innerHTML = contentCards(pages);
   document.querySelector('.pin-layer').innerHTML = mapPins(pages);
   setText('.skip-link', t.skip);
@@ -247,7 +247,7 @@ function openLevel(index, trigger) {
   }
 }
 
-const levelFromHash = () => pages.findIndex(page => '#' + page.id === location.hash);
+const levelFromHash = () => storyIndexForHash(pages, location.hash);
 function followLocation() {
   const index = levelFromHash();
   if (index >= 0) openLevel(index);
@@ -282,7 +282,7 @@ for (const link of document.querySelectorAll('.hero-actions a[href^="#"]')) {
   link.addEventListener('click', event => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const hash = link.getAttribute('href');
-    const index = pages.findIndex(page => '#' + page.id === hash);
+    const index = storyIndexForHash(pages, hash);
     if (index < 0) return;
     event.preventDefault();
     history.pushState(null, '', hash);

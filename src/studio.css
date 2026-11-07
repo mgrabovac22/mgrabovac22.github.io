@@ -26,7 +26,7 @@
 }
 .studio-pass { inset: 0; }
 .studio-paper { --grip: 54px; --pass-time: var(--paper-time); --pass-start: var(--wave-time); --incoming: calc(-1 * var(--travel)); --outgoing: var(--travel); --tilt: -8deg; --untilt: 8deg; }
-.studio-card { --grip: 49px; --pass-time: var(--card-time); --pass-start: calc(var(--wave-time) + var(--paper-time) + .25s); --incoming: var(--travel); --outgoing: calc(-1 * var(--travel)); --tilt: 8deg; --untilt: -8deg; }
+.studio-card { --card-width: 158px; --grip: calc(var(--card-width) / 2 - 11px); --pass-time: var(--card-time); --pass-start: calc(var(--wave-time) + var(--paper-time) + .25s); --incoming: var(--travel); --outgoing: calc(-1 * var(--travel)); --tilt: 8deg; --untilt: -8deg; }
 .studio-grip { position: absolute; width: var(--reach); height: 100%; top: 0; z-index: 1; filter: drop-shadow(0 5px 4px #2b483e29); }
 .grip-left { --offstage: calc(-1 * var(--travel)); right: calc(50% + var(--grip)); }
 .grip-right { --offstage: var(--travel); left: calc(50% + var(--grip)); transform: scaleX(-1); }
@@ -50,14 +50,16 @@
   font: 800 9px/1 sans-serif; rotate: -12deg;
 }
 .studio-card .studio-prop {
-  width: 121px; color: #3c3929; padding-left: 32px; border: 1px solid #ae9467; border-radius: 6px;
-  background: linear-gradient(138deg, #f7e5a8, #d9bc7c 65%, #d4aa68); box-shadow: inset 0 1px #fff5cc, 0 5px 10px #344f3f3f;
+  width: var(--card-width); padding: 6px 7px 5px 29px; color: #f8f3e5; border: 1px solid #889e83; border-radius: 3px;
+  background: linear-gradient(138deg, #375d4e, #203b31 68%, #172d24); box-shadow: inset 0 1px #d9e4b855, 0 5px 10px #344f3f50;
 }
 .studio-card .studio-prop::before {
   content: ''; position: absolute; top: 10px; left: 8px; width: 16px; height: 16px;
   background: url('/art/mark.svg') center / contain no-repeat;
 }
-.studio-card .studio-prop span { color: #58482f; }
+.studio-card .studio-prop :is(b, small) { overflow: hidden; text-overflow: ellipsis; }
+.studio-card .studio-prop small { font-size: .51rem; color: #e0eada; }
+.studio-card .studio-prop span { color: #e7cb91; text-transform: uppercase; }
 
 @media (prefers-reduced-motion: no-preference) {
   .js-ready .studio-dispatch:not(.studio-playing, .studio-complete) .studio-welcome { visibility: hidden; }

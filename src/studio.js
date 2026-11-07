@@ -69,21 +69,22 @@ export function deliveryHand(side) {
   return `<svg class="delivery-hand ${side}-hand" viewBox="0 0 570 195" aria-hidden="true" focusable="false"><use href="#studio-carry"/></svg>`;
 }
 
-function pass(style, label, note, serial) {
+function pass(style, label, note, footer) {
   return `<div class="studio-pass ${style}">
-    <div class="studio-prop"><b>${escape(label)}</b><small>${escape(note)}</small><span>${serial}</span></div>
+    <div class="studio-prop"><b>${escape(label)}</b><small>${escape(note)}</small><span>${escape(footer)}</span></div>
     <svg class="studio-grip grip-left" viewBox="0 35 570 150" preserveAspectRatio="xMaxYMid slice" focusable="false"><use href="#studio-grip"/></svg>
     <svg class="studio-grip grip-right" viewBox="0 35 570 150" preserveAspectRatio="xMaxYMid slice" focusable="false"><use href="#studio-grip"/></svg>
   </div>`;
 }
 
-export function studioDispatch(copy) {
+export function studioDispatch({ profile, t }) {
+  const copy = t.studio;
   return `<div class="studio-dispatch" aria-hidden="true">
     <div class="studio-track">
       <div class="studio-welcome"><span></span>${escape(copy.welcome)}<span></span></div>
       <svg class="studio-wave" viewBox="0 0 125 150" focusable="false"><use href="#studio-wave"/></svg>
       ${pass('studio-paper', copy.paperTitle, copy.paperNote, 'MG / 01')}
-      ${pass('studio-card', copy.cardTitle, copy.cardNote, 'MG / 02')}
+      ${pass('studio-card', profile.name, profile.role, copy.businessCard)}
     </div>
   </div>`;
 }

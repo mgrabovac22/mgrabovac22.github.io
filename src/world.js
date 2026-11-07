@@ -131,7 +131,7 @@ export async function prepareOffice(pages) {
     });
     built.animate(0, false);
     // Leave room for movement and shadows around the visible objects.
-    const bounds = new THREE.Box3().setFromObject(built.room).expandByScalar(page.id === 'projects' ? 17 : 5);
+    const bounds = new THREE.Box3().setFromObject(built.room).expandByScalar(page.first && page.chapterId === 'projects' ? 17 : 5);
     cells.push({ page, ...built, pins, bounds });
   }
   return { scene, cells, first, last };

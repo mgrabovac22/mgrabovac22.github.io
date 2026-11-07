@@ -823,8 +823,7 @@
         "welcome": "Welcome",
         "paperTitle": "Project handoff",
         "paperNote": "Project brief",
-        "cardTitle": "Studio",
-        "cardNote": "Access pass"
+        "businessCard": "Business card"
       },
       "drive": {
         "back": "Portfolio",
@@ -898,8 +897,7 @@
         "welcome": "Dobro došli",
         "paperTitle": "Primopredaja",
         "paperNote": "Projektni sažetak",
-        "cardTitle": "Studio",
-        "cardNote": "Propusnica"
+        "businessCard": "Posjetnica"
       },
       "drive": {
         "back": "Portfolio",

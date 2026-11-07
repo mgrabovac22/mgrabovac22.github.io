@@ -71,7 +71,7 @@ export function renderSite(html, context, source) {
       <a href="#home" class="wordmark" aria-label="${name}"><img src="/art/mark.svg" alt="" width="33" height="33"><span>${name}</span></a>
       <div class="header-actions">${localeLink}${external({ href: localAsset(profile.cv.file), label: t.cv, download: true }, 'cv-control', `<span>${escape(t.cv)}</span>${icon('download')}`)}</div>
     </header>
-    ${studioDispatch(t.studio)}
+    ${studioDispatch(data)}
     <main id="main" tabindex="-1">
       <section class="hero shell" id="home" aria-labelledby="hero-title">
         <h1 id="hero-title" class="sr-only">${name}</h1>

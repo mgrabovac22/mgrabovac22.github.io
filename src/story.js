@@ -2,6 +2,11 @@ import { localAsset, safeLink } from './portfolio.js';
 
 export const routeStep = [18.3, 11.8];
 
+export function storyIndexForHash(pages, hash) {
+  const id = hash.slice(1);
+  return pages.findIndex(page => page.id === id || page.entryId === id);
+}
+
 export function createStory(data) {
   const { profile, t } = data;
   const website = item => safeLink(item.website);
@@ -44,12 +49,14 @@ export function createStory(data) {
   const route = data.stops.flatMap((stop, chapter) => {
     const entries = pages[stop.id].length ? pages[stop.id] : [{ title: stop.title, body: stop.description }];
     return entries.map((page, index) => ({
-      ...page, chapter, chapterTitle: stop.title, district: stop.place, first: index === 0,
+      ...page, chapter, chapterId: stop.id, chapterTitle: stop.title, district: stop.place, first: index === 0,
       id: index === 0 ? stop.id : page.id,
+      entryId: index === 0 && page.id !== stop.id ? page.id : undefined,
       links: (page.links || []).filter(action => safeLink(action.href)),
       index: index + 1, total: entries.length,
     }));
   });
-  if (new Set(route.map(page => page.id)).size !== route.length) throw new Error('Portfolio story IDs must be unique.');
+  const routeIds = route.flatMap(page => page.entryId ? [page.id, page.entryId] : [page.id]);
+  if (new Set(routeIds).size !== routeIds.length) throw new Error('Portfolio story IDs must be unique.');
   return route.map((page, index) => ({ ...page, position: routeStep.map(step => step * index) }));
 }
