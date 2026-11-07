@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createStory } from './story.js';
 import { getLocale, localAsset } from './portfolio.js';
-import { contentCards, escape, external, heroActions, icon, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
+import { chapterLinks, contentCards, escape, external, heroActions, icon, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
 import { deliveryHand, studioArtwork, studioDispatch } from './studio.js';
 
 function laptop(data) {
@@ -86,8 +86,13 @@ export function renderSite(html, context, source) {
           </svg>
           ${laptop(data)}
           <div class="portrait" id="portrait">
+            <svg class="portrait-filter" width="0" height="0" aria-hidden="true" focusable="false">
+              <filter id="portrait-sharpen" color-interpolation-filters="sRGB">
+                <feConvolveMatrix order="3" kernelMatrix="0 -.18 0 -.18 1.72 -.18 0 -.18 0" edgeMode="duplicate" preserveAlpha="true"/>
+              </filter>
+            </svg>
             <span class="portrait-marker mono" aria-hidden="true">MG / 01 <b>+</b></span>
-            <img src="/${escape(profile.portrait.image)}" alt="${escape(t.portrait)}" class="portrait-fallback" width="400" height="400" fetchpriority="high">
+            <img src="/${escape(profile.portrait.image)}" alt="${escape(t.portrait)}" class="portrait-fallback portrait-photo" width="400" height="400" fetchpriority="high">
             <template>${portraitInk}</template>
             ${deliveryHand('portrait')}
           </div>
@@ -105,8 +110,12 @@ export function renderSite(html, context, source) {
       <div class="hud-left">
         <button class="world-close" type="button" id="world-close" aria-label="${escape(t.close)}" title="${escape(t.close)}" autofocus hidden>${icon('close')}</button>
         ${localeLink}
+        <details class="chapter-picker">
+          <summary class="chapter-toggle mono" aria-label="${escape(t.sections)}"><span id="chapter-name">${escape(story[0].chapterTitle)}</span>${icon('chevron')}</summary>
+          <nav class="chapter-menu" aria-label="${escape(t.sections)}"><ul>${chapterLinks(data.stops)}</ul></nav>
+        </details>
       </div>
-      <div class="hud-index mono" aria-hidden="true"><span id="district-name"></span><span id="world-counter">01 / ${story.length}</span></div>
+      <div class="hud-index mono" aria-hidden="true"><span id="world-counter">01 / ${story.length}</span></div>
     </div>
     <div class="world-scroll" id="world-scroll" tabindex="0" role="region" aria-label="${escape(t.region)}">
       <h2 class="sr-only" id="world-title">${escape(t.world)}</h2>

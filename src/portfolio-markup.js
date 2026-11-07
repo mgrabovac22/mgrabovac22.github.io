@@ -4,6 +4,7 @@ const icons = {
   diagonal: '<path d="M4 12 12 4M5 4h7v7"/>',
   down: '<path d="M8 3v10m-4-4 4 4 4-4"/>',
   up: '<path d="M8 13V3m-4 4 4-4 4 4"/>',
+  chevron: '<path d="m4 6 4 4 4-4"/>',
   download: '<path d="M8 2.5v7m-3-3 3 3 3-3M3 10.5v2.8h10v-2.8"/>',
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
   wheel: '<circle cx="8" cy="8" r="5.4"/><path d="m3 7 5 1.7L13 7M8 8.7v4.7"/>',
@@ -67,6 +68,8 @@ export function heroActions({ language, t, stops }) {
     ${link(t.explore, language === 'hr' ? './drive.html?lang=hr' : './drive.html', 'wheel', 'hero-primary drive-link')}
     ${stops.filter(stop => !['about', 'contact'].includes(stop.id)).map(stop => link(stop.title, '#' + stop.id)).join('')}`;
 }
+
+export const chapterLinks = stops => stops.map(stop => `<li>${link(stop.title, '#' + stop.id, 'diagonal', 'chapter-link')}</li>`).join('');
 
 export const contentCards = story => story.map(contentCard).join('');
 export const mapPins = story => story.flatMap(page => page.links.map((action, index) =>

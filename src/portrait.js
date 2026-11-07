@@ -26,7 +26,7 @@ export function mountPortrait(host, motion, intro, onComplete) {
   svg.classList.add('portrait-ink');
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', fallback.alt);
-  const drawing = svgNode('g');
+  const drawing = svgNode('g', { class: 'portrait-lines' });
   drawing.append(...paths);
   svg.append(drawing);
 
@@ -44,14 +44,14 @@ export function mountPortrait(host, motion, intro, onComplete) {
   mask.append(brushLayer, wash);
   const defs = svgNode('defs');
   defs.append(filter, mask);
-  const photo = svgNode('image', { href: fallback.src, x: 2, y: 2, width: 226, height: 226, mask: 'url(#portrait-trace)' });
+  const photo = svgNode('image', { class: 'portrait-photo', href: fallback.src, x: 2, y: 2, width: 226, height: 226, mask: 'url(#portrait-trace)' });
   svg.prepend(defs, photo);
   svg.append(pen);
   fallback.replaceWith(svg);
   let total = 0;
   const strokes = paths.map((path, index) => {
     const length = path.getTotalLength();
-    const stroke = { path, brush: brushes[index], start: total, length, dash: path.getAttribute('stroke-dasharray') };
+    const stroke = { path, brush: brushes[index], start: total, length };
     total += length;
     return stroke;
   });
@@ -60,13 +60,8 @@ export function mountPortrait(host, motion, intro, onComplete) {
   const restY = box.y + box.height * .94;
   const pose = (x, y, angle) => pen.setAttribute('transform', `translate(${x} ${y}) rotate(${angle}) scale(${box.width / 230})`);
   function finish() {
-    strokes.forEach(({ path, dash }) => {
-      if (dash) path.setAttribute('stroke-dasharray', dash);
-      else path.removeAttribute('stroke-dasharray');
-      path.removeAttribute('stroke-dashoffset');
-    });
-    wash.setAttribute('opacity', 1);
-    paths[0].parentElement.setAttribute('opacity', .22);
+    drawing.setAttribute('opacity', '0');
+    photo.removeAttribute('mask');
     pose(restX, restY, 27);
     intro.drawingDone = true;
     onComplete();
@@ -124,7 +119,7 @@ export function mountPortrait(host, motion, intro, onComplete) {
     const near = current.path.getPointAtLength(Math.min(current.length, offset + 2));
     const inkWash = Math.max(0, Math.min(1, (elapsed - 2.50) / .62));
     wash.setAttribute('opacity', inkWash);
-    paths[0].parentElement.setAttribute('opacity', 1 - inkWash * .78);
+    drawing.setAttribute('opacity', 1 - inkWash);
     const angle = 32 + Math.atan2(near.y - tip.y, near.x - tip.x) * 5;
     if (elapsed < .93) {
       const t = Math.min(1, Math.max(0, (elapsed - .52) / .41));

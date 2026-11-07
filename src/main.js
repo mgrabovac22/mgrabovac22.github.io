@@ -4,7 +4,7 @@ import './world.css';
 import { mountPortrait } from './portrait.js';
 import { createStory, storyIndexForHash } from './story.js';
 import { loadPortfolio, localAsset } from './portfolio.js';
-import { contentCards, heroActions, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
+import { chapterLinks, contentCards, heroActions, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
 import { studioDispatch } from './studio.js';
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -19,6 +19,7 @@ const loaded = await loadPortfolio(root.lang).then(data => ({ data, pages: creat
 const locale = loaded?.data ?? snapshot;
 const pages = loaded?.pages ?? createStory(snapshot);
 const { t } = locale;
+const sectionMenuLabel = t.sections ?? snapshot.t.sections;
 
 function refreshPortfolio() {
   const { profile } = locale;
@@ -40,6 +41,8 @@ function refreshPortfolio() {
   document.querySelector('.studio-dispatch').outerHTML = studioDispatch(locale);
   document.querySelector('.stops').innerHTML = contentCards(pages);
   document.querySelector('.pin-layer').innerHTML = mapPins(pages);
+  document.querySelector('.chapter-menu ul').innerHTML = chapterLinks(locale.stops);
+  setAttribute('.chapter-menu', 'aria-label', sectionMenuLabel);
   setText('.skip-link', t.skip);
   setText('#skip-intro', t.skipIntro);
   setText('#read-mode', t.read);
@@ -61,7 +64,11 @@ const stage = document.querySelector('#world-stage');
 const viewport = document.querySelector('#world-viewport');
 const sections = pages.map(page => document.getElementById(page.id));
 const counter = document.querySelector('#world-counter');
-const district = document.querySelector('#district-name');
+const chapterPicker = world.querySelector('.chapter-picker');
+const chapterToggle = chapterPicker.querySelector('summary');
+const chapterName = chapterPicker.querySelector('#chapter-name');
+const chapterOptions = new Map([...chapterPicker.querySelectorAll('a')].map(link => [link.hash, link]));
+let activeChapter;
 const languageLink = world.querySelector('.language-control');
 const alternateUrl = new URL(languageLink.href);
 const closeButton = document.querySelector('#world-close');
@@ -89,23 +96,41 @@ for (const page of pages) {
 function setIndex(index) {
   if (index !== route.index && document.activeElement?.classList.contains('map-pin')) scroller.focus({ preventScroll: true });
   route.index = index;
+  const { chapterId, chapterTitle, id } = pages[index];
   counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + pages.length;
-  district.textContent = pages[index].district;
-  alternateUrl.hash = pages[index].id;
+  const option = chapterOptions.get('#' + chapterId);
+  if (option !== activeChapter) {
+    chapterName.textContent = chapterTitle;
+    chapterToggle.setAttribute('aria-label', sectionMenuLabel + ': ' + chapterTitle);
+    activeChapter?.removeAttribute('aria-current');
+    option?.setAttribute('aria-current', 'location');
+    activeChapter = option;
+  }
+  alternateUrl.hash = id;
   languageLink.href = alternateUrl.href;
   stepButtons[0].disabled = index === 0;
   stepButtons[1].disabled = index === pages.length - 1;
 }
 
 let frame = 0;
+let scrollWidth = 0;
+let scrollHeight = 0;
 function measureScroll() {
   frame = 0;
   if (!world.open) return;
+  const { clientWidth, clientHeight } = scroller;
+  if (scrollHeight && (scrollWidth !== clientWidth || scrollHeight !== clientHeight)) {
+    // Stop offsets change with the viewport. Keep the current stop anchored.
+    scroller.scrollTo({ top: sections[route.index].offsetTop, behavior: 'instant' });
+    route.jump++;
+  }
+  scrollWidth = clientWidth;
+  scrollHeight = clientHeight;
   const scroll = scroller.scrollTop + 1;
   let index = 0;
   while (index < sections.length - 1 && scroll >= sections[index + 1].offsetTop) index++;
   const next = sections[index + 1]?.offsetTop;
-  const duration = Math.min(scroller.clientHeight * .66, (next - sections[index].offsetTop) * .77);
+  const duration = Math.min(clientHeight * .66, (next - sections[index].offsetTop) * .77);
   const blend = next === undefined ? 0 : Math.min(1, Math.max(0, (scroll - next + duration) / duration));
   route.progress = index + blend;
   const visible = Math.round(route.progress);
@@ -115,7 +140,9 @@ function scheduleScroll() {
   if (world.open && !frame) frame = requestAnimationFrame(measureScroll);
 }
 scroller.addEventListener('scroll', scheduleScroll, { passive: true });
-new ResizeObserver(scheduleScroll).observe(document.querySelector('#world-route'));
+const resizeScroll = new ResizeObserver(scheduleScroll);
+resizeScroll.observe(scroller);
+resizeScroll.observe(document.querySelector('#world-route'));
 
 let modulePromise;
 let mapState = 'idle';
@@ -178,12 +205,17 @@ function scrollToLevel(index, animated = true) {
   scroller.scrollTo({ top: sections[index].offsetTop, behavior: animated && !motion.matches ? 'smooth' : 'instant' });
   scheduleScroll();
 }
-function navigate(index) {
+function navigate(index, jump = false) {
   if (world.classList.contains('lifting-reader')) return;
   const safe = Math.max(0, Math.min(index, pages.length - 1));
-  if (safe === route.index && Math.abs(scroller.scrollTop - sections[safe].offsetTop) < 2) return;
+  if (!jump && safe === route.index && Math.abs(scroller.scrollTop - sections[safe].offsetTop) < 2) return;
   history.replaceState(null, '', '#' + pages[safe].id);
-  scrollToLevel(safe);
+  if (jump) {
+    route.progress = safe;
+    route.jump++;
+    setIndex(safe);
+  }
+  scrollToLevel(safe, !jump);
 }
 
 function cancelReadingLift() {
@@ -256,6 +288,7 @@ function followLocation() {
 closeButton.addEventListener('click', () => world.close());
 world.addEventListener('close', () => {
   cancelReadingLift();
+  chapterPicker.open = false;
   root.classList.remove('world-open');
   homeShell.inert = false;
   world.classList.remove('waiting', 'flying');
@@ -265,7 +298,28 @@ world.addEventListener('close', () => {
 window.addEventListener('popstate', followLocation);
 window.addEventListener('hashchange', followLocation);
 stepButtons.forEach(button => button.addEventListener('click', () => navigate(route.index + Number(button.dataset.step))));
+chapterPicker.addEventListener('click', event => {
+  const link = event.target.closest('.chapter-link');
+  if (!link || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const index = storyIndexForHash(pages, link.hash);
+  if (index < 0) return;
+  event.preventDefault();
+  chapterPicker.open = false;
+  chapterToggle.focus({ preventScroll: true });
+  if (world.classList.contains('lifting-reader')) cancelReadingLift();
+  navigate(index, true);
+});
+world.addEventListener('pointerdown', event => {
+  if (chapterPicker.open && !chapterPicker.contains(event.target)) chapterPicker.open = false;
+});
 world.addEventListener('keydown', event => {
+  if (chapterPicker.open && event.key === 'Escape') {
+    event.preventDefault();
+    chapterPicker.open = false;
+    chapterToggle.focus({ preventScroll: true });
+    return;
+  }
+  if (chapterPicker.open && chapterPicker.contains(event.target)) return;
   if (!world.classList.contains('has-3d') || world.classList.contains('reading') || world.classList.contains('lifting-reader') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   if (event.key === 'PageDown' || event.key === 'ArrowDown') {
     event.preventDefault();
