@@ -19,9 +19,13 @@ const list = (items, className) => items?.length
   : '';
 const pageNumber = index => String(index + 1).padStart(2, '0');
 
-function external(action, classes = '') {
+function external(action, classes = '', content = escape(action.label) + ' ' + icon(action.download ? 'download' : 'diagonal')) {
   const browserLink = action.href.startsWith('https:') ? ' target="_blank" rel="noopener noreferrer"' : '';
-  return `<a class="${classes}" href="${escape(action.href)}"${action.download ? ' download' : browserLink}>${escape(action.label)} ${icon(action.download ? 'download' : 'diagonal')}</a>`;
+  return `<a class="${classes}" href="${escape(action.href)}"${action.download ? ' download' : browserLink}>${content}</a>`;
+}
+
+function waypoint(action) {
+  return external(action, 'map-pin mono', `<span class="pin-label">${escape(action.label)}</span><span class="pin-hit" aria-hidden="true"></span>`);
 }
 
 function contentCard(page, index) {
@@ -65,6 +69,7 @@ export function renderSite(html, context) {
   const content = `
   <a class="skip-link" href="#main">${t.skip}</a>
   <div class="home-shell">
+    <canvas id="home-blueprint" class="home-blueprint" aria-hidden="true"></canvas>
     <header class="site-header shell">
       ${localeLink}
       <a href="#home" class="wordmark" aria-label="${name}"><img src="/art/mark.svg" alt="" width="33" height="33"><span>${name}</span></a>
@@ -75,7 +80,6 @@ export function renderSite(html, context) {
         <h1 id="hero-title" class="sr-only">${name}</h1>
         <p class="sr-only">${escape(profile.role)} · ${escape(profile.current)} · ${escape(profile.focus)}</p>
         <figure class="desk-stage">
-          <div class="desk-grid" aria-hidden="true"></div>
           <div class="desk-sweep" aria-hidden="true"></div>
           <svg class="drafting" viewBox="0 0 1240 570" preserveAspectRatio="none" fill="none" aria-hidden="true">
             <path d="M44 80V54h25m1103 0h24v26M44 490v27h25m1103 0h24v-27M79 465h1080M828 75v436"/>
@@ -83,7 +87,6 @@ export function renderSite(html, context) {
             <path class="orbit secondary-orbit" d="M128 395C210 467 505 486 782 460c197-19 372-67 409-118M51 324c-14 45 26 66 56 78"/>
             <path d="M78 133h16m-8-8v16m1039 15h19m-9.5-9.5v19M924 489h50m-50 8h33M99 489h50m-50 8h33"/>
           </svg>
-          <div class="desk-particles" aria-hidden="true">${Array.from({ length: 13 }, (_, i) => `<i style="--x:${(i * 37 + 9) % 100}%;--y:${(i * 29 + 11) % 100}%;--t:${i * -1.15}s;--s:${i % 3 + 2}px"></i>`).join('')}</div>
           <div class="laptop" id="laptop-visual">
             <img src="/art/laptop.svg" alt="" class="laptop-fallback" width="600" height="490" fetchpriority="high">
           </div>
@@ -91,7 +94,6 @@ export function renderSite(html, context) {
             <span class="portrait-marker mono" aria-hidden="true">MG / 01 <b>+</b></span>
             <img src="/${escape(photo)}" alt="${escape(t.portrait)}" class="portrait-fallback" width="400" height="400">
           </div>
-          <figcaption class="desk-caption mono" id="art-status" aria-hidden="true">${t.ready}</figcaption>
           <button type="button" class="skip-intro mono" id="skip-intro" hidden>${t.skipIntro}</button>
         </figure>
         <nav class="hero-actions" aria-label="${escape(t.at)}">
@@ -116,7 +118,7 @@ export function renderSite(html, context) {
         <figure class="world-stage" id="world-stage" aria-hidden="false">
           <div class="viewport" id="world-viewport"></div>
           <div class="pin-layer">
-            ${story.flatMap(page => page.links.map((action, index) => `<span data-pin="${page.id}-${index}">${external(action, 'map-pin mono')}</span>`)).join('')}
+            ${story.flatMap(page => page.links.map((action, index) => `<span data-pin="${page.id}-${index}">${waypoint(action)}</span>`)).join('')}
           </div>
         </figure>
         <div class="stops">${story.map(contentCard).join('')}</div>

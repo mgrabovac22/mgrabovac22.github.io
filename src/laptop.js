@@ -2,76 +2,43 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { box, cylinder, createRenderer, lampRig, stageLoop, surface } from './scene.js';
 
-const editorLines = [
-  ['// a place to build', '#8ba791'],
-  ["import { World } from './studio';", '#c3d89d'],
-  ['', '#a6c59c'],
-  ['const fieldNotes = new World({', '#e1e8d9'],
-  ["  material: 'paper',", '#d4e7b0'],
-  ["  light: 'soft',", '#d4e7b0'],
-  ['  motion: true,', '#d4e7b0'],
-  ['});', '#e1e8d9'],
-  ['', '#a6c59c'],
-  ['fieldNotes.open();', '#c3d89d'],
-];
-
-function makeDisplay({ profile, t }) {
+function makeDisplay({ profile, language }) {
   const canvas = document.createElement('canvas');
-  canvas.width = 768;
-  canvas.height = 470;
-  const context = canvas.getContext('2d');
+  canvas.width = 1024;
+  canvas.height = 610;
+  const ctx = canvas.getContext('2d');
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = 8;
   let previousFrame;
 
-  function paint(progress, time, ready, reduced) {
-    const count = ready ? Math.min(10, Math.floor(progress * 11)) : 0;
-    const blink = !reduced && Math.floor(time * 1.8) % 2 === 0;
-    const frame = [count, blink, ready].join();
+  function paint(time, awake, reduced) {
+    const pulse = awake && !reduced && Math.floor(time * 1.6) % 2 === 0;
+    const frame = (awake ? 2 : 0) + Number(pulse);
     if (frame === previousFrame) return;
     previousFrame = frame;
-    const fill = (color, ...rect) => {
-      context.fillStyle = color;
-      context.fillRect(...rect);
+    const fill = (color, x, y, width, height) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, width, height);
     };
-    const label = (text, x, y, color = '#a5b2a1') => {
-      context.fillStyle = color;
-      context.fillText(text, x, y);
+    const label = (text, x, y, font, color, max = 916) => {
+      ctx.fillStyle = color;
+      ctx.font = font;
+      ctx.fillText(text, x, y, max);
     };
-    fill('#17231c', 0, 0, 768, 470);
-    if (ready) {
-      fill('#2e4032', 0, 0, 768, 42);
-      fill('#223127', 500, 42, 268, 388);
-      fill('#2e4032', 0, 429, 768, 41);
-      context.font = '500 17px monospace';
-      ['#c9dbad', '#8b9e84', '#698171'].forEach((color, index) => {
-        context.fillStyle = color;
-        context.beginPath();
-        context.arc(23 + index * 17, 22, 4, 0, Math.PI * 2);
-        context.fill();
-      });
-      label(t.profile.toUpperCase() + ' / ACTIVE', 312, 28, '#d3decd');
-      label('01 / ' + profile.name.toUpperCase().replace(' ', '.'), 32, 89, '#bcd69b');
-      context.font = '700 68px Arial, sans-serif';
-      label(profile.firstName, 27, 166, '#f1f4e8');
-      label(profile.lastName + '.', 26, 231, '#d5e6a3');
-      context.font = '500 25px Arial, sans-serif';
-      label(profile.role, 32, 277, '#e0e9d7');
-      fill('#526c52', 32, 301, 429, 2);
-      context.font = '500 20px Arial, sans-serif';
-      label(profile.current, 32, 337, '#d8e5cd');
-      label(profile.focus, 32, 372, '#c4d2bd');
-      context.font = '16px monospace';
-      label('● ' + t.ready.toUpperCase(), 30, 456, '#c3d89d');
-      label('FOI   /   MT-LAB', 573, 456);
-      label('FIELDNOTES.JS', 524, 86, '#d2e3af');
-      for (let i = 0; i < count; i++) {
-        const [line, color] = editorLines[i];
-        label(String(i + 1).padStart(2), 524, 119 + i * 23, '#8ba791');
-        if (line) fill(color, 555, 113 + i * 23, 30 + line.length * 4.1, 5);
-      }
-      if (blink) fill('#d2e3af', 555, 114 + count * 23, 9, 13);
+    fill('#15231f', 0, 0, 1024, 610);
+    if (awake) {
+      fill('#223730', 0, 0, 1024, 71);
+      fill('#c4dfc4', 53, 32, 13, 13);
+      label('M/G  /  PORTFOLIO', 86, 45, '700 24px monospace', '#e5eee6');
+      label(profile.name, 49, 213, '800 95px Arial, sans-serif', '#f4f7f0');
+      label(profile.role, 55, 286, '700 44px Arial, sans-serif', '#c2e0c2');
+      fill('#54746a', 55, 321, 916, 2);
+      label(language === 'hr' ? 'STUDIJ' : 'EDUCATION', 55, 380, '700 23px monospace', '#a9c6b7');
+      label(profile.current, 55, 432, '700 40px Arial, sans-serif', '#f0f4eb');
+      label(language === 'hr' ? 'RAD' : 'WORK', 55, 490, '700 23px monospace', '#a9c6b7');
+      label(profile.focus, 55, 542, '700 40px Arial, sans-serif', '#f0f4eb');
+      if (pulse) fill('#d5e8c5', 951, 567, 14, 14);
     }
     texture.needsUpdate = true;
   }
@@ -91,8 +58,8 @@ export function mountLaptop(host, motion, intro, locale) {
   const renderer = createRenderer(host, { alpha: true });
   if (!renderer) return;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(31, 1, .1, 40);
-  camera.zoom = 1.01;
+  const camera = new THREE.PerspectiveCamera(35, 1, .1, 40);
+  camera.zoom = 1.05;
   const light = lampRig(scene, 7, 1024);
   light(0, 0);
   const fill = new THREE.DirectionalLight('#e0ebea', .85);
@@ -103,17 +70,8 @@ export function mountLaptop(host, motion, intro, locale) {
   table.receiveShadow = true;
   scene.add(table);
 
-  const wire = new THREE.LineBasicMaterial({ color: '#758b6b', transparent: true, opacity: .43 });
-  const tokenShape = new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1, 0));
-  const ambient = Array.from({ length: 9 }, (_, index) => {
-    const token = new THREE.LineSegments(tokenShape, wire);
-    token.scale.setScalar(.075 + (index % 4) * .027);
-    scene.add(token);
-    return token;
-  });
-
   const laptop = new THREE.Group();
-  laptop.rotation.y = -.20;
+  laptop.rotation.y = -.09;
   scene.add(laptop);
   const metal = surface('#737e75', .37, .52);
   const dark = surface('#222a25', .65, .28);
@@ -192,24 +150,17 @@ export function mountLaptop(host, motion, intro, locale) {
     const settled = motion.matches || intro.skipped;
     const progress = settled ? 1 : THREE.MathUtils.clamp((time - .16) / 1.24, 0, 1);
     const hinge = THREE.MathUtils.smootherstep(progress, 0, 1);
-    lid.rotation.x = THREE.MathUtils.lerp(Math.PI / 2 - .008, -.22, hinge);
+    lid.rotation.x = THREE.MathUtils.lerp(Math.PI / 2 - .008, -.12, hinge);
     const wake = progress > .76;
-    display.paint(settled ? 1 : (time - 1.04) / 1.15, time, wake, motion.matches);
-    laptop.rotation.y = motion.matches ? -.20 : THREE.MathUtils.damp(laptop.rotation.y, -.20 + pointerX * .12, 4, dt);
-    ambient.forEach((token, index) => {
-      const phase = index * 2.4 + (motion.matches ? 0 : time * .16);
-      token.position.set((index % 2 ? 1 : -1) * (3.28 + Math.sin(phase) * .63),
-        .55 + (index % 4) * .72 + Math.sin(phase * 1.4) * .21,
-        Math.sin(phase) * 2.75 - .33);
-      token.rotation.set(phase * .55, phase * .71, phase);
-    });
-    camera.position.set(3.35 + (motion.matches ? 0 : pointerX * .15), 4.4, cameraDistance);
-    camera.lookAt(.22, 1.31, .0);
+    display.paint(time, wake, motion.matches);
+    laptop.rotation.y = motion.matches ? -.09 : THREE.MathUtils.damp(laptop.rotation.y, -.09 + pointerX * .11, 4, dt);
+    camera.position.set(1.16 + (motion.matches ? 0 : pointerX * .21), 3.28 + (motion.matches ? 0 : pointerY * .17), cameraDistance);
+    camera.lookAt(-.06, 1.39, .0);
     if (!motion.matches || !settledFrame) renderer.draw(scene, camera);
     settledFrame = motion.matches;
   }, (width, height) => {
     camera.aspect = width / height;
-    cameraDistance = Math.max(8.9, 8.15 / camera.aspect);
+    cameraDistance = Math.max(7.4, 10.05 / camera.aspect);
     camera.updateProjectionMatrix();
     renderer.size(width, height);
     settledFrame = false;

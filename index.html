@@ -16,13 +16,14 @@
     <meta property="og:url" content="https://mgrabovac22.github.io/">
     <meta property="og:image" content="https://mgrabovac22.github.io/art/social.png">
     <meta name="twitter:card" content="summary_large_image">
-    <script type="module" crossorigin src="./site-assets/main-STyouZ8Q.js"></script>
-    <link rel="stylesheet" crossorigin href="./site-assets/main-DLiH8BC8.css">
+    <script type="module" crossorigin src="./site-assets/main-DCekM7fz.js"></script>
+    <link rel="stylesheet" crossorigin href="./site-assets/main-CDnBt7KQ.css">
   </head>
   <body>
 
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="home-shell">
+    <canvas id="home-blueprint" class="home-blueprint" aria-hidden="true"></canvas>
     <header class="site-header shell">
       <a class="language-control mono" href="./hr.html" hreflang="hr" lang="hr" aria-label="Hrvatski">HR</a>
       <a href="#home" class="wordmark" aria-label="Marin Grabovac"><img src="./art/mark.svg" alt="" width="33" height="33"><span>Marin Grabovac</span></a>
@@ -33,7 +34,6 @@
         <h1 id="hero-title" class="sr-only">Marin Grabovac</h1>
         <p class="sr-only">Computer science student · Master’s studies · FOI · Software development &amp; QA · MT-lab</p>
         <figure class="desk-stage">
-          <div class="desk-grid" aria-hidden="true"></div>
           <div class="desk-sweep" aria-hidden="true"></div>
           <svg class="drafting" viewBox="0 0 1240 570" preserveAspectRatio="none" fill="none" aria-hidden="true">
             <path d="M44 80V54h25m1103 0h24v26M44 490v27h25m1103 0h24v-27M79 465h1080M828 75v436"/>
@@ -41,7 +41,6 @@
             <path class="orbit secondary-orbit" d="M128 395C210 467 505 486 782 460c197-19 372-67 409-118M51 324c-14 45 26 66 56 78"/>
             <path d="M78 133h16m-8-8v16m1039 15h19m-9.5-9.5v19M924 489h50m-50 8h33M99 489h50m-50 8h33"/>
           </svg>
-          <div class="desk-particles" aria-hidden="true"><i style="--x:9%;--y:11%;--t:0s;--s:2px"></i><i style="--x:46%;--y:40%;--t:-1.15s;--s:3px"></i><i style="--x:83%;--y:69%;--t:-2.3s;--s:4px"></i><i style="--x:20%;--y:98%;--t:-3.4499999999999997s;--s:2px"></i><i style="--x:57%;--y:27%;--t:-4.6s;--s:3px"></i><i style="--x:94%;--y:56%;--t:-5.75s;--s:4px"></i><i style="--x:31%;--y:85%;--t:-6.8999999999999995s;--s:2px"></i><i style="--x:68%;--y:14%;--t:-8.049999999999999s;--s:3px"></i><i style="--x:5%;--y:43%;--t:-9.2s;--s:4px"></i><i style="--x:42%;--y:72%;--t:-10.35s;--s:2px"></i><i style="--x:79%;--y:1%;--t:-11.5s;--s:3px"></i><i style="--x:16%;--y:30%;--t:-12.649999999999999s;--s:4px"></i><i style="--x:53%;--y:59%;--t:-13.799999999999999s;--s:2px"></i></div>
           <div class="laptop" id="laptop-visual">
             <img src="./art/laptop.svg" alt="" class="laptop-fallback" width="600" height="490" fetchpriority="high">
           </div>
@@ -49,7 +48,6 @@
             <span class="portrait-marker mono" aria-hidden="true">MG / 01 <b>+</b></span>
             <img src="./art/marin-portrait.webp" alt="Portrait from my CV" class="portrait-fallback" width="400" height="400">
           </div>
-          <figcaption class="desk-caption mono" id="art-status" aria-hidden="true">Workbench online</figcaption>
           <button type="button" class="skip-intro mono" id="skip-intro" hidden>Skip intro</button>
         </figure>
         <nav class="hero-actions" aria-label="Career &amp; projects">
@@ -74,7 +72,7 @@
         <figure class="world-stage" id="world-stage" aria-hidden="false">
           <div class="viewport" id="world-viewport"></div>
           <div class="pin-layer">
-            <span data-pin="about-0"><a class="map-pin mono" href="https://www.linkedin.com/in/marin-grabovac-7bb447260/" target="_blank" rel="noopener noreferrer">Open LinkedIn <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M4 12 12 4M5 4h7v7"/></svg></a></span><span data-pin="about-1"><a class="map-pin mono" href="https://github.com/mgrabovac22" target="_blank" rel="noopener noreferrer">Open GitHub <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M4 12 12 4M5 4h7v7"/></svg></a></span><span data-pin="portfolio-0"><a class="map-pin mono" href="https://github.com/mgrabovac22/mgrabovac22.github.io" target="_blank" rel="noopener noreferrer">View source <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M4 12 12 4M5 4h7v7"/></svg></a></span><span data-pin="contact-0"><a class="map-pin mono" href="https://www.linkedin.com/in/marin-grabovac-7bb447260/" target="_blank" rel="noopener noreferrer">Open LinkedIn <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M4 12 12 4M5 4h7v7"/></svg></a></span><span data-pin="contact-1"><a class="map-pin mono" href="https://github.com/mgrabovac22" target="_blank" rel="noopener noreferrer">Open GitHub <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M4 12 12 4M5 4h7v7"/></svg></a></span><span data-pin="contact-2"><a class="map-pin mono" href="mailto:grabovacmarin000@gmail.com">Send email <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M4 12 12 4M5 4h7v7"/></svg></a></span><span data-pin="contact-3"><a class="map-pin mono" href="./files/Marin-Grabovac-CV.pdf" download>Download CV <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35"><path d="M8 2.5v7m-3-3 3 3 3-3M3 10.5v2.8h10v-2.8"/></svg></a></span>
+            <span data-pin="about-0"><a class="map-pin mono" href="https://www.linkedin.com/in/marin-grabovac-7bb447260/" target="_blank" rel="noopener noreferrer"><span class="pin-label">Open LinkedIn</span><span class="pin-hit" aria-hidden="true"></span></a></span><span data-pin="about-1"><a class="map-pin mono" href="https://github.com/mgrabovac22" target="_blank" rel="noopener noreferrer"><span class="pin-label">Open GitHub</span><span class="pin-hit" aria-hidden="true"></span></a></span><span data-pin="portfolio-0"><a class="map-pin mono" href="https://github.com/mgrabovac22/mgrabovac22.github.io" target="_blank" rel="noopener noreferrer"><span class="pin-label">View source</span><span class="pin-hit" aria-hidden="true"></span></a></span><span data-pin="contact-0"><a class="map-pin mono" href="https://www.linkedin.com/in/marin-grabovac-7bb447260/" target="_blank" rel="noopener noreferrer"><span class="pin-label">Open LinkedIn</span><span class="pin-hit" aria-hidden="true"></span></a></span><span data-pin="contact-1"><a class="map-pin mono" href="https://github.com/mgrabovac22" target="_blank" rel="noopener noreferrer"><span class="pin-label">Open GitHub</span><span class="pin-hit" aria-hidden="true"></span></a></span><span data-pin="contact-2"><a class="map-pin mono" href="mailto:grabovacmarin000@gmail.com"><span class="pin-label">Send email</span><span class="pin-hit" aria-hidden="true"></span></a></span><span data-pin="contact-3"><a class="map-pin mono" href="./files/Marin-Grabovac-CV.pdf" download><span class="pin-label">Download CV</span><span class="pin-hit" aria-hidden="true"></span></a></span>
           </div>
         </figure>
         <div class="stops"><section id="about" class="stop" aria-labelledby="about-title">

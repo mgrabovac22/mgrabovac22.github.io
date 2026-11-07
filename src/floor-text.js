@@ -22,9 +22,10 @@ function format(context, text, maxWidth) {
 
 function panelTexture(page) {
   const canvas = document.createElement('canvas');
-  canvas.width = 1280;
-  canvas.height = 815;
+  canvas.width = 1024;
+  canvas.height = 652;
   const ctx = canvas.getContext('2d');
+  ctx.scale(.8, .8);
   const tone = accent[page.chapter];
   ctx.fillStyle = tone;
   ctx.fillRect(60, 38, 100, 6);

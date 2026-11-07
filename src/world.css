@@ -27,22 +27,21 @@ html.world-open, html.world-open body { overflow: hidden; }
 .has-3d:not(.reading) .world-route { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .has-3d:not(.reading) .world-stage {
   display: block; grid-area: 1/1; position: sticky; top: 0; height: 100vh; height: 100dvh; z-index: 1;
-  isolation: isolate; overflow: hidden; background: #cbd2c2;
+  isolation: isolate; overflow: hidden; background: #d0d3d1;
 }
 .has-3d:not(.reading) .stops { grid-area: 1/1; pointer-events: none; }
 .viewport, .viewport canvas, .pin-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .viewport canvas { display: block; touch-action: pan-y; }
 .pin-layer { pointer-events: none; }
 .map-pin {
-  position: absolute; left: clamp(3rem, var(--pin-x, 50%), calc(100% - 3rem)); top: var(--pin-y, 50%);
-  transform: translate(-50%, calc(-100% - 5px)); z-index: 1; pointer-events: auto; width: max-content;
-  display: inline-flex; align-items: center; gap: .45rem; min-height: 37px; padding: .46rem .55rem;
-  border: 1px solid #74876c; background: #f5f5e9; color: #24352a; font-size: .58rem; font-weight: 600; box-shadow: 2px 3px 0 #31462e47;
+  position: absolute; left: var(--pin-x, 50%); top: var(--pin-y, 50%);
+  transform: translate(-50%, calc(-100% + 22px)); z-index: 1; pointer-events: auto; width: max-content;
+  display: inline-flex; flex-direction: column; align-items: center; color: #20382e; font-size: .61rem; font-weight: 600;
 }
 .map-pin:not([style]) { visibility: hidden; }
-.map-pin::after { content: ""; position: absolute; width: 1px; height: 7px; background: #4b6448; left: 50%; top: 100%; }
-.map-pin:hover, .map-pin:focus-visible { background: #dbeab6; }
-.map-pin svg { width: .9em; height: .9em; }
+.pin-label { padding: .28rem .51rem; border-radius: 1rem; background: #eff5eeb8; border: 1px solid #59786c59; transition: background .2s; }
+.pin-hit { width: 44px; height: 44px; border-radius: 50%; }
+.map-pin:hover .pin-label, .map-pin:focus-visible .pin-label { background: #eef6ec; }
 .stop { min-height: 76vh; min-height: max(345px, 76dvh); padding: clamp(5rem, 10vh, 7rem) max(7vw, calc((100% - 640px) / 2)) 4.9rem; }
 .stop:last-child { min-height: 100vh; min-height: 100dvh; }
 .has-3d:not(.reading) .stop { padding: 0; }
@@ -77,6 +76,6 @@ html:not(.js-ready) .world { position: static; }
   .hud-left, .world-arrows { gap: .32rem; }
   .hud-index { padding: .4rem .5rem; gap: .43rem; font-size: .58rem; }
   .scroll-hint { font-size: .48rem; }
-  .map-pin { font-size: .48rem; min-height: 35px; gap: .23rem; padding: .36rem .29rem; }
+  .map-pin { font-size: .54rem; }
   .read-mode { padding-inline: .44rem; font-size: .52rem; }
 }

@@ -28,6 +28,8 @@ export function createRenderer(host, { alpha = false, shadows = true, maxDpr = 1
 
   return {
     canvas,
+    upload(texture) { renderer.initTexture(texture); },
+    compile(scene, camera) { return renderer.compileAsync(scene, camera); },
     size(width, height) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDpr));
       renderer.setSize(width, height, false);
@@ -96,9 +98,9 @@ export const cylinder = (parent, material, r, h, x, y, z) =>
 export const ball = (parent, material, w, h, d, x, y, z) =>
   solid(parent, ballGeometry, material, [w, h, d], [x, y, z]);
 
-export function lampRig(scene, span, resolution) {
-  scene.add(new THREE.HemisphereLight('#fffcef', '#87967d', 2.25));
-  const key = new THREE.DirectionalLight('#fff7df', 2.35);
+export function lampRig(scene, span, resolution, { sky = '#fffcef', ground = '#87967d', sun = '#fff7df' } = {}) {
+  scene.add(new THREE.HemisphereLight(sky, ground, 2.25));
+  const key = new THREE.DirectionalLight(sun, 2.35);
   key.castShadow = true;
   key.shadow.mapSize.set(resolution, resolution);
   Object.assign(key.shadow.camera, {

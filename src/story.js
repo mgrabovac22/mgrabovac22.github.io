@@ -1,6 +1,6 @@
 import { getLocale } from './locale.js';
 
-export const routeStep = [18.3, -11.8];
+export const routeStep = [18.3, 11.8];
 
 export function createStory(language) {
   const data = getLocale(language);

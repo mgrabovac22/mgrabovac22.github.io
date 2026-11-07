@@ -69,7 +69,9 @@ let modulePromise;
 let mapState = 'idle';
 let flightTimer;
 function prepareWorld() {
-  modulePromise ??= import('./world.js').catch(() => null);
+  modulePromise ??= import('./world.js')
+    .then(async module => ({ module, office: await module.prepareOffice(pages) }))
+    .catch(() => null);
   return modulePromise;
 }
 
@@ -98,9 +100,9 @@ function useFallback() {
 }
 async function ensureWorld() {
   if (mapState !== 'idle') return;
-  const module = await prepareWorld();
+  const prepared = await prepareWorld();
   if (!world.open || mapState !== 'idle') return;
-  if (!module) {
+  if (!prepared) {
     useFallback();
     return;
   }
@@ -110,7 +112,8 @@ async function ensureWorld() {
   textAccessibility(false);
   scrollToLevel(selected, false);
   try {
-    if (!module.mountWorld(viewport, motion, route, pages, mapLoaded)) useFallback();
+    const { module, office } = prepared;
+    if (!await module.mountWorld(viewport, motion, route, pages, office, mapLoaded)) useFallback();
   } catch {
     useFallback();
   }
@@ -150,7 +153,7 @@ function openLevel(index, trigger) {
     if (!world.classList.contains('reading')) {
       if (mapState === 'ready') fly();
       if (mapState === 'idle' || mapState === 'loading') {
-        if (!motion.matches) world.classList.add('waiting');
+        world.classList.add('waiting');
         void ensureWorld();
       }
     }
@@ -205,19 +208,16 @@ for (const link of document.querySelectorAll('.hero-actions a')) {
   });
 }
 
-const status = document.querySelector('#art-status');
 const skip = document.querySelector('#skip-intro');
 const portrait = document.querySelector('#portrait');
 const intro = { skipped: levelFromHash() >= 0, drawingDone: false };
 function finishIntro() {
   intro.skipped = true;
   skip.hidden = true;
-  status.textContent = t.ready;
 }
 if (motion.matches || intro.skipped) finishIntro();
 else {
   portrait.classList.add('portrait-waiting');
-  status.textContent = t.opening;
   skip.hidden = false;
   setTimeout(finishIntro, 4800);
 }
@@ -228,4 +228,9 @@ void mountPortrait(portrait, motion, intro).finally(() => portrait.classList.rem
 import('./laptop.js')
   .then(({ mountLaptop }) => mountLaptop(document.querySelector('#laptop-visual'), motion, intro, locale))
   .catch(() => {});
+import('./blueprint.js')
+  .then(({ mountBlueprint }) => mountBlueprint(document.querySelector('#home-blueprint'), motion))
+  .catch(() => {});
+if ('requestIdleCallback' in window) requestIdleCallback(prepareWorld, { timeout: 1500 });
+else setTimeout(prepareWorld, 800);
 followLocation();
