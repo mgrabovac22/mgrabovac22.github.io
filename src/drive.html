@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111e26">
-  <meta name="description" content="An interactive third-person drive through a procedural city by Marin Grabovac.">
+  <!-- drive-description -->
   <link rel="icon" href="/art/mark.svg" type="image/svg+xml">
-  <title>Night Shift — Marin Grabovac</title>
+  <!-- drive-title -->
 </head>
 <body>
   <main id="game" aria-labelledby="drive-title">
     <div id="view" aria-hidden="true"></div>
     <header class="top">
       <a class="back button" href="./"><span aria-hidden="true">↖</span> <span data-copy="back">Portfolio</span></a>
-      <div class="brand"><span>MG / PLAYGROUND</span><h1 id="drive-title">NIGHT SHIFT</h1></div>
+      <div class="brand"><span>MG / PLAYGROUND</span><h1 id="drive-title" data-copy="title">Night Shift</h1></div>
       <div class="actions">
         <button type="button" id="reset" data-copy="reset" disabled>Reset</button>
         <button type="button" id="pause" data-copy="pause" disabled>Pause</button>
@@ -56,7 +56,7 @@
       </div>
     </div>
     <div class="cover" id="cover">
-      <div class="cover-inner"><span>MG / INTERACTIVE 02</span><strong>NIGHT SHIFT</strong><p id="cover-text" role="status" data-copy="loading">Preparing the city…</p><button id="start" type="button" hidden data-copy="start">Start driving</button><a class="button error-back" href="./" hidden data-copy="back">Portfolio</a></div>
+      <div class="cover-inner"><span>MG / INTERACTIVE 02</span><strong data-copy="title">Night Shift</strong><p id="cover-text" role="status" data-copy="loading">Preparing the city…</p><button id="start" type="button" hidden data-copy="start">Start driving</button><a class="button error-back" href="./" hidden data-copy="back">Portfolio</a></div>
     </div>
     <noscript><p class="noscript">Enable JavaScript to drive. <a href="./">Back to the portfolio</a></p></noscript>
   </main>

@@ -1,0 +1,941 @@
+{
+  "profile": {
+    "name": "Marin Grabovac",
+    "url": "https://mgrabovac22.github.io/",
+    "github": "https://github.com/mgrabovac22",
+    "email": "grabovacmarin000@gmail.com",
+    "linkedin": "https://hr.linkedin.com/in/marin-grabovac-7bb447260",
+    "cv": {
+      "file": "files/Marin-Grabovac-CV.pdf"
+    },
+    "portrait": {
+      "image": "art/marin-portrait.webp"
+    },
+    "en": {
+      "role": "Computer science student",
+      "current": "Master’s studies · FOI",
+      "focus": "Software development & QA · MT-lab",
+      "about": "I study at the Faculty of Organization and Informatics and work on software development and quality assurance at MT-lab. I enjoy following an idea from implementation to testing and working with a team to make it dependable."
+    },
+    "hr": {
+      "role": "Student računalnih znanosti",
+      "current": "Diplomski studij · FOI",
+      "focus": "Razvoj softvera i QA · MT-lab",
+      "about": "Studiram na Fakultetu organizacije i informatike te radim na razvoju softvera i osiguravanju kvalitete u MT-labu. Volim pratiti ideju od implementacije do testiranja i surađivati s timom kako bi rješenje bilo pouzdano."
+    }
+  },
+  "homepage": {
+    "featuredProjects": [
+      "gitswamp",
+      "iris",
+      "quizly"
+    ],
+    "technologies": [
+      ".NET",
+      "TypeScript",
+      "SQL"
+    ]
+  },
+  "sections": [
+    {
+      "id": "about",
+      "en": {
+        "title": "About",
+        "place": "The Studio"
+      },
+      "hr": {
+        "title": "O meni",
+        "place": "Studio"
+      }
+    },
+    {
+      "id": "career",
+      "en": {
+        "title": "Career",
+        "place": "The Office",
+        "description": "My work spans software development, QA, database development and technical support."
+      },
+      "hr": {
+        "title": "Karijera",
+        "place": "Ured",
+        "description": "Radim na razvoju softvera, testiranju, bazama podataka i tehničkoj podršci."
+      }
+    },
+    {
+      "id": "education",
+      "en": {
+        "title": "Education",
+        "place": "The Library",
+        "description": "My studies cover information systems, software engineering and application development."
+      },
+      "hr": {
+        "title": "Obrazovanje",
+        "place": "Knjižnica",
+        "description": "Studij informacijskih sustava, programskog inženjerstva i razvoja aplikacija."
+      }
+    },
+    {
+      "id": "projects",
+      "en": {
+        "title": "Projects",
+        "place": "The Workshop",
+        "description": "A selection of projects from my studies, lab work and internships."
+      },
+      "hr": {
+        "title": "Projekti",
+        "place": "Radionica",
+        "description": "Projekti sa studija, iz laboratorija i sa stručne prakse."
+      }
+    },
+    {
+      "id": "qualifications",
+      "en": {
+        "title": "Qualifications",
+        "place": "The Lab",
+        "description": "Each labeled column follows the one-to-three-star scale used for technical skills in my CV."
+      },
+      "hr": {
+        "title": "Vještine",
+        "place": "Laboratorij",
+        "description": "Visine stupova prate ljestvicu od jedne do tri zvjezdice iz mojeg CV-a."
+      }
+    },
+    {
+      "id": "contact",
+      "en": {
+        "title": "Contact",
+        "place": "The Postroom",
+        "description": "Get in touch by email or LinkedIn, or explore the repositories on GitHub."
+      },
+      "hr": {
+        "title": "Kontakt",
+        "place": "Recepcija",
+        "description": "Javi se e-poštom ili na LinkedInu. Repozitoriji su dostupni na GitHubu."
+      }
+    }
+  ],
+  "experience": [
+    {
+      "id": "mt-lab",
+      "stack": [
+        "Android",
+        "Web QA"
+      ],
+      "en": {
+        "title": "Development Engineer & QA Tester",
+        "organization": "MT-lab · Faculty of Organization and Informatics",
+        "dates": "2023–present",
+        "description": "Software development and quality assurance for mobile and web applications in a faculty lab.",
+        "points": [
+          "Tested functionality and user experience for the Obitelj 3plus association’s web application.",
+          "Developed internal Android applications and contributed to the design and implementation of new solutions."
+        ]
+      },
+      "hr": {
+        "title": "Razvojni inženjer i QA tester",
+        "organization": "MT-lab · Fakultet organizacije i informatike",
+        "dates": "2023. – danas",
+        "description": "Razvoj softvera i osiguravanje kvalitete mobilnih i web aplikacija u fakultetskom laboratoriju.",
+        "points": [
+          "Testirao funkcionalnost i korisničko iskustvo web aplikacije za udrugu Obitelj 3plus.",
+          "Razvijao interne Android aplikacije te sudjelovao u dizajnu i implementaciji novih rješenja."
+        ]
+      }
+    },
+    {
+      "id": "knauf",
+      "stack": [
+        ".NET",
+        "KI Expert Plus"
+      ],
+      "en": {
+        "title": ".NET Developer",
+        "organization": "Knauf Insulation d.o.o.",
+        "dates": "Sep 2025–Aug 2026",
+        "description": "Developed and maintained KI Expert Plus.",
+        "points": [
+          "Implemented new features and refined existing algorithms.",
+          "Maintained the application, resolved bugs and provided technical support to users."
+        ]
+      },
+      "hr": {
+        "title": ".NET razvojni inženjer",
+        "dates": "ruj 2025. – kol 2026.",
+        "description": "Razvoj i održavanje aplikacije KI Expert Plus.",
+        "points": [
+          "Implementirao nove funkcionalnosti i doradio algoritme.",
+          "Održavao aplikaciju, rješavao greške i pružao tehničku podršku korisnicima."
+        ]
+      }
+    },
+    {
+      "id": "karydia",
+      "stack": [
+        "PHP",
+        "WordPress",
+        "API integration"
+      ],
+      "en": {
+        "title": "Web Developer Intern",
+        "organization": "Karydia d.o.o.",
+        "dates": "Apr–Jun 2025",
+        "description": "Built a WordPress integration during a professional internship.",
+        "points": [
+          "Created a PHP plugin to automate data transfer from an external system to the WordPress website.",
+          "Wrote custom templates to present the imported data in a structured format."
+        ]
+      },
+      "hr": {
+        "title": "Web developer na stručnoj praksi",
+        "dates": "tra – lip 2025.",
+        "description": "Izradio WordPress integraciju tijekom stručne prakse.",
+        "points": [
+          "Razvio PHP dodatak za automatski prijenos podataka iz vanjskog sustava.",
+          "Izradio prilagođene predloške za strukturirani prikaz uvezenih podataka."
+        ]
+      }
+    },
+    {
+      "id": "infodom",
+      "stack": [
+        "PL/SQL",
+        "Oracle APEX",
+        "BI Publisher",
+        "SQL Developer"
+      ],
+      "en": {
+        "title": "Oracle Developer",
+        "organization": "InfoDom d.o.o.",
+        "dates": "Sep–Oct 2024",
+        "description": "Worked on database development and system support with Oracle technologies.",
+        "points": [
+          "Used PL/SQL for database and system work.",
+          "Used Oracle APEX, BI Publisher and Oracle SQL Developer in development and implementation."
+        ]
+      },
+      "hr": {
+        "title": "Oracle developer",
+        "dates": "ruj – lis 2024.",
+        "description": "Razvoj baza podataka i podrška sustavima uz Oracle tehnologije.",
+        "points": [
+          "Koristio PL/SQL za rad s bazama i sustavima.",
+          "Razvijao i implementirao rješenja uz Oracle APEX, BI Publisher i SQL Developer."
+        ]
+      }
+    }
+  ],
+  "education": [
+    {
+      "id": "foi",
+      "en": {
+        "title": "Faculty of Organization and Informatics",
+        "organization": "Information and Business Systems · Information and Software Engineering",
+        "dates": "2022–present",
+        "description": "Bachelor’s studies in Information and Business Systems and master’s studies in Information and Software Engineering.",
+        "points": [
+          "Magna cum laude.",
+          "Coursework and interests include databases, web development, software engineering and software systems security."
+        ]
+      },
+      "hr": {
+        "title": "Fakultet organizacije i informatike",
+        "organization": "Informacijski i poslovni sustavi · Informacijsko i programsko inženjerstvo",
+        "dates": "2022. – danas",
+        "description": "Prijediplomski studij informacijskih i poslovnih sustava te diplomski studij informacijskog i programskog inženjerstva.",
+        "points": [
+          "Magna cum laude.",
+          "Interesi uključuju baze podataka, web razvoj, programsko inženjerstvo i sigurnost programskih sustava."
+        ]
+      }
+    },
+    {
+      "id": "vitez",
+      "en": {
+        "title": "Srednja škola Vitez",
+        "organization": "General grammar school",
+        "dates": "2018–2022",
+        "description": "Completed a general secondary education program."
+      },
+      "hr": {
+        "organization": "Opća gimnazija",
+        "dates": "2018. – 2022.",
+        "description": "Završio program opće gimnazije."
+      }
+    }
+  ],
+  "projects": [
+    {
+      "id": "gitswamp",
+      "name": "GitSwamp",
+      "stack": [
+        "Tauri",
+        "Git"
+      ],
+      "en": {
+        "type": "Open-source desktop application",
+        "description": "A Tauri desktop application for managing Git repositories in everyday development.",
+        "points": [
+          "Designed the application around routine repository management.",
+          "Released the project as open source."
+        ]
+      },
+      "hr": {
+        "type": "Desktop aplikacija otvorenog koda",
+        "description": "Tauri desktop aplikacija za upravljanje Git repozitorijima.",
+        "points": [
+          "Dizajnirana za svakodnevni rad s repozitorijima.",
+          "Objavljena kao projekt otvorenog koda."
+        ]
+      }
+    },
+    {
+      "id": "iris",
+      "name": "Iris",
+      "stack": [
+        "Deep learning"
+      ],
+      "en": {
+        "type": "Deep learning",
+        "description": "An iris-recognition system built with deep learning.",
+        "points": [
+          "Sourced data for the recognition task.",
+          "Trained and evaluated the model."
+        ]
+      },
+      "hr": {
+        "type": "Duboko učenje",
+        "description": "Sustav za prepoznavanje šarenice primjenom dubokog učenja.",
+        "points": [
+          "Prikupio podatke za prepoznavanje.",
+          "Trenirao i evaluirao model."
+        ]
+      }
+    },
+    {
+      "id": "re-injector",
+      "name": "RE-injector",
+      "stack": [
+        "PHP",
+        "WordPress",
+        "REST API"
+      ],
+      "en": {
+        "type": "WordPress plugin",
+        "description": "A PHP plugin built during my internship at Karydia to bring data from an external API into a WordPress website.",
+        "points": [
+          "Automated the transfer from the API endpoint.",
+          "Built WordPress templates to display the integrated data."
+        ]
+      },
+      "hr": {
+        "type": "WordPress dodatak",
+        "description": "PHP dodatak izrađen na praksi u Karydiji za uvoz podataka iz vanjskog API-ja.",
+        "points": [
+          "Automatizirao prijenos podataka s API-ja.",
+          "Izradio WordPress predloške za prikaz podataka."
+        ]
+      }
+    },
+    {
+      "id": "quizly",
+      "name": "Quizly",
+      "stack": [
+        "PHP",
+        "Laravel"
+      ],
+      "en": {
+        "type": "Web application",
+        "description": "A Laravel web application for creating custom quizzes and running live quiz competitions.",
+        "points": [
+          "Implemented quiz creation.",
+          "Added a competition mode inspired by Kahoot."
+        ]
+      },
+      "hr": {
+        "type": "Web aplikacija",
+        "description": "Laravel aplikacija za izradu kvizova i vođenje natjecanja uživo.",
+        "points": [
+          "Implementirao izradu vlastitih kvizova.",
+          "Dodao natjecateljski način rada po uzoru na Kahoot."
+        ]
+      }
+    },
+    {
+      "id": "otpstudent",
+      "name": "OTPStudent",
+      "stack": [
+        "Kotlin",
+        "Jetpack Compose",
+        "Android"
+      ],
+      "en": {
+        "type": "Android application",
+        "description": "A Kotlin application built in collaboration with OTP Bank for students applying to internships and jobs.",
+        "points": [
+          "Built the Android interface with Jetpack Compose.",
+          "Focused the app on the internship and job application process."
+        ]
+      },
+      "hr": {
+        "type": "Android aplikacija",
+        "description": "Kotlin aplikacija izrađena u suradnji s OTP bankom za prijavu studenata na prakse i poslove.",
+        "points": [
+          "Izradio Android sučelje pomoću Jetpack Composea.",
+          "Usmjerio aplikaciju na postupak prijave."
+        ]
+      }
+    },
+    {
+      "id": "forge-static",
+      "name": "Forge Static",
+      "stack": [
+        "TypeScript",
+        "Angular",
+        "Node.js",
+        "TMDB API"
+      ],
+      "en": {
+        "type": "Web application",
+        "description": "A modular web application for managing information about actors and other people in the film industry.",
+        "points": [
+          "Built with Angular and Node.js in TypeScript.",
+          "Designed the modules to work with the TMDB API."
+        ]
+      },
+      "hr": {
+        "type": "Web aplikacija",
+        "description": "Modularna web aplikacija za upravljanje podacima o glumcima i drugim ljudima iz filmske industrije.",
+        "points": [
+          "Izradio aplikaciju u Angularu i Node.js-u uz TypeScript.",
+          "Dizajnirao module za rad s TMDB API-jem."
+        ]
+      }
+    },
+    {
+      "id": "cityinfo",
+      "name": "CityInfo",
+      "stack": [
+        ".NET",
+        "WPF",
+        "XAML"
+      ],
+      "en": {
+        "type": "Windows desktop application",
+        "description": "A WPF ticketing application for municipal support.",
+        "points": [
+          "Built the desktop interface in XAML and .NET.",
+          "Structured the application as modules for municipal administration."
+        ]
+      },
+      "hr": {
+        "type": "Windows desktop aplikacija",
+        "description": "WPF aplikacija za prijavu zahtjeva i pružanje podrške gradu.",
+        "points": [
+          "Izradio desktop sučelje u XAML-u i .NET-u.",
+          "Organizirao aplikaciju u module za gradsku upravu."
+        ]
+      }
+    },
+    {
+      "id": "crovote",
+      "name": "CroVote",
+      "stack": [
+        "Node.js",
+        "Security"
+      ],
+      "en": {
+        "type": "Web application",
+        "description": "A Node.js voting system with separate administrator and voter roles.",
+        "points": [
+          "Implemented role-based access.",
+          "Added safeguards for voting and application integrity."
+        ]
+      },
+      "hr": {
+        "type": "Web aplikacija",
+        "description": "Sustav za glasanje u Node.js-u s odvojenim ulogama administratora i glasača.",
+        "points": [
+          "Implementirao pristup na temelju uloga.",
+          "Dodao mjere za integritet glasanja i aplikacije."
+        ]
+      }
+    },
+    {
+      "id": "voyager",
+      "name": "Voyager",
+      "stack": [
+        "Flutter",
+        "Navigation"
+      ],
+      "en": {
+        "type": "Cross-platform mobile application",
+        "description": "A Flutter application that recommends places to visit along a route.",
+        "points": [
+          "Included navigation and the ability to add stops.",
+          "Added trip statistics."
+        ]
+      },
+      "hr": {
+        "type": "Višeplatformska mobilna aplikacija",
+        "description": "Flutter aplikacija koja preporučuje zanimljiva mjesta duž rute.",
+        "points": [
+          "Dodao navigaciju i planiranje stajališta.",
+          "Uključio statistiku putovanja."
+        ]
+      }
+    },
+    {
+      "id": "axonman",
+      "name": "AxonMan",
+      "stack": [
+        "Oracle APEX"
+      ],
+      "en": {
+        "type": "Oracle APEX application",
+        "description": "An Oracle APEX application for managing a medical laboratory.",
+        "points": [
+          "Analyzed how the laboratory operated and identified gaps in the workflow.",
+          "Implemented digital workflows to address those gaps."
+        ]
+      },
+      "hr": {
+        "type": "Oracle APEX aplikacija",
+        "description": "Oracle APEX aplikacija za upravljanje medicinskim laboratorijem.",
+        "points": [
+          "Analizirao procese i identificirao nedostatke.",
+          "Implementirao digitalne tijekove rada."
+        ]
+      }
+    },
+    {
+      "id": "portfolio",
+      "name": "The Portfolio World",
+      "stack": [
+        "Three.js",
+        "Vite",
+        "SVG"
+      ],
+      "website": "https://mgrabovac22.github.io/",
+      "en": {
+        "type": "Interactive web portfolio",
+        "description": "This site combines a procedural 3D office, a scroll-driven camera and a portrait drawn by an animated pen.",
+        "points": [
+          "Built the models and office props in Three.js.",
+          "Synchronized the pen tip with SVG paths and kept profile content in accessible HTML."
+        ]
+      },
+      "hr": {
+        "type": "Interaktivni web portfolio",
+        "description": "Ova stranica spaja proceduralni 3D ured, kameru koja prati pomicanje i animirani portret.",
+        "points": [
+          "Izradio modele i uredski inventar u Three.js-u.",
+          "Sinkronizirao vrh olovke sa SVG putanjama."
+        ]
+      }
+    }
+  ],
+  "skills": [
+    {
+      "id": "skills-1",
+      "items": [
+        "TypeScript",
+        "C#",
+        "Python",
+        "C++",
+        "C",
+        "PHP",
+        "Java",
+        "Swift",
+        "Go",
+        "Kotlin"
+      ],
+      "en": {
+        "title": "Programming languages"
+      },
+      "hr": {
+        "title": "Programski jezici"
+      }
+    },
+    {
+      "id": "skills-2",
+      "items": [
+        "JavaScript",
+        "Angular",
+        "Node.js",
+        "HTML",
+        "CSS",
+        "SCSS",
+        "ASP.NET",
+        "React",
+        "Blazor",
+        "npm",
+        "Bootstrap",
+        "WordPress",
+        "Laravel",
+        "Vue.js",
+        "Next.js"
+      ],
+      "en": {
+        "title": "Web development"
+      },
+      "hr": {
+        "title": "Web razvoj"
+      }
+    },
+    {
+      "id": "skills-3",
+      "items": [
+        ".NET Framework",
+        "Entity Framework",
+        "Windows Forms",
+        "WPF",
+        "XAML",
+        "Tauri",
+        "Jetpack Compose",
+        "Flutter"
+      ],
+      "en": {
+        "title": "Desktop & mobile"
+      },
+      "hr": {
+        "title": "Desktop i mobilni razvoj"
+      }
+    },
+    {
+      "id": "skills-4",
+      "items": [
+        "MySQL",
+        "SQL Server",
+        "SQLite",
+        "Oracle APEX",
+        "PL/SQL",
+        "MongoDB",
+        "PostgreSQL"
+      ],
+      "en": {
+        "title": "Data & database development"
+      },
+      "hr": {
+        "title": "Podaci i baze podataka"
+      }
+    },
+    {
+      "id": "skills-5",
+      "items": [
+        "Visual Studio",
+        "Figma",
+        "Payara",
+        "WebSphere",
+        "Wireshark",
+        "DaVinci",
+        "Camunda",
+        "Bizagi",
+        "Oracle SQL Developer",
+        "BI Publisher"
+      ],
+      "en": {
+        "title": "Development tools"
+      },
+      "hr": {
+        "title": "Razvojni alati"
+      }
+    },
+    {
+      "id": "skills-6",
+      "items": [
+        "Git",
+        "GitHub",
+        "GitSwamp",
+        "GitKraken",
+        "GitLab",
+        "Bitbucket",
+        "Jira",
+        "Teams",
+        "Confluence",
+        "Azure DevOps",
+        "Slack",
+        "Obsidian"
+      ],
+      "en": {
+        "title": "Version control & collaboration"
+      },
+      "hr": {
+        "title": "Verzioniranje i suradnja"
+      }
+    }
+  ],
+  "towers": [
+    {
+      "mark": ".NET",
+      "name": ".NET Framework",
+      "level": 3
+    },
+    {
+      "mark": "TS",
+      "name": "TypeScript",
+      "level": 3
+    },
+    {
+      "mark": "PY",
+      "name": "Python",
+      "level": 3
+    },
+    {
+      "mark": "PHP",
+      "name": "PHP",
+      "level": 2
+    },
+    {
+      "mark": "ORA",
+      "name": "Oracle APEX",
+      "level": 2
+    },
+    {
+      "mark": "KT",
+      "name": "Kotlin",
+      "level": 1
+    },
+    {
+      "mark": "GO",
+      "name": "Go",
+      "level": 1
+    },
+    {
+      "mark": "PG",
+      "name": "PostgreSQL",
+      "level": 1
+    }
+  ],
+  "credentials": {
+    "en": [
+      "WordPress fundamentals certificate",
+      "Digital Innovation Incubator · fourth-place recognition",
+      "Lumen Development competition · semifinal certificate",
+      "Google Ads for Beginners certificate",
+      "FINA Academy · software testing diploma",
+      "Themed ETF design competition diploma"
+    ],
+    "hr": [
+      "Certifikat za osnove WordPressa",
+      "Digitalni inovacijski inkubator · priznanje za četvrto mjesto",
+      "Lumen Development · certifikat za polufinale",
+      "Certifikat Google Ads for Beginners",
+      "FINA Akademija · diploma za testiranje softvera",
+      "Diploma natjecanja izrade tematskog ETF-a"
+    ]
+  },
+  "volunteering": {
+    "en": [
+      "Kruh svetog Ante · community food bank",
+      "RoboCup 2023 European Championship",
+      "Member of the FOI Volunteer Centre"
+    ],
+    "hr": [
+      "Kruh svetog Ante · socijalna samoposluga",
+      "RoboCup 2023 · Europsko prvenstvo",
+      "Član FOI centra za volontiranje"
+    ]
+  },
+  "languages": {
+    "en": [
+      "Croatian · native",
+      "English · fluent",
+      "German · basic"
+    ],
+    "hr": [
+      "Hrvatski · materinski",
+      "Engleski · tečno",
+      "Njemački · osnove"
+    ]
+  },
+  "softSkills": {
+    "en": [
+      "Critical thinking",
+      "Communication",
+      "Presentations",
+      "Adaptability",
+      "Problem solving",
+      "Time management"
+    ],
+    "hr": [
+      "Kritičko razmišljanje",
+      "Komunikacija",
+      "Prezentiranje",
+      "Prilagodljivost",
+      "Rješavanje problema",
+      "Upravljanje vremenom"
+    ]
+  },
+  "interests": {
+    "en": [
+      "Film",
+      "Video games",
+      "Football",
+      "Hiking"
+    ],
+    "hr": [
+      "Film",
+      "Videoigre",
+      "Nogomet",
+      "Planinarenje"
+    ]
+  },
+  "copy": {
+    "en": {
+      "locale": "Hrvatski",
+      "cv": "Download CV",
+      "about": "Learn about me",
+      "close": "Back to desk",
+      "world": "Portfolio office",
+      "language": "Language",
+      "skip": "Skip to content",
+      "skipIntro": "Skip intro",
+      "title": "Developer Portfolio",
+      "portal": "Entering the office",
+      "controls": "Map controls",
+      "previous": "Previous stop",
+      "next": "Next stop",
+      "scroll": "Scroll to travel",
+      "read": "Read text",
+      "map": "Return to map",
+      "region": "Explore the 3D office by scrolling",
+      "website": "Open website",
+      "github": "Open GitHub",
+      "linkedin": "Open LinkedIn",
+      "email": "Send email",
+      "stars": "stars",
+      "at": "Career & projects",
+      "tools": "Technology columns",
+      "certificates": "Certificates & distinctions",
+      "volunteering": "Volunteering",
+      "languages": "Languages",
+      "strengths": "How I work",
+      "interests": "Outside of code",
+      "profile": "Profile",
+      "portrait": "Portrait from my CV",
+      "focus": "Current focus",
+      "explore": "Explore for fun",
+      "educationLabel": "Education",
+      "workLabel": "Work",
+      "selectedProjects": "Selected projects",
+      "description": "Explore Marin Grabovac’s projects, career and qualifications in an interactive 3D office.",
+      "studio": {
+        "welcome": "Welcome",
+        "paperTitle": "Project handoff",
+        "paperNote": "Project brief",
+        "cardTitle": "Studio",
+        "cardNote": "Access pass"
+      },
+      "drive": {
+        "back": "Portfolio",
+        "reset": "Reset",
+        "pause": "Pause",
+        "resume": "Resume",
+        "route": "CV in the city",
+        "controls": "Controls",
+        "move": "Drive and steer",
+        "brake": "Brake",
+        "loading": "Preparing the city…",
+        "start": "Start driving",
+        "ready": "Explore the city and read the stories above the streets.",
+        "read": "Read entry",
+        "heal": "Restore signs",
+        "close": "Close",
+        "shattered": "Sign down · H to restore",
+        "healed": "Signs restored",
+        "intact": "All signs are in place",
+        "noGraphics": "WebGL is unavailable on this device. The portfolio is still available.",
+        "lost": "The graphics connection was lost. Reload the page to try again.",
+        "launch": "Crate blast!",
+        "recovered": "Back on your wheels",
+        "paused": "Drive paused",
+        "left": "Steer left",
+        "right": "Steer right",
+        "forward": "Accelerate",
+        "reverse": "Reverse",
+        "speed": "Speed",
+        "title": "Night Shift",
+        "description": "Drive through a city and explore my work, education and projects on overhead signs.",
+        "unavailable": "Could not load the city stories. Return to the portfolio or reload the page."
+      }
+    },
+    "hr": {
+      "locale": "English",
+      "cv": "Preuzmi CV",
+      "about": "Upoznaj me",
+      "close": "Povratak na stol",
+      "world": "Ured portfolija",
+      "language": "Jezik",
+      "skip": "Preskoči na sadržaj",
+      "skipIntro": "Preskoči uvod",
+      "title": "Developerski portfolio",
+      "portal": "Ulazak u ured",
+      "controls": "Kontrole karte",
+      "previous": "Prethodna postaja",
+      "next": "Sljedeća postaja",
+      "scroll": "Skrolaj za kretanje",
+      "read": "Čitaj tekst",
+      "map": "Povratak na kartu",
+      "region": "Istraži 3D ured pomicanjem",
+      "website": "Otvori stranicu",
+      "github": "Otvori GitHub",
+      "linkedin": "Otvori LinkedIn",
+      "email": "Pošalji e-poštu",
+      "stars": "zvjezdice",
+      "at": "Karijera i projekti",
+      "tools": "Tehnološki stupovi",
+      "certificates": "Certifikati i priznanja",
+      "volunteering": "Volontiranje",
+      "languages": "Jezici",
+      "strengths": "Kako radim",
+      "interests": "Izvan programiranja",
+      "profile": "Profil",
+      "portrait": "Portret iz mojeg životopisa",
+      "focus": "Trenutni fokus",
+      "explore": "Kroz zabavu",
+      "educationLabel": "Studij",
+      "workLabel": "Rad",
+      "selectedProjects": "Odabrani projekti",
+      "description": "Istraži projekte, iskustvo i vještine Marina Grabovca u interaktivnom 3D uredu.",
+      "studio": {
+        "welcome": "Dobro došli",
+        "paperTitle": "Primopredaja",
+        "paperNote": "Projektni sažetak",
+        "cardTitle": "Studio",
+        "cardNote": "Propusnica"
+      },
+      "drive": {
+        "back": "Portfolio",
+        "reset": "Vrati auto",
+        "pause": "Pauza",
+        "resume": "Nastavi",
+        "route": "Životopis iznad grada",
+        "controls": "Kontrole",
+        "move": "Vozi i skreći",
+        "brake": "Kočnica",
+        "loading": "Pripremam grad…",
+        "start": "Kreni voziti",
+        "ready": "Istraži grad i prati priče iznad ulica.",
+        "read": "Čitaj zapis",
+        "heal": "Obnovi table",
+        "close": "Zatvori",
+        "shattered": "Tabla je pala · H za obnovu",
+        "healed": "Table su vraćene na mjesto",
+        "intact": "Sve su table na mjestu",
+        "noGraphics": "WebGL nije dostupan na ovom uređaju. Portfolio je i dalje dostupan.",
+        "lost": "Veza s grafikom je prekinuta. Ponovno učitaj stranicu za novi pokušaj.",
+        "launch": "Eksplozija kutije!",
+        "recovered": "Ponovno na kotačima",
+        "paused": "Vožnja pauzirana",
+        "left": "Skreni lijevo",
+        "right": "Skreni desno",
+        "forward": "Ubrzaj",
+        "reverse": "Vozi unatrag",
+        "speed": "Brzina",
+        "title": "Night Shift",
+        "description": "Provozi se gradom i istraži moje iskustvo, obrazovanje i projekte na prometnim tablama.",
+        "unavailable": "Sadržaj vožnje nije dostupan. Vrati se na portfolio ili ponovno učitaj stranicu."
+      }
+    }
+  }
+}

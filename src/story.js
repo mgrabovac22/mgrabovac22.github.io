@@ -1,14 +1,14 @@
-import { getLocale } from './locale.js';
+import { localAsset, safeLink } from './portfolio.js';
 
 export const routeStep = [18.3, 11.8];
 
-export function createStory(language) {
-  const data = getLocale(language);
+export function createStory(data) {
   const { profile, t } = data;
+  const website = item => safeLink(item.website);
   const detail = item => ({
     id: item.id, title: item.title || item.name, meta: item.organization || item.type, date: item.dates,
     body: item.description, points: item.points, tags: item.stack,
-    links: item.website ? [{ label: t.website, href: item.website }] : [],
+    links: website(item) ? [{ label: t.website, href: website(item) }] : [],
   });
   const pages = {
     about: [
@@ -21,8 +21,8 @@ export function createStory(language) {
     career: data.experience.map(detail),
     projects: data.projects.map(detail),
     qualifications: [
-      { title: t.tools, body: data.stops.find(stop => stop.id === 'qualifications').description, tags: data.towers.map(tower => tower.mark + ' · ' + '★'.repeat(tower.level)) },
-      ...data.skills.map((group, index) => ({ id: 'skills-' + (index + 1), title: group.title, tags: group.items })),
+      { title: t.tools, body: data.stops.find(stop => stop.id === 'qualifications').description, tags: data.towers.map(tower => tower.mark + ' · ' + '★'.repeat(tower.level)), towers: data.towers },
+      ...data.skills.map(group => ({ id: group.id, title: group.title, tags: group.items })),
       { id: 'credentials', title: t.certificates, points: data.credentials },
     ],
     education: [
@@ -36,17 +36,20 @@ export function createStory(language) {
         { label: t.linkedin, href: profile.linkedin, icon: 'IN' },
         { label: t.github, href: profile.github, icon: 'GH' },
         { label: t.email, href: 'mailto:' + profile.email, icon: '@' },
-        { label: t.cv, href: './' + profile.cv.file, icon: 'CV', download: true },
+        { label: t.cv, href: localAsset(profile.cv.file), icon: 'CV', download: true },
       ],
     }],
   };
 
-  return data.stops.flatMap((stop, chapter) => pages[stop.id].map((page, index) => {
-    return {
+  const route = data.stops.flatMap((stop, chapter) => {
+    const entries = pages[stop.id].length ? pages[stop.id] : [{ title: stop.title, body: stop.description }];
+    return entries.map((page, index) => ({
       ...page, chapter, chapterTitle: stop.title, district: stop.place, first: index === 0,
       id: index === 0 ? stop.id : page.id,
-      links: page.links || [],
-      index: index + 1, total: pages[stop.id].length,
-    };
-  })).map((page, index) => ({ ...page, position: routeStep.map(step => step * index) }));
+      links: (page.links || []).filter(action => safeLink(action.href)),
+      index: index + 1, total: entries.length,
+    }));
+  });
+  if (new Set(route.map(page => page.id)).size !== route.length) throw new Error('Portfolio story IDs must be unique.');
+  return route.map((page, index) => ({ ...page, position: routeStep.map(step => step * index) }));
 }

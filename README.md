@@ -17,13 +17,16 @@ npm run preview
 
 ## Edit the profile
 
-- Profile, work, projects, qualifications, education and contact details live in `src/data.js`. Croatian copy lives in `src/locale.js`.
-- `src/story.js` determines the order of the stops and what appears on the office floor. The English and Croatian pages share the same stop IDs.
-- The image and ink paths are configured in `profile.portrait` and stored in `public/art/`. The SVG needs a square `viewBox` of `0 0 230 230`. Mark the paths in drawing order with `data-ink=""` and flatten transforms into their coordinates.
-- The CV is in `public/files/`. Update `profile.cv.file` with a path relative to `public/` when replacing it. The public copy omits the home address and personal phone number.
+Edit [portfolio.json](portfolio.json) at the root of the repository. The homepage, 3D office and driving game fetch this file. For content changes, commit the JSON to `main`. The interactive site picks it up after GitHub Pages publishes it, without editing HTML or rebuilding the scripts.
+
+- Update `profile.hr.about` and `profile.en.about` for the About stop. The name and links are shared under `profile`.
+- Add work, studies or projects under `experience`, `education` and `projects`. Keep IDs unique and use lowercase letters, numbers or hyphens. The `en` object contains English text and `hr` overrides it for Croatian. Shared fields such as a project's name, stack and website sit outside those objects.
+- Use `homepage.featuredProjects` for the project IDs shown on the laptop and `homepage.technologies` for its technology badges. The `copy` section holds interface labels and the animated welcome text in both languages.
+- To replace the portrait or CV, update `profile.portrait.image` or `profile.cv.file` with a relative path such as `art/marin-portrait.webp` or `files/Marin-Grabovac-CV.pdf`. Keep the asset in the matching `public/` directory for builds and in the root `art/` or `files/` directory for immediate deployment. The pen traces `public/art/portrait.svg`.
+- To refresh the fallback HTML used by search crawlers and visitors when the JSON cannot load, run `npm run export:pages` and commit the generated output as well.
 
 ## Deploy to GitHub Pages
 
-The site publishes from the root of `main`. Run `npm run export:pages`, then commit the source and the generated root `index.html`, `hr.html`, `site-assets/`, `art/`, `files/` and `legal/` outputs, including generated file deletions. Push to `main`.
+The site publishes from the root of `main`. For code changes, run `npm run export:pages`, then commit the source and generated root `index.html`, `hr.html`, `drive.html`, `site-assets/`, `art/`, `files/` and `legal/` outputs, including generated file deletions. Push to `main`.
 
 The geometry is procedural. The extruded chapter lettering uses a subset of [Helvetiker Bold from Three.js r179](https://github.com/mrdoob/three.js/blob/r179/examples/fonts/helvetiker_bold.typeface.json). Its original license is retained in the font data. The other dependency licenses are in `public/legal/`.

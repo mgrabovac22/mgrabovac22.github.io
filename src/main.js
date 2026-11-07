@@ -3,15 +3,59 @@ import './studio.css';
 import './world.css';
 import { mountPortrait } from './portrait.js';
 import { createStory } from './story.js';
-import { getLocale } from './locale.js';
+import { loadPortfolio, localAsset } from './portfolio.js';
+import { contentCards, heroActions, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
+import { studioDispatch } from './studio.js';
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
-const locale = getLocale(document.documentElement.lang);
-const { t } = locale;
-const pages = createStory(locale.language);
 const root = document.documentElement;
 const homeShell = document.querySelector('.home-shell');
 const world = document.querySelector('#world');
+world.removeAttribute('open');
+root.classList.add('js-ready');
+
+const snapshot = JSON.parse(document.querySelector('#portfolio-snapshot').textContent);
+const loaded = await loadPortfolio(root.lang).then(data => ({ data, pages: createStory(data) })).catch(() => null);
+const locale = loaded?.data ?? snapshot;
+const pages = loaded?.pages ?? createStory(snapshot);
+const { t } = locale;
+
+function refreshPortfolio() {
+  const { profile } = locale;
+  const setText = (selector, value) => { document.querySelector(selector).textContent = value; };
+  const setAttribute = (selector, name, value) => { document.querySelector(selector).setAttribute(name, value); };
+  document.title = profile.name + ' — ' + t.title;
+  setAttribute('meta[name=description]', 'content', t.description);
+  setText('.wordmark span', profile.name);
+  setAttribute('.wordmark', 'aria-label', profile.name);
+  setText('#hero-title', profile.name);
+  document.querySelector('#hero-summary').innerHTML = profileSummary(locale);
+  document.querySelector('.screen-copy').innerHTML = screenContent(locale);
+  document.querySelector('.hero-actions').innerHTML = heroActions(locale);
+  setAttribute('.hero-actions', 'aria-label', t.at);
+  setText('.cv-control span', t.cv);
+  setAttribute('.cv-control', 'href', localAsset(profile.cv.file));
+  setAttribute('.portrait-fallback', 'src', localAsset(profile.portrait.image));
+  setAttribute('.portrait-fallback', 'alt', t.portrait);
+  document.querySelector('.studio-dispatch').outerHTML = studioDispatch(t.studio);
+  document.querySelector('.stops').innerHTML = contentCards(pages);
+  document.querySelector('.pin-layer').innerHTML = mapPins(pages);
+  setText('.skip-link', t.skip);
+  setText('#skip-intro', t.skipIntro);
+  setText('#read-mode', t.read);
+  setText('#world-title', t.world);
+  setText('.scroll-hint', t.scroll);
+  setText('.world-portal span', t.portal);
+  setAttribute('#world-scroll', 'aria-label', t.region);
+  for (const [selector, label] of [['#world-close', t.close], ['[data-step="-1"]', t.previous], ['[data-step="1"]', t.next]]) {
+    setAttribute(selector, 'aria-label', label);
+    setAttribute(selector, 'title', label);
+  }
+  for (const node of document.querySelectorAll('.language-control')) node.setAttribute('aria-label', t.locale);
+  for (const node of document.querySelectorAll('.world-hud, .world-arrows')) node.setAttribute('aria-label', t.controls);
+}
+if (loaded && JSON.stringify(locale) !== JSON.stringify(snapshot)) refreshPortfolio();
+
 const scroller = document.querySelector('#world-scroll');
 const stage = document.querySelector('#world-stage');
 const viewport = document.querySelector('#world-viewport');
@@ -40,8 +84,6 @@ for (const page of pages) {
   });
 }
 
-world.removeAttribute('open');
-root.classList.add('js-ready');
 [closeButton, ...stepButtons].forEach(button => { button.hidden = false; });
 
 function setIndex(index) {

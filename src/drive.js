@@ -5,33 +5,11 @@ import { Body, SAPBroadphase, Vec3, World } from 'cannon-es';
 import { createCar, flatYaw, isTipped, launcherImpulse } from './drive-car.js';
 import { createCity } from './drive-city.js';
 import { createSkyStories } from './drive-story.js';
+import { loadPortfolio } from './portfolio.js';
+import { createStory } from './story.js';
 
-const text = {
-  en: {
-    back: 'Portfolio', reset: 'Reset', pause: 'Pause', resume: 'Resume', route: 'CV in the city',
-    controls: 'Controls', move: 'Drive and steer', brake: 'Brake', loading: 'Preparing the city…',
-    start: 'Start driving', ready: 'Explore the city and read the stories above the streets.',
-    read: 'Read entry', heal: 'Restore signs', close: 'Close',
-    shattered: 'Sign down · H to restore', healed: 'Signs restored', intact: 'All signs are in place',
-    noGraphics: 'WebGL is unavailable on this device. The portfolio is still available.',
-    lost: 'The graphics connection was lost. Reload the page to try again.',
-    launch: 'Crate blast!', recovered: 'Back on your wheels', paused: 'Drive paused',
-    left: 'Steer left', right: 'Steer right', forward: 'Accelerate', reverse: 'Reverse', speed: 'Speed',
-  },
-  hr: {
-    back: 'Portfolio', reset: 'Vrati auto', pause: 'Pauza', resume: 'Nastavi', route: 'Životopis iznad grada',
-    controls: 'Kontrole', move: 'Vozi i skreći', brake: 'Kočnica', loading: 'Pripremam grad…',
-    start: 'Kreni voziti', ready: 'Istraži grad i prati priče iznad ulica.',
-    read: 'Čitaj zapis', heal: 'Obnovi table', close: 'Zatvori',
-    shattered: 'Tabla je pala · H za obnovu', healed: 'Table su vraćene na mjesto', intact: 'Sve su table na mjestu',
-    noGraphics: 'WebGL nije dostupan na ovom uređaju. Portfolio je i dalje dostupan.',
-    lost: 'Veza s grafikom je prekinuta. Ponovno učitaj stranicu za novi pokušaj.',
-    launch: 'Eksplozija kutije!', recovered: 'Ponovno na kotačima', paused: 'Vožnja pauzirana',
-    left: 'Skreni lijevo', right: 'Skreni desno', forward: 'Ubrzaj', reverse: 'Vozi unatrag', speed: 'Brzina',
-  },
-};
 const language = new URLSearchParams(location.search).get('lang') === 'hr' ? 'hr' : 'en';
-const t = text[language];
+const content = loadPortfolio(language).then(data => ({ data, pages: createStory(data) })).catch(() => null);
 const find = selector => document.querySelector(selector);
 const touchButtons = [...document.querySelectorAll('[data-input]')];
 const touch = find('.touch');
@@ -55,11 +33,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(any-pointer: coarse)');
 const compact = coarse.matches || innerWidth < 700;
 document.documentElement.lang = language;
-for (const node of document.querySelectorAll('[data-copy]')) node.textContent = t[node.dataset.copy];
 for (const link of document.querySelectorAll('a.button')) link.href = language === 'hr' ? './hr.html' : './';
-for (const button of touchButtons) button.setAttribute('aria-label', t[button.dataset.input]);
-find('.route').setAttribute('aria-label', t.route);
-find('.speed').setAttribute('aria-label', t.speed);
 
 const controls = new Map([
   ['KeyW', 'forward'], ['ArrowUp', 'forward'], ['KeyS', 'reverse'], ['ArrowDown', 'reverse'],
@@ -153,7 +127,21 @@ function fail(message) {
   touch.hidden = true;
 }
 
-function boot() {
+async function boot() {
+  const portfolio = await content;
+  if (!portfolio) {
+    fail(language === 'hr' ? coverText.dataset.unavailableHr : coverText.dataset.unavailable);
+    return;
+  }
+  const { data, pages } = portfolio;
+  const t = data.t.drive;
+  document.title = t.title + ' — ' + data.profile.name;
+  document.querySelector('meta[name=description]').content = t.description;
+  for (const node of document.querySelectorAll('[data-copy]')) node.textContent = t[node.dataset.copy];
+  for (const button of touchButtons) button.setAttribute('aria-label', t[button.dataset.input]);
+  find('.route').setAttribute('aria-label', t.route);
+  find('.speed').setAttribute('aria-label', t.speed);
+
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: compact ? 'low-power' : 'high-performance' });
@@ -198,7 +186,7 @@ function boot() {
   world.defaultContactMaterial.restitution = .06;
   const car = createCar(scene, world);
   const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy());
-  const stories = createSkyStories(scene, world, language);
+  const stories = createSkyStories(scene, world, pages);
   const effects = makeEffects(scene);
   const keys = new Set();
   const pointers = new Map();

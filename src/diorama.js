@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import fontData from './world-font.json';
-import { towers } from './data.js';
 import { furnishDetails } from './fixtures.js';
 import { addOfficeInfill, addOfficeScene } from './office-scenes.js';
 import { addOfficeDistricts } from './office-districts.js';
@@ -507,7 +506,7 @@ function technologyLabel(tower) {
   return new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
 }
 
-function lab(parent) {
+function lab(parent, { towers }) {
   const exhibit = new THREE.Group();
   exhibit.position.set(0, 0, -1.8);
   parent.add(exhibit);
@@ -627,7 +626,7 @@ export function addRoom(scene, page, index) {
     layout.position.set(-4.72, 0, -9.65);
     layout.scale.setScalar(.80);
     room.add(layout);
-    exhibit = layouts[page.id](layout);
+    exhibit = layouts[page.id](layout, page);
   }
   if (page.title) {
     panel = floorText(room, page);

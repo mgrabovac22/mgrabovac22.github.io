@@ -3,7 +3,6 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Body, Box, Vec3 } from 'cannon-es';
-import { createStory } from './story.js';
 import { blockSize } from './drive-city.js';
 import fontData from './drive-font.json' with { type: 'json' };
 
@@ -292,8 +291,8 @@ function sameCourse(a, b) {
   return a?.axis === b?.axis && a?.street === b?.street && a?.direction === b?.direction;
 }
 
-export function createSkyStories(scene, world, language) {
-  const posts = createStory(language).map((page, index) => ({
+export function createSkyStories(scene, world, pages) {
+  const posts = pages.map((page, index) => ({
     page, index, course: null, model: null, impact: false, state: 'intact', pieces: [], active: false, healing: 0,
   }));
   const mainStreet = { axis: 'z', across: 'x', street: 0, direction: -1 };

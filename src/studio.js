@@ -1,3 +1,5 @@
+import { escape } from './portfolio-markup.js';
+
 const sleeve = 'M-16 9C110 30 192 52 264 55q42 2 84 19l15 66q-62 18-120 16C151 155 75 184-16 184Z';
 const cuff = 'M324 67q21 2 51 9l8 62q-27 11-54 8Z';
 const carrying = 'M375 82c20-2 37-6 52-15 10-6 24-6 36-2l37 11 37 17c10 4 10 13 1 16l-43-11 54 24c10 4 9 14-1 16l-54-18 36 22c9 5 6 13-3 14l-46-18 23 15c7 5 4 12-5 11l-51-18c-11-4-20-3-31-4-20-3-30-11-42-13Z';
@@ -69,20 +71,19 @@ export function deliveryHand(side) {
 
 function pass(style, label, note, serial) {
   return `<div class="studio-pass ${style}">
-    <div class="studio-prop"><b>${label}</b><small>${note}</small><span>${serial}</span></div>
+    <div class="studio-prop"><b>${escape(label)}</b><small>${escape(note)}</small><span>${serial}</span></div>
     <svg class="studio-grip grip-left" viewBox="0 35 570 150" preserveAspectRatio="xMaxYMid slice" focusable="false"><use href="#studio-grip"/></svg>
     <svg class="studio-grip grip-right" viewBox="0 35 570 150" preserveAspectRatio="xMaxYMid slice" focusable="false"><use href="#studio-grip"/></svg>
   </div>`;
 }
 
-export function studioDispatch(language) {
-  const hr = language === 'hr';
+export function studioDispatch(copy) {
   return `<div class="studio-dispatch" aria-hidden="true">
     <div class="studio-track">
-      <div class="studio-welcome"><span></span>${hr ? 'Dobro došli' : 'Welcome'}<span></span></div>
+      <div class="studio-welcome"><span></span>${escape(copy.welcome)}<span></span></div>
       <svg class="studio-wave" viewBox="0 0 125 150" focusable="false"><use href="#studio-wave"/></svg>
-      ${pass('studio-paper', hr ? 'Primopredaja' : 'Project handoff', hr ? 'Projektni sažetak' : 'Project brief', 'MG / 01')}
-      ${pass('studio-card', 'Studio', hr ? 'Propusnica' : 'Access pass', 'MG / 02')}
+      ${pass('studio-paper', copy.paperTitle, copy.paperNote, 'MG / 01')}
+      ${pass('studio-card', copy.cardTitle, copy.cardNote, 'MG / 02')}
     </div>
   </div>`;
 }
