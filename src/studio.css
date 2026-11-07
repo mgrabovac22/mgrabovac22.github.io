@@ -1,0 +1,102 @@
+.studio-art { position: absolute; pointer-events: none; }
+.studio-dispatch { position: relative; min-width: 0; pointer-events: none; }
+.studio-track {
+  --reach: clamp(158px, 43cqw, 385px);
+  --travel: calc(50cqw + 72px);
+  --wave-time: 1.78s;
+  --paper-time: 1.91s;
+  --card-time: 1.66s;
+  position: relative; height: 100%; width: min(100%, 875px); margin-inline: auto;
+  overflow: hidden; container-type: inline-size;
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+.studio-welcome {
+  display: flex; gap: clamp(.65rem, 2.2vw, 1.7rem); justify-content: center; align-items: center;
+  position: absolute; inset: 0; color: #2b5346;
+  font: 800 clamp(.92rem, 1.68vw, 1.33rem)/1.1 "Manrope Variable", sans-serif; letter-spacing: .04em;
+}
+.studio-welcome span { height: 1px; width: clamp(16px, 5vw, 60px); background: #789e8e90; position: relative; }
+.studio-welcome span::after { content: ''; position: absolute; top: -1px; width: 3px; height: 3px; border-radius: 50%; background: #668d7c; }
+.studio-welcome span:first-child::after { left: 0; }
+.studio-welcome span:last-child::after { right: 0; }
+.studio-wave, .studio-pass { visibility: hidden; position: absolute; }
+.studio-wave {
+  left: calc(50% - clamp(108px, 16vw, 175px)); bottom: -6%; width: clamp(53px, 7vw, 83px); height: 103%;
+  transform-origin: 50% 88%; filter: drop-shadow(3px 4px 5px #26483c38);
+}
+.studio-pass { inset: 0; }
+.studio-paper { --grip: 54px; --pass-time: var(--paper-time); --pass-start: var(--wave-time); --incoming: calc(-1 * var(--travel)); --outgoing: var(--travel); --tilt: -8deg; --untilt: 8deg; }
+.studio-card { --grip: 49px; --pass-time: var(--card-time); --pass-start: calc(var(--wave-time) + var(--paper-time) + .25s); --incoming: var(--travel); --outgoing: calc(-1 * var(--travel)); --tilt: 8deg; --untilt: -8deg; }
+.studio-grip { position: absolute; width: var(--reach); height: 100%; top: 0; z-index: 1; filter: drop-shadow(0 5px 4px #2b483e29); }
+.grip-left { --offstage: calc(-1 * var(--travel)); right: calc(50% + var(--grip)); }
+.grip-right { --offstage: var(--travel); left: calc(50% + var(--grip)); transform: scaleX(-1); }
+.studio-prop {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+  width: 133px; padding: 6px 23px 5px 10px; border-radius: 3px; color: #254238;
+  background: linear-gradient(120deg, #fffcf0, #ede8d7); border: 1px solid #b8b9a3;
+  box-shadow: 2px 3px #aeae972d, 0 6px 12px #344f3f2d;
+  line-height: 1.08; white-space: nowrap;
+}
+.studio-prop b { display: block; font-size: .76rem; font-weight: 800; }
+.studio-prop small { display: block; margin-top: 3px; font-size: .59rem; font-weight: 700; }
+.studio-prop span { display: block; margin-top: 4px; font: 500 .46rem/1 var(--mono); color: #556c60; letter-spacing: .07em; }
+.studio-paper .studio-prop::before {
+  content: ''; position: absolute; top: 0; right: 0; width: 10px; height: 10px;
+  background: linear-gradient(45deg, #dfdcc9 49%, #a8ac96 51%, #e2ebe4 53%);
+}
+.studio-paper .studio-prop::after {
+  content: '✓'; position: absolute; right: 9px; bottom: 7px; width: 16px; height: 16px;
+  display: grid; place-items: center; border: 1px solid #6f8a77; border-radius: 50%; color: #3e6b55;
+  font: 800 9px/1 sans-serif; rotate: -12deg;
+}
+.studio-card .studio-prop {
+  width: 121px; color: #3c3929; padding-left: 32px; border: 1px solid #ae9467; border-radius: 6px;
+  background: linear-gradient(138deg, #f7e5a8, #d9bc7c 65%, #d4aa68); box-shadow: inset 0 1px #fff5cc, 0 5px 10px #344f3f3f;
+}
+.studio-card .studio-prop::before {
+  content: ''; position: absolute; top: 10px; left: 8px; width: 16px; height: 16px;
+  background: url('/art/mark.svg') center / contain no-repeat;
+}
+.studio-card .studio-prop span { color: #58482f; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .js-ready .studio-dispatch:not(.studio-playing, .studio-complete) .studio-welcome { visibility: hidden; }
+  .studio-playing .studio-welcome { animation: studio-greeting calc(var(--wave-time) + var(--paper-time) + var(--card-time) + .25s) both; }
+  .studio-playing .studio-wave { animation: studio-wave var(--wave-time) both; }
+  .studio-playing .studio-pass { animation: studio-pass var(--pass-time) var(--pass-start) both; }
+  .studio-playing .studio-prop { animation: studio-prop var(--pass-time) var(--pass-start) ease-in-out both; }
+  .studio-playing .studio-paper .grip-left, .studio-playing .studio-card .grip-right { animation: studio-donor var(--pass-time) var(--pass-start) ease-in-out both; }
+  .studio-playing .studio-paper .grip-right, .studio-playing .studio-card .grip-left { animation: studio-receiver var(--pass-time) var(--pass-start) ease-in-out both; }
+}
+@keyframes studio-greeting {
+  0%, 4% { opacity: 0; translate: 0 7px; }
+  12%, 26% { opacity: 1; translate: 0 0; }
+  32%, 95% { opacity: 0; translate: 0 -5px; }
+  100% { opacity: 1; translate: 0 0; }
+}
+@keyframes studio-wave {
+  0% { visibility: hidden; transform: translateY(115%) rotate(-16deg); }
+  2%, 95% { visibility: visible; }
+  23% { transform: translateY(3%) rotate(-14deg); }
+  34%, 57% { transform: translateY(1%) rotate(17deg); }
+  46%, 69% { transform: translateY(1%) rotate(-13deg); }
+  79% { transform: translateY(8%) rotate(4deg); }
+  100% { visibility: hidden; transform: translateY(115%) rotate(16deg); }
+}
+@keyframes studio-pass { 0%, 100% { visibility: hidden; } 1%, 99% { visibility: visible; } }
+@keyframes studio-donor {
+  0% { translate: var(--offstage) 8px; }
+  39%, 51% { translate: 0 0; }
+  58% { translate: calc(var(--offstage) * .02) 5px; }
+  100% { translate: var(--offstage) 8px; }
+}
+@keyframes studio-receiver {
+  0%, 10% { translate: var(--offstage) 8px; }
+  43%, 51% { translate: 0 0; }
+  100% { translate: var(--offstage) 8px; }
+}
+@keyframes studio-prop {
+  0% { transform: translate(var(--incoming), 8px) rotate(var(--tilt)); }
+  39%, 51% { transform: translate(0, 0) rotate(0); }
+  100% { transform: translate(var(--outgoing), 8px) rotate(var(--untilt)); }
+}

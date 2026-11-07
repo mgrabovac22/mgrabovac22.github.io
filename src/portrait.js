@@ -18,11 +18,11 @@ function makePen() {
   return pen;
 }
 
-export function mountPortrait(host, motion, intro) {
+export function mountPortrait(host, motion, intro, onComplete) {
   const fallback = host.querySelector('img');
   const svg = host.querySelector('template').content.querySelector('svg').cloneNode(true);
   const paths = [...svg.querySelectorAll('path[data-ink]')];
-  if (!paths.length) return;
+  if (!paths.length) return false;
   svg.classList.add('portrait-ink');
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', fallback.alt);
@@ -69,10 +69,11 @@ export function mountPortrait(host, motion, intro) {
     paths[0].parentElement.setAttribute('opacity', .22);
     pose(restX, restY, 27);
     intro.drawingDone = true;
+    onComplete();
   }
   if (intro.skipped || motion.matches) {
     finish();
-    return;
+    return true;
   }
 
   strokes.forEach(({ path, brush, length }) => {
@@ -141,4 +142,5 @@ export function mountPortrait(host, motion, intro) {
     schedule();
   }
   schedule();
+  return true;
 }

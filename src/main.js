@@ -1,4 +1,5 @@
 import './style.css';
+import './studio.css';
 import './world.css';
 import { mountPortrait } from './portrait.js';
 import { createStory } from './story.js';
@@ -250,23 +251,38 @@ for (const link of document.querySelectorAll('.hero-actions a[href^="#"]')) {
 const skip = document.querySelector('#skip-intro');
 const portrait = document.querySelector('#portrait');
 const desk = document.querySelector('.desk-stage');
+const studio = document.querySelector('.studio-dispatch');
 const portraitDelivery = portrait.getAnimations().find(animation => animation.animationName === 'portrait-delivery');
 const intro = { skipped: levelFromHash() >= 0, drawingDone: false };
 function finishIntro() {
   if (document.activeElement === skip) document.querySelector('.hero-primary').focus({ preventScroll: true });
   intro.skipped = true;
   desk.classList.add('intro-done');
+  studio.classList.remove('studio-playing');
+  studio.classList.add('studio-complete');
   skip.hidden = true;
+}
+function startStudioIntro() {
+  if (intro.skipped) return;
+  desk.classList.add('intro-done');
+  studio.classList.add('studio-playing');
 }
 if (motion.matches || intro.skipped) finishIntro();
 else {
-  if ((portraitDelivery?.currentTime ?? 0) < 850) mountPortrait(portrait, motion, intro);
   skip.hidden = false;
-  setTimeout(finishIntro, 3500);
+  const animatedPortrait = (portraitDelivery?.currentTime ?? 0) < 850 && mountPortrait(portrait, motion, intro, startStudioIntro);
+  if (!animatedPortrait) {
+    const lidOpening = desk.querySelector('.laptop-lid').getAnimations().find(animation => animation.animationName === 'lid-opening');
+    if (lidOpening) void lidOpening.finished.then(startStudioIntro, () => {});
+    else startStudioIntro();
+  }
 }
+studio.addEventListener('animationend', event => { if (event.animationName === 'studio-greeting') finishIntro(); });
 skip.addEventListener('click', finishIntro);
 motion.addEventListener('change', () => { if (motion.matches) finishIntro(); });
-document.addEventListener('visibilitychange', () => root.classList.toggle('is-hidden', document.hidden));
+const syncVisibility = () => root.classList.toggle('is-hidden', document.hidden);
+document.addEventListener('visibilitychange', syncVisibility);
+syncVisibility();
 desk.addEventListener('pointermove', event => {
   if (motion.matches || event.pointerType !== 'mouse') return;
   const bounds = desk.getBoundingClientRect();

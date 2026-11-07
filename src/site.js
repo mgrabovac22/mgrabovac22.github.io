@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createStory } from './story.js';
 import { getLocale } from './locale.js';
+import { deliveryHand, studioArtwork, studioDispatch } from './studio.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -20,27 +21,6 @@ const list = (items, className) => items?.length
   ? `<ul class="${className}">${items.map(item => `<li>${escape(item)}</li>`).join('')}</ul>`
   : '';
 const pageNumber = index => String(index + 1).padStart(2, '0');
-
-function deliveryHand(side) {
-  return `<svg class="delivery-hand ${side}-hand" viewBox="0 0 570 195" aria-hidden="true">
-    <defs>
-      <linearGradient id="sleeve-${side}" x2="0" y2="1">
-        <stop stop-color="#5f8071"/><stop offset=".6" stop-color="#36584c"/><stop offset="1" stop-color="#203e34"/>
-      </linearGradient>
-      <linearGradient id="skin-${side}" x2="0" y2="1">
-        <stop stop-color="#e3b78e"/><stop offset=".62" stop-color="#bf8965"/><stop offset="1" stop-color="#a46d51"/>
-      </linearGradient>
-    </defs>
-    <path fill="url(#sleeve-${side})" stroke="#253f35" stroke-width="2" d="M-16 9C110 30 192 52 264 55q42 2 84 19l15 66q-62 18-120 16C151 155 75 184-16 184Z"/>
-    <path fill="none" stroke="#9cb4a1" stroke-opacity=".42" stroke-width="2" d="M2 30c102 18 183 42 250 43q45 2 80 12m-321 80c102-15 173-35 244-34q43 0 77-9"/>
-    <path fill="#28483b" stroke="#233d34" stroke-width="2" d="M324 67q21 2 51 9l8 62q-27 11-54 8Z"/>
-    <path fill="none" stroke="#6f9280" stroke-width="2" d="m333 72 7 69m4-68 7 66"/>
-    <circle cx="360" cy="126" r="3.5" fill="#c3b18e"/>
-    <path fill="url(#skin-${side})" stroke="#965f46" stroke-width="2" stroke-linejoin="round" d="M375 82c20-2 37-6 52-15 10-6 24-6 36-2l37 11 37 17c10 4 10 13 1 16l-43-11 54 24c10 4 9 14-1 16l-54-18 36 22c9 5 6 13-3 14l-46-18 23 15c7 5 4 12-5 11l-51-18c-11-4-20-3-31-4-20-3-30-11-42-13Z"/>
-    <path fill="#d9a57e" stroke="#9d694d" stroke-width="2" d="M413 109c18-8 29-14 47-13l24 2c11 1 11 10 3 13l-28 4-19 12c-9 6-21 3-27-2"/>
-    <path fill="none" stroke="#f0c5a1" stroke-opacity=".7" stroke-width="2" stroke-linecap="round" d="m522 95 13 5m-3 27 16 6m-29 12 10 6m-36 4 9 5m-44-51 22-3"/>
-  </svg>`;
-}
 
 function laptop(profile, language, projects) {
   const keys = Array.from({ length: 6 }, (_, row) =>
@@ -131,11 +111,13 @@ export function renderSite(html, context) {
   const content = `
   <a class="skip-link" href="#main">${t.skip}</a>
   <div class="home-shell">
+    ${studioArtwork()}
     <canvas id="home-blueprint" class="home-blueprint" aria-hidden="true"></canvas>
     <header class="site-header shell">
       <a href="#home" class="wordmark" aria-label="${name}"><img src="/art/mark.svg" alt="" width="33" height="33"><span>${name}</span></a>
       <div class="header-actions">${localeLink}${external({ href: asset(profile.cv.file), label: t.cv, download: true }, 'cv-control')}</div>
     </header>
+    ${studioDispatch(language)}
     <main id="main" tabindex="-1">
       <section class="hero shell" id="home" aria-labelledby="hero-title">
         <h1 id="hero-title" class="sr-only">${name}</h1>

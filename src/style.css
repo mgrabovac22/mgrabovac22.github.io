@@ -32,6 +32,7 @@
   --lime: #dce8ac;
   --mono: "IBM Plex Mono", monospace;
   --header: 71px;
+  --dispatch: clamp(52px, 9svh, 76px);
   --viewport: 100vh;
 }
 @supports (height: 100svh) { :root { --viewport: 100svh; } }
@@ -55,7 +56,7 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
 
 .home-shell {
   position: relative; isolation: isolate; height: var(--viewport); display: grid;
-  grid-template-rows: var(--header) minmax(0, 1fr); overflow: hidden;
+  grid-template-rows: var(--header) var(--dispatch) minmax(0, 1fr); overflow: hidden;
   background: radial-gradient(ellipse at 57% 42%, #f8f9f3 6%, #e5ede7 57%, #c4d5cd 100%);
 }
 .home-blueprint { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -191,7 +192,7 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
   .desk-stage { height: min(100%, 125vw, 67svh); }
   .portrait { top: 0; right: 5%; width: min(42%, 23svh); transform: translate(var(--draft-x, 0px), var(--draft-y, 0px)) rotate(3.5deg); }
   .laptop { inset: 30% -1% -1% -2%; }
-  .laptop-model { top: 72%; width: min(86%, 60svh); }
+  .laptop-model { top: 72%; width: min(86%, 88cqh, 60svh); }
   .laptop-hand { right: 64%; top: 75%; }
   .portrait-hand { left: 72%; top: -40%; }
 }
@@ -209,7 +210,7 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
   .portrait { top: 0; }
 }
 @media (max-height: 460px) and (orientation: landscape) {
-  :root { --header: 49px; }
+  :root { --header: 49px; --dispatch: 48px; }
   .hero { padding-block: .4rem; gap: .3rem; }
   .desk-stage { height: min(100%, 63svh); }
   .hero-primary { min-height: 44px; }
