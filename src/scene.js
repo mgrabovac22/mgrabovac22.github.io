@@ -42,39 +42,6 @@ export function createRenderer(host, { alpha = false, shadows = true, maxDpr = 1
   };
 }
 
-export function stageLoop(host, step, resize) {
-  let visible = false;
-  let frame = 0;
-  let time = 0;
-  let previous = null;
-  function update(now) {
-    const dt = previous === null ? 0 : Math.min((now - previous) / 1000, 0.05);
-    previous = now;
-    time += dt;
-    step(time, dt);
-    frame = requestAnimationFrame(update);
-  }
-  function schedule() {
-    const active = visible && !document.hidden;
-    if (active && !frame) frame = requestAnimationFrame(update);
-    if (!active && frame) {
-      cancelAnimationFrame(frame);
-      frame = 0;
-      previous = null;
-    }
-  }
-
-  new IntersectionObserver(([entry]) => {
-    visible = entry.isIntersecting;
-    schedule();
-  }, { rootMargin: '40px' }).observe(host);
-  new ResizeObserver(([entry]) => {
-    const { width, height } = entry.contentRect;
-    if (width && height) resize(width, height);
-  }).observe(host);
-  document.addEventListener('visibilitychange', schedule);
-}
-
 const cube = new THREE.BoxGeometry();
 const cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 12);
 const ballGeometry = new THREE.SphereGeometry(1, 12, 8);

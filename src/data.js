@@ -10,7 +10,7 @@ export const profile = {
   url: 'https://mgrabovac22.github.io/',
   github: 'https://github.com/mgrabovac22',
   email: 'grabovacmarin000@gmail.com',
-  linkedin: 'https://www.linkedin.com/in/marin-grabovac-7bb447260/',
+  linkedin: 'https://hr.linkedin.com/in/marin-grabovac-7bb447260',
   cv: { file: 'files/Marin-Grabovac-CV.pdf' },
   portrait: { image: 'art/marin-portrait.webp', drawing: 'art/portrait.svg' },
 };
@@ -81,7 +81,7 @@ export const projects = [
     description: 'This site combines a procedural 3D office, a scroll-driven camera and a portrait drawn by an animated pen.',
     points: ['Built the models and office props in Three.js.', 'Synchronized the pen tip with SVG paths and kept profile content in accessible HTML.'],
     stack: ['Three.js', 'Vite', 'SVG'],
-    github: 'https://github.com/mgrabovac22/mgrabovac22.github.io',
+    website: profile.url,
   },
 ];
 
@@ -166,9 +166,9 @@ export const interests = ['Film', 'Video games', 'Football', 'Hiking'];
 export const stops = [
   { id: 'about', title: 'About', place: 'The Studio', tag: 'Personal introduction', position: [0, 0], description: profile.about, exhibit: 'Workstation' },
   { id: 'career', title: 'Career', place: 'The Office', tag: 'Professional timeline', position: [15, -9], description: 'My work spans software development, QA, database development and technical support.', exhibit: 'Meeting table' },
+  { id: 'education', title: 'Education', place: 'The Library', tag: 'Study & volunteering', position: [30, -18], description: 'My studies cover information systems, software engineering and application development.', exhibit: 'Reading desk' },
   { id: 'projects', title: 'Projects', place: 'The Workshop', tag: 'Selected work', position: [30, -18], description: 'A selection of projects from my studies, lab work and internships.', exhibit: 'Prototype desk' },
   { id: 'qualifications', title: 'Qualifications', place: 'The Lab', tag: 'Technologies & certificates', position: [45, -27], description: 'Each labeled column follows the one-to-three-star scale used for technical skills in my CV.', exhibit: 'Technology columns' },
-  { id: 'education', title: 'Education', place: 'The Library', tag: 'Study & volunteering', position: [60, -36], description: 'My studies cover information systems, software engineering and application development.', exhibit: 'Reading desk' },
   { id: 'contact', title: 'Contact', place: 'The Postroom', tag: 'Find me online', position: [75, -45], description: 'Get in touch by email or LinkedIn, or explore the repositories on GitHub.', exhibit: 'Correspondence desk' },
 ];
 

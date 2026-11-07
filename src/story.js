@@ -8,7 +8,7 @@ export function createStory(language) {
   const detail = item => ({
     id: item.id, title: item.title || item.name, meta: item.organization || item.type, date: item.dates,
     body: item.description, points: item.points, tags: item.stack,
-    links: item.github ? [{ label: t.source, href: item.github, icon: 'GH' }] : [],
+    links: item.website ? [{ label: t.website, href: item.website }] : [],
   });
   const pages = {
     about: [

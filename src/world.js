@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { addRoom } from './diorama.js';
 import { routeStep } from './story.js';
-import { createRenderer, lampRig, stageLoop } from './scene.js';
+import { createRenderer, lampRig } from './scene.js';
+import { stageLoop } from './stage-loop.js';
 
 const axis = new THREE.Vector3(routeStep[0], 0, routeStep[1]).normalize();
 const side = new THREE.Vector3(-axis.z, 0, axis.x);
@@ -91,7 +92,7 @@ function createBeacon(room, link, [x, z]) {
     part.renderOrder = 3;
     marker.add(part);
   }
-  return { link, marker, halo, hit };
+  return { link, origin, x, z, marker, halo, hit };
 }
 
 export async function prepareOffice(pages) {
@@ -114,13 +115,17 @@ export async function prepareOffice(pages) {
   }
 
   const cells = [];
+  let deadline = performance.now();
   for (const [index, page] of [...pages, ...branches].entries()) {
-    if (index % 3 === 0) await yieldFrame();
+    if (performance.now() >= deadline) {
+      await yieldFrame();
+      deadline = performance.now() + 8;
+    }
     const built = addRoom(scene, page, index);
     const actions = page.links || [];
     const pins = actions.map((waypoint, slot) => {
       const location = actions.length > 2
-        ? [(slot % 2 ? 1 : -1) * 3.8, -12.25 + Math.floor(slot / 2) * 3.1]
+        ? [(slot % 2 ? 1 : -1) * 3.8, -12.85 + Math.floor(slot / 2) * 4.5]
         : [(slot - (actions.length - 1) * .5) * 5.8, -9.85];
       return createBeacon(built.room, waypoint.link, location);
     });
@@ -132,12 +137,13 @@ export async function prepareOffice(pages) {
   return { scene, cells, first, last };
 }
 
-export async function mountWorld(host, motion, route, pages, office, ready) {
-  const renderer = createRenderer(host, { maxDpr: matchMedia('(max-width: 760px)').matches ? 1.5 : 1.75 });
+export async function mountWorld(host, motion, route, pages, office, ready, failed) {
+  const compact = matchMedia('(max-width: 760px)').matches;
+  const renderer = createRenderer(host, { maxDpr: compact ? 1.25 : 1.6 });
   if (!renderer) return false;
   const { scene, cells, first, last } = office;
   const camera = new THREE.PerspectiveCamera(39, 1, .1, 112);
-  const light = lampRig(scene, 23, 1536, {
+  const light = lampRig(scene, 23, compact ? 768 : 1024, {
     sky: '#f7f9fc', ground: '#969b99', sun: '#fff9ef',
   });
   const target = new THREE.Vector3();
@@ -151,8 +157,6 @@ export async function mountWorld(host, motion, route, pages, office, ready) {
   let jump = route.jump;
   let progress = route.progress / segments;
   let flight = 0;
-  let lastDraw = -1;
-  let drawNext = true;
   let viewWidth = 30;
   let firstFrame = true;
   let nearbyPins = [];
@@ -187,19 +191,14 @@ export async function mountWorld(host, motion, route, pages, office, ready) {
     down = null;
   });
 
-  stageLoop(host, (time, dt) => {
+  const invalidate = stageLoop(host, (time, dt) => {
     const reduced = motion.matches;
     const desired = (reduced ? route.index : route.progress) / segments;
     if (route.jump !== jump) {
       jump = route.jump;
       progress = desired;
       flight = 0;
-      drawNext = true;
     }
-    if (reduced && !drawNext && progress === desired && !firstFrame) return;
-    if (!reduced && time - lastDraw < (camera.aspect < .85 ? .025 : .013)) return;
-    lastDraw = time;
-    drawNext = false;
     flight = reduced ? 1 : Math.min(1, flight + dt / 1.14);
     const unveil = THREE.MathUtils.smootherstep(flight, 0, 1);
     progress = reduced ? desired : THREE.MathUtils.damp(progress, desired, 8, dt);
@@ -221,7 +220,10 @@ export async function mountWorld(host, motion, route, pages, office, ready) {
     for (const cell of cells) {
       const visible = frustum.intersectsBox(cell.bounds);
       cell.room.visible = visible;
-      if (visible) cell.animate(reduced ? 0 : time, cell.page === pages[route.index]);
+      if (visible && (!reduced || firstFrame || cell.needsStaticPose)) {
+        cell.animate(reduced ? 0 : time, cell.page === pages[route.index]);
+        cell.needsStaticPose = !reduced;
+      }
       const active = visible && cell.page === pages[route.index] && Math.abs(progress - desired) * segments < .2 && flight > .44;
       for (const [index, pin] of cell.pins.entries()) {
         pin.marker.visible = active;
@@ -250,12 +252,25 @@ export async function mountWorld(host, motion, route, pages, office, ready) {
     }
   }, (width, height) => {
     size.set(width, height);
+    const pinOffset = width < 460 && height < 700 ? 2.15 : 0;
+    const shortLandscape = width >= 460 && height < 520;
+    for (const cell of cells) {
+      cell.pins.forEach((pin, slot) => {
+        if (shortLandscape) {
+          pin.origin.position.x = (slot % 2 ? 1 : -1) * 10.55;
+          pin.origin.position.z = -3.45 + Math.floor(slot / 2) * 4.75;
+        } else {
+          pin.origin.position.x = pin.x;
+          pin.origin.position.z = pin.z + pinOffset;
+        }
+      });
+    }
     camera.aspect = width / height;
     viewWidth = camera.aspect < .85 ? 17.2 : THREE.MathUtils.clamp(26 + camera.aspect * 4.2, 29, 36);
     camera.updateProjectionMatrix();
     renderer.size(width, height);
-    drawNext = true;
-  });
-  renderer.canvas.addEventListener('webglcontextrestored', () => { drawNext = true; });
+  }, { motion, fps: compact ? 30 : 60 });
+  host.closest('.world-scroll').addEventListener('scroll', invalidate, { passive: true });
+  renderer.canvas.addEventListener('webglcontextlost', failed, { once: true });
   return true;
 }

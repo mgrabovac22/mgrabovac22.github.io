@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { box, cylinder, createRenderer, lampRig, stageLoop, surface } from './scene.js';
+import { box, cylinder, createRenderer, lampRig, surface } from './scene.js';
+import { stageLoop } from './stage-loop.js';
 
 function makeDisplay({ profile, language }) {
   const canvas = document.createElement('canvas');
@@ -145,7 +146,6 @@ export function mountLaptop(host, motion, intro, locale) {
     art.style.removeProperty('--draft-y');
   });
 
-  let settledFrame = false;
   stageLoop(host, (time, dt) => {
     const settled = motion.matches || intro.skipped;
     const progress = settled ? 1 : THREE.MathUtils.clamp((time - .16) / 1.24, 0, 1);
@@ -156,13 +156,11 @@ export function mountLaptop(host, motion, intro, locale) {
     laptop.rotation.y = motion.matches ? -.09 : THREE.MathUtils.damp(laptop.rotation.y, -.09 + pointerX * .11, 4, dt);
     camera.position.set(1.16 + (motion.matches ? 0 : pointerX * .21), 3.28 + (motion.matches ? 0 : pointerY * .17), cameraDistance);
     camera.lookAt(-.06, 1.39, .0);
-    if (!motion.matches || !settledFrame) renderer.draw(scene, camera);
-    settledFrame = motion.matches;
+    renderer.draw(scene, camera);
   }, (width, height) => {
     camera.aspect = width / height;
     cameraDistance = Math.max(7.4, 10.05 / camera.aspect);
     camera.updateProjectionMatrix();
     renderer.size(width, height);
-    settledFrame = false;
-  });
+  }, { motion, container: host.closest('.home-shell'), fps: 60 });
 }

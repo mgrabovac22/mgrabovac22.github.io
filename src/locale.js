@@ -10,9 +10,9 @@ const profileHr = {
 const hrStops = [
   ['O meni', 'Studio', 'Profil', profileHr.about],
   ['Karijera', 'Ured', 'Radno iskustvo', 'Radim na razvoju softvera, testiranju, bazama podataka i tehničkoj podršci.'],
+  ['Obrazovanje', 'Knjižnica', 'Studij i volontiranje', 'Studij informacijskih sustava, programskog inženjerstva i razvoja aplikacija.'],
   ['Projekti', 'Radionica', 'Odabrani radovi', 'Projekti sa studija, iz laboratorija i sa stručne prakse.'],
   ['Vještine', 'Laboratorij', 'Tehnologije i certifikati', 'Visine stupova prate ljestvicu od jedne do tri zvjezdice iz mojeg CV-a.'],
-  ['Obrazovanje', 'Knjižnica', 'Studij i volontiranje', 'Studij informacijskih sustava, programskog inženjerstva i razvoja aplikacija.'],
   ['Kontakt', 'Recepcija', 'Pronađi me na mreži', 'Javi se e-poštom ili na LinkedInu. Repozitoriji su dostupni na GitHubu.'],
 ];
 
@@ -46,9 +46,10 @@ const messages = {
   en: {
     locale: 'Hrvatski', cv: 'Download CV', about: 'Learn about me', close: 'Back to desk', world: 'Portfolio office',
     language: 'Language', skip: 'Skip to content', skipIntro: 'Skip intro',
+    motion: 'Pause animations',
     title: 'Developer Portfolio', portal: 'Entering the office', controls: 'Map controls',
     previous: 'Previous stop', next: 'Next stop', scroll: 'Scroll to travel', read: 'Read text', map: 'Return to map',
-    region: 'Explore the 3D office by scrolling', source: 'View source', github: 'Open GitHub', linkedin: 'Open LinkedIn',
+    region: 'Explore the 3D office by scrolling', website: 'Open website', github: 'Open GitHub', linkedin: 'Open LinkedIn',
     email: 'Send email', stars: 'stars', at: 'Career & projects', tools: 'Technology columns',
     certificates: 'Certificates & distinctions', volunteering: 'Volunteering', languages: 'Languages', strengths: 'How I work',
     interests: 'Outside of code', profile: 'Profile', portrait: 'Portrait from my CV', focus: 'Current focus',
@@ -56,9 +57,10 @@ const messages = {
   hr: {
     locale: 'English', cv: 'Preuzmi CV', about: 'Upoznaj me', close: 'Povratak na stol', world: 'Ured portfolija',
     language: 'Jezik', skip: 'Preskoči na sadržaj', skipIntro: 'Preskoči uvod',
+    motion: 'Pauziraj animacije',
     title: 'Developerski portfolio', portal: 'Ulazak u ured', controls: 'Kontrole karte',
     previous: 'Prethodna postaja', next: 'Sljedeća postaja', scroll: 'Skrolaj za kretanje', read: 'Čitaj tekst', map: 'Povratak na kartu',
-    region: 'Istraži 3D ured pomicanjem', source: 'Otvori izvorni kod', github: 'Otvori GitHub', linkedin: 'Otvori LinkedIn',
+    region: 'Istraži 3D ured pomicanjem', website: 'Otvori stranicu', github: 'Otvori GitHub', linkedin: 'Otvori LinkedIn',
     email: 'Pošalji e-poštu', stars: 'zvjezdice', at: 'Karijera i projekti', tools: 'Tehnološki stupovi',
     certificates: 'Certifikati i priznanja', volunteering: 'Volontiranje', languages: 'Jezici', strengths: 'Kako radim',
     interests: 'Izvan programiranja', profile: 'Profil', portrait: 'Portret iz mojeg životopisa', focus: 'Trenutni fokus',

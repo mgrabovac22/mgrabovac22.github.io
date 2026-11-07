@@ -10,6 +10,8 @@ const icons = {
   up: '<path d="M8 13V3m-4 4 4-4 4 4"/>',
   download: '<path d="M8 2.5v7m-3-3 3 3 3-3M3 10.5v2.8h10v-2.8"/>',
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
+  pause: '<path d="M5.5 3.5v9m5-9v9"/>',
+  play: '<path d="m5 3 7 5-7 5Z"/>',
 };
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">${icons[name]}</svg>`;
 const link = (label, href, mark = 'diagonal', style = 'text-link') =>
@@ -32,7 +34,7 @@ function contentCard(page, index) {
   return `<section id="${page.id}" class="stop" aria-labelledby="${page.id}-title">
     <article>
       <p class="mono fallback-index">${pageNumber(index)} / ${escape(page.chapterTitle)}</p>
-      <h3 id="${page.id}-title">${escape(page.title)}</h3>
+      <h3 id="${page.id}-title" tabindex="-1">${escape(page.title)}</h3>
       ${page.meta || page.date ? `<p class="fallback-meta">${escape([page.meta, page.date].filter(Boolean).join(' · '))}</p>` : ''}
       ${page.body ? `<p>${escape(page.body)}</p>` : ''}
       ${list(page.points, 'fallback-points')}${list(page.tags, 'fallback-tags')}
@@ -44,6 +46,7 @@ function contentCard(page, index) {
 export function renderSite(html, context) {
   const language = context.path.endsWith('/hr.html') ? 'hr' : 'en';
   const { profile, stops, t } = getLocale(language);
+  const motionControl = `<button class="motion-control" type="button" data-motion aria-label="${t.motion}" aria-pressed="false" hidden>${icon('pause')}${icon('play')}</button>`;
   const story = createStory(language);
   const name = escape(profile.name);
   const title = `${name} — ${t.title}`;
@@ -73,9 +76,9 @@ export function renderSite(html, context) {
     <header class="site-header shell">
       ${localeLink}
       <a href="#home" class="wordmark" aria-label="${name}"><img src="/art/mark.svg" alt="" width="33" height="33"><span>${name}</span></a>
-      ${external({ href: asset(profile.cv.file), label: t.cv, download: true }, 'cv-control')}
+      <div class="header-actions">${motionControl}${external({ href: asset(profile.cv.file), label: t.cv, download: true }, 'cv-control')}</div>
     </header>
-    <main id="main">
+    <main id="main" tabindex="-1">
       <section class="hero shell" id="home" aria-labelledby="hero-title">
         <h1 id="hero-title" class="sr-only">${name}</h1>
         <p class="sr-only">${escape(profile.role)} · ${escape(profile.current)} · ${escape(profile.focus)}</p>
@@ -92,13 +95,13 @@ export function renderSite(html, context) {
           </div>
           <div class="portrait" id="portrait" data-drawing="${escape(asset(drawing))}" data-photo="${escape(asset(photo))}">
             <span class="portrait-marker mono" aria-hidden="true">MG / 01 <b>+</b></span>
-            <img src="/${escape(photo)}" alt="${escape(t.portrait)}" class="portrait-fallback" width="400" height="400">
+            <img src="/${escape(photo)}" alt="${escape(t.portrait)}" class="portrait-fallback" width="400" height="400" decoding="async">
           </div>
           <button type="button" class="skip-intro mono" id="skip-intro" hidden>${t.skipIntro}</button>
         </figure>
         <nav class="hero-actions" aria-label="${escape(t.at)}">
           ${link(t.about, '#about', 'diagonal', 'hero-primary')}
-          ${stops.slice(1, 4).map(stop => link(stop.title, '#' + stop.id)).join('')}
+          ${stops.slice(1, -1).map(stop => link(stop.title, '#' + stop.id)).join('')}
         </nav>
       </section>
     </main>
@@ -109,6 +112,7 @@ export function renderSite(html, context) {
       <div class="hud-left">
         <button class="world-close" type="button" id="world-close" aria-label="${t.close}" title="${t.close}" autofocus hidden>${icon('close')}</button>
         ${localeLink}
+        ${motionControl}
       </div>
       <div class="hud-index mono" aria-hidden="true"><span id="district-name"></span><span id="world-counter">01 / ${story.length}</span></div>
     </div>

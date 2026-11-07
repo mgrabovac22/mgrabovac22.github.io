@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 const width = 15.7;
 const depth = 9.1;
-const accent = ['#476745', '#715039', '#3a635b', '#516638', '#6e5340', '#38605a'];
+const accent = ['#314831', '#50382a', '#26443e', '#354627', '#47372a', '#24443d'];
 
 function format(context, text, maxWidth) {
   const words = text.split(/\s+/);
@@ -22,10 +22,11 @@ function format(context, text, maxWidth) {
 
 function panelTexture(page) {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 652;
+  const density = matchMedia('(max-width: 760px)').matches ? .60 : .8;
+  canvas.width = Math.ceil(1280 * density);
+  canvas.height = Math.ceil(815 * density);
   const ctx = canvas.getContext('2d');
-  ctx.scale(.8, .8);
+  ctx.scale(density, density);
   const tone = accent[page.chapter];
   ctx.fillStyle = tone;
   ctx.fillRect(60, 38, 100, 6);
@@ -76,7 +77,7 @@ function panelTexture(page) {
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
+  texture.anisotropy = density < .8 ? 3 : 6;
   return texture;
 }
 

@@ -4,6 +4,7 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import fontData from './world-font.json';
 import { towers } from './data.js';
 import { furnishDetails } from './fixtures.js';
+import { addOfficeScene } from './office-scenes.js';
 import { floorText } from './floor-text.js';
 import { ball, box, cylinder, surface } from './scene.js';
 
@@ -146,14 +147,55 @@ function lamp(parent, x, z) {
   cylinder(parent, mat.light, .09, .021, x + .25, .955, z);
 }
 
+const actorTint = surface('#ffffff');
+
+function instanceCharacter(rig) {
+  const groups = new Map();
+  rig.traverse(object => {
+    if (!object.isMesh) return;
+    if (!groups.has(object.geometry)) groups.set(object.geometry, []);
+    object.updateMatrix();
+    groups.get(object.geometry).push({ mesh: object, parent: object.parent });
+  });
+  const instances = [];
+  for (const [geometry, parts] of groups) {
+    if (parts.length < 4) continue;
+    const batch = new THREE.InstancedMesh(geometry, actorTint, parts.length);
+    batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    batch.castShadow = batch.receiveShadow = true;
+    batch.frustumCulled = false;
+    parts.forEach(({ mesh }, index) => {
+      batch.setColorAt(index, mesh.material.color);
+      mesh.removeFromParent();
+    });
+    rig.add(batch);
+    instances.push({ batch, parts });
+  }
+  const inverse = new THREE.Matrix4();
+  const matrix = new THREE.Matrix4();
+  return () => {
+    rig.updateWorldMatrix(true, true);
+    inverse.copy(rig.matrixWorld).invert();
+    for (const { batch, parts } of instances) {
+      parts.forEach(({ mesh, parent }, index) => {
+        matrix.multiplyMatrices(parent.matrixWorld, mesh.matrix).premultiply(inverse);
+        batch.setMatrixAt(index, matrix);
+      });
+      batch.instanceMatrix.needsUpdate = true;
+    }
+  };
+}
+
 function person(parent, x, z, outfit, behavior, phase = 0, {
-  scale = 1, stride = 2.6, pace = .34, beat = 6.4,
+  scale = 1, stride = 2.6, pace = .34, beat = 6.4, facing,
 } = {}) {
   const rig = new THREE.Group();
   rig.position.set(x, 0, z);
   rig.userData.dynamic = true;
   rig.scale.setScalar(scale);
-  const seated = behavior === 'type';
+  const reading = behavior === 'read';
+  const presenting = behavior === 'present';
+  const seated = reading || behavior === 'type';
   const carrying = behavior === 'carry';
   const walking = carrying || behavior === 'walk';
   const hips = seated ? .42 : .47;
@@ -199,6 +241,7 @@ function person(parent, x, z, outfit, behavior, phase = 0, {
     box(head, mat.light, .157, .018, .070, 0, .074, .095);
     box(rig, mat.light, .125, .029, .041, .072, hips + .243, .082);
   }
+  const updateInstances = instanceCharacter(rig);
 
   function animate(time, active) {
     const t = time + phase;
@@ -210,11 +253,12 @@ function person(parent, x, z, outfit, behavior, phase = 0, {
       rig.rotation.y = Math.atan2(Math.cos(heading) * stride, -Math.sin(heading) * .29);
       rig.position.y = Math.abs(Math.sin(t * beat)) * .035 * scale;
     } else if (seated) {
-      rig.rotation.y = Math.PI;
+      rig.rotation.y = facing ?? Math.PI;
     } else {
-      rig.rotation.y = -.43 + Math.sin(t * .61) * .13 * movement;
+      rig.rotation.y = (facing ?? -.43) + Math.sin(t * .61) * .13 * movement;
     }
     head.rotation.y = Math.sin(t * .8) * .23 * movement;
+    head.rotation.x = reading ? .17 + Math.sin(t * .75) * .16 * movement : 0;
     limbs.forEach(({ shoulder, elbow, hip, knee }, index) => {
       const gait = Math.sin(t * beat + index * Math.PI);
       if (walking) {
@@ -226,12 +270,13 @@ function person(parent, x, z, outfit, behavior, phase = 0, {
         hip.rotation.x = -1.4;
         knee.rotation.x = 1.36;
         shoulder.rotation.x = -.66;
-        elbow.rotation.x = -1.03 + Math.sin(t * 12.4 + index * 2) * .13 * movement;
+        elbow.rotation.x = -1.03 + Math.sin(t * (reading ? 1.85 : 12.4) + index * 2) * .13 * movement;
       } else {
-        shoulder.rotation.x = index === 0 ? -.21 : -.72 + Math.sin(t * 1.5) * .31 * movement;
+        shoulder.rotation.x = index === 0 ? -.21 : (presenting ? -1.27 : -.72) + Math.sin(t * 1.5) * .31 * movement;
         elbow.rotation.x = index === 0 ? -.18 : -.62 + Math.cos(t * 1.5) * .16 * movement;
       }
     });
+    updateInstances();
   }
   animate(0, false);
   return animate;
@@ -567,6 +612,7 @@ export function addRoom(scene, page, index) {
   floorMarkings(room, page.first ? page.chapterTitle : '');
   const detailMotion = officeDetails(room, page, index);
   let exhibit;
+  let activity;
   const giant = page.id === 'projects'
     ? person(room, 0, -14.1, mat.gray, 'carry', 0, { scale: 5.7, stride: 20, pace: .32, beat: 3.5 })
     : null;
@@ -580,10 +626,12 @@ export function addRoom(scene, page, index) {
   if (page.title) {
     floorText(room, page);
     const below = new THREE.Group();
-    below.position.set(index % 2 ? -.55 : .63, 0, 3.92);
+    below.position.set(index % 2 ? -.55 : .63, 0, 5.62);
     below.scale.setScalar(.88);
     room.add(below);
-    sharedSpace(below, index);
+    activity = addOfficeScene(below, page, index, person);
+  } else if (index % 2) {
+    activity = addOfficeScene(room, page, index, person);
   } else {
     sharedSpace(room, index);
   }
@@ -592,6 +640,7 @@ export function addRoom(scene, page, index) {
     room,
     animate(time, active) {
       detailMotion(time, active);
+      activity?.(time, active);
       if (giant) {
         if (active) arrivedAt ??= time;
         else if (arrivedAt !== null && time - arrivedAt > 16) arrivedAt = null;

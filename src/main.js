@@ -4,11 +4,20 @@ import { mountPortrait } from './portrait.js';
 import { createStory } from './story.js';
 import { getLocale } from './locale.js';
 
-const motion = matchMedia('(prefers-reduced-motion: reduce)');
+const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const motion = new EventTarget();
+let motionOverride = null;
+try {
+  const stored = sessionStorage.getItem('portfolio-motion');
+  if (stored !== null) motionOverride = stored === 'paused';
+} catch {}
+Object.defineProperty(motion, 'matches', { get: () => motionOverride ?? systemMotion.matches });
 const locale = getLocale(document.documentElement.lang);
 const { t } = locale;
 const pages = createStory(locale.language);
 const root = document.documentElement;
+const homeShell = document.querySelector('.home-shell');
+const motionControls = [...document.querySelectorAll('[data-motion]')];
 const world = document.querySelector('#world');
 const scroller = document.querySelector('#world-scroll');
 const stage = document.querySelector('#world-stage');
@@ -24,6 +33,23 @@ const stepButtons = [...world.querySelectorAll('[data-step]')];
 const fallbackLinks = [...world.querySelectorAll('.fallback-links a')];
 const route = { progress: 0, index: 0, jump: 0 };
 
+function syncMotion() {
+  root.classList.toggle('motion-paused', motion.matches);
+  if (motion.matches) world.classList.remove('flying');
+  for (const button of motionControls) button.setAttribute('aria-pressed', String(motion.matches));
+  motion.dispatchEvent(new Event('change'));
+}
+for (const button of motionControls) {
+  button.hidden = false;
+  button.addEventListener('click', () => {
+    motionOverride = !motion.matches;
+    try { sessionStorage.setItem('portfolio-motion', motionOverride ? 'paused' : 'playing'); } catch {}
+    syncMotion();
+  });
+}
+systemMotion.addEventListener('change', syncMotion);
+syncMotion();
+
 for (const page of pages) {
   page.links.forEach((action, index) => {
     action.link = document.querySelector(`[data-pin="${page.id}-${index}"] a`);
@@ -36,6 +62,7 @@ root.classList.add('js-ready');
 [closeButton, ...stepButtons].forEach(button => { button.hidden = false; });
 
 function setIndex(index) {
+  if (index !== route.index && document.activeElement?.classList.contains('map-pin')) scroller.focus({ preventScroll: true });
   route.index = index;
   counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + pages.length;
   district.textContent = pages[index].district;
@@ -96,6 +123,7 @@ function useFallback() {
   world.classList.remove('waiting', 'flying', 'has-3d');
   textAccessibility(true);
   mapState = 'fallback';
+  readButton.hidden = true;
   scrollToLevel(route.index, false);
 }
 async function ensureWorld() {
@@ -113,7 +141,7 @@ async function ensureWorld() {
   scrollToLevel(selected, false);
   try {
     const { module, office } = prepared;
-    if (!await module.mountWorld(viewport, motion, route, pages, office, mapLoaded)) useFallback();
+    if (!await module.mountWorld(viewport, motion, route, pages, office, mapLoaded, useFallback)) useFallback();
   } catch {
     useFallback();
   }
@@ -135,6 +163,7 @@ readButton.addEventListener('click', () => {
   readButton.textContent = reading ? t.map : t.read;
   textAccessibility(reading);
   scrollToLevel(index, false);
+  if (reading) sections[index].querySelector('h3').focus({ preventScroll: true });
 });
 
 let entryTrigger;
@@ -144,6 +173,7 @@ function openLevel(index, trigger) {
     entryTrigger = trigger;
     root.classList.add('world-open');
     world.showModal();
+    homeShell.inert = true;
     world.classList.remove('flying');
     closeButton.focus({ preventScroll: true });
     route.progress = index;
@@ -176,15 +206,16 @@ function followLocation() {
 closeButton.addEventListener('click', () => world.close());
 world.addEventListener('close', () => {
   root.classList.remove('world-open');
+  homeShell.inert = false;
   world.classList.remove('waiting', 'flying');
   if (levelFromHash() >= 0) history.replaceState(null, '', location.pathname + location.search);
-  entryTrigger?.focus({ preventScroll: true });
+  (entryTrigger ?? document.querySelector('.hero-primary')).focus({ preventScroll: true });
 });
 window.addEventListener('popstate', followLocation);
 window.addEventListener('hashchange', followLocation);
 stepButtons.forEach(button => button.addEventListener('click', () => navigate(route.index + Number(button.dataset.step))));
 world.addEventListener('keydown', event => {
-  if (world.classList.contains('reading') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (!world.classList.contains('has-3d') || world.classList.contains('reading') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   if (event.key === 'PageDown' || event.key === 'ArrowDown') {
     event.preventDefault();
     navigate(route.index + 1);
@@ -212,6 +243,7 @@ const skip = document.querySelector('#skip-intro');
 const portrait = document.querySelector('#portrait');
 const intro = { skipped: levelFromHash() >= 0, drawingDone: false };
 function finishIntro() {
+  if (document.activeElement === skip) document.querySelector('.hero-primary').focus({ preventScroll: true });
   intro.skipped = true;
   skip.hidden = true;
 }
@@ -224,13 +256,22 @@ else {
 skip.addEventListener('click', finishIntro);
 motion.addEventListener('change', () => { if (motion.matches) finishIntro(); });
 document.addEventListener('visibilitychange', () => root.classList.toggle('is-hidden', document.hidden));
-void mountPortrait(portrait, motion, intro).finally(() => portrait.classList.remove('portrait-waiting'));
+if (!intro.skipped && !motion.matches) {
+  void mountPortrait(portrait, motion, intro).finally(() => portrait.classList.remove('portrait-waiting'));
+}
 import('./laptop.js')
   .then(({ mountLaptop }) => mountLaptop(document.querySelector('#laptop-visual'), motion, intro, locale))
   .catch(() => {});
 import('./blueprint.js')
   .then(({ mountBlueprint }) => mountBlueprint(document.querySelector('#home-blueprint'), motion))
   .catch(() => {});
-if ('requestIdleCallback' in window) requestIdleCallback(prepareWorld, { timeout: 1500 });
-else setTimeout(prepareWorld, 800);
+if (!navigator.connection?.saveData && navigator.hardwareConcurrency > 4) {
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      if (document.hidden) return;
+      if ('requestIdleCallback' in window) requestIdleCallback(prepareWorld, { timeout: 1800 });
+      else void prepareWorld();
+    }, 1900);
+  }, { once: true });
+}
 followLocation();

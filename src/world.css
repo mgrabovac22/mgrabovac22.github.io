@@ -9,17 +9,18 @@ html.world-open, html.world-open body { overflow: hidden; }
 .world-hud button, .world-hud a, .world-footer button { pointer-events: auto; }
 .world-close, .world .language-control, .world-arrows button, .read-mode, .hud-index, .scroll-hint {
   display: inline-flex; align-items: center; justify-content: center; color: #26352c; background: #f5f5ebed;
-  border: 1px solid #879981; min-height: 41px; padding: .52rem .7rem;
+  border: 1px solid #758574; min-height: 44px; padding: .52rem .7rem;
 }
-.world-close, .world-arrows button { width: 42px; padding: 0; }
+.world-close, .world-arrows button { width: 44px; padding: 0; }
 .world-close svg { width: 1.16rem; height: 1.16rem; }
 .world-hud button:hover, .world-footer button:not(:disabled):hover { background: #e2edc9; }
 .world-arrows button:disabled { opacity: .52; cursor: default; }
 .hud-index { gap: .7rem; }
 .hud-index span:first-child { color: #415740; }
 .scroll-hint { min-height: 31px; border-color: transparent; padding: .32rem .52rem; font-size: .57rem; }
-.read-mode { font-size: .6rem; }
+.read-mode { font-size: .71rem; white-space: nowrap; }
 .js-ready .world-scroll { height: 100%; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; scrollbar-width: none; }
+.world.reading .world-scroll, .world:not(.has-3d) .world-scroll { scroll-padding-block: 65px 70px; }
 .js-ready .world-scroll::-webkit-scrollbar { display: none; }
 .world-scroll:focus-visible { outline-offset: -3px; }
 .world-route { position: relative; min-height: 100%; }
@@ -36,7 +37,7 @@ html.world-open, html.world-open body { overflow: hidden; }
 .map-pin {
   position: absolute; left: var(--pin-x, 50%); top: var(--pin-y, 50%);
   transform: translate(-50%, calc(-100% + 22px)); z-index: 1; pointer-events: auto; width: max-content;
-  display: inline-flex; flex-direction: column; align-items: center; color: #20382e; font-size: .61rem; font-weight: 600;
+  display: inline-flex; flex-direction: column; align-items: center; color: #20382e; font-size: .67rem; font-weight: 600;
 }
 .map-pin:not([style]) { visibility: hidden; }
 .pin-label { padding: .28rem .51rem; border-radius: 1rem; background: #eff5eeb8; border: 1px solid #59786c59; transition: background .2s; }
@@ -48,6 +49,8 @@ html.world-open, html.world-open body { overflow: hidden; }
 .stop article { max-width: 640px; margin-inline: auto; }
 .fallback-index, .fallback-meta { color: #d7e6b4; }
 .stop h3 { font-size: clamp(2rem, 5.4vw, 3.8rem); letter-spacing: -.06em; line-height: 1.03; margin-block: .7rem 1rem; }
+.stop article { overflow-wrap: anywhere; }
+.stop h3:focus-visible { outline-color: #d7e6b4; box-shadow: none; }
 .stop article p + p { margin-top: .8rem; }
 .fallback-points { margin-top: 1rem; padding-left: 1.2rem; }
 .fallback-points li + li { margin-top: .45rem; }
@@ -72,10 +75,10 @@ html:not(.js-ready) .world-hud, html:not(.js-ready) .world-footer { display: non
 html:not(.js-ready) .world { position: static; }
 @media (max-width: 570px) {
   .world-hud, .world-footer { padding: .55rem; }
-  .world-close, .world-arrows button, .world .language-control { width: 38px; min-height: 38px; }
   .hud-left, .world-arrows { gap: .32rem; }
-  .hud-index { padding: .4rem .5rem; gap: .43rem; font-size: .58rem; }
-  .scroll-hint { font-size: .48rem; }
-  .map-pin { font-size: .54rem; }
-  .read-mode { padding-inline: .44rem; font-size: .52rem; }
+  .hud-index { padding: .4rem .5rem; gap: .43rem; font-size: .65rem; }
+  .scroll-hint { font-size: .58rem; }
+  .map-pin { font-size: .60rem; }
+  .read-mode { padding-inline: .52rem; font-size: .63rem; }
 }
+@media (max-width: 365px) { .hud-index span:first-child, .scroll-hint { display: none; } }
