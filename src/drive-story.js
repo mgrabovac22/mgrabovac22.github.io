@@ -294,6 +294,7 @@ function sameCourse(a, b) {
 export function createSkyStories(scene, world, pages) {
   const posts = pages.map((page, index) => ({
     page, index, course: null, model: null, impact: false, state: 'intact', pieces: [], active: false, healing: 0,
+    crossedAfterBreak: false,
   }));
   const mainStreet = { axis: 'z', across: 'x', street: 0, direction: -1 };
   let next = 0;
@@ -345,22 +346,26 @@ export function createSkyStories(scene, world, pages) {
     post.state = 'restored';
   }
 
+  function repair(post, immediate) {
+    if (immediate || !post.active) {
+      completeRepair(post);
+      return;
+    }
+    setPhysics(post, false);
+    for (const { mesh, origin, spin } of post.pieces) {
+      origin.copy(mesh.position);
+      spin.copy(mesh.quaternion);
+    }
+    post.state = 'healing';
+    post.healing = 0;
+  }
+
   function heal(immediate = false) {
     let count = 0;
     for (const post of posts) {
       if (post.state !== 'broken') continue;
+      repair(post, immediate);
       count++;
-      if (immediate || !post.active) {
-        completeRepair(post);
-      } else {
-        setPhysics(post, false);
-        for (const { mesh, origin, spin } of post.pieces) {
-          origin.copy(mesh.position);
-          spin.copy(mesh.quaternion);
-        }
-        post.state = 'healing';
-        post.healing = 0;
-      }
     }
     return count;
   }
@@ -425,6 +430,8 @@ export function createSkyStories(scene, world, pages) {
       if (current && lateral < 7.15 && (ahead <= -1.25 || post.state === 'broken')) passed = true;
 
       if (post.state === 'broken') {
+        // A sign can fall before the car reaches it. Arm the repair only after crossing it.
+        if (lateral < 7 && ahead <= -2) post.crossedAfterBreak = true;
         setPhysics(post, distance < physicsRange);
         for (const { mesh, body } of post.pieces) {
           mesh.visible = distance < sightRange;
@@ -432,6 +439,7 @@ export function createSkyStories(scene, world, pages) {
           mesh.position.copy(body.position);
           mesh.quaternion.copy(body.quaternion);
         }
+        if (post.crossedAfterBreak && lateral < 7 && ahead >= 5 && distance < sightRange) repair(post, reduced);
       } else if (post.state === 'healing') {
         post.healing += reduced ? 1 : dt * 1.42;
         const progress = THREE.MathUtils.smoothstep(post.healing, 0, 1);
@@ -455,7 +463,7 @@ export function createSkyStories(scene, world, pages) {
       setPhysics(post, false);
       for (const { mesh } of post.pieces) scene.remove(mesh);
       clearSign(scene, world, post);
-      Object.assign(post, { course: null, impact: false, state: 'intact', pieces: [], healing: 0 });
+      Object.assign(post, { course: null, impact: false, state: 'intact', pieces: [], healing: 0, crossedAfterBreak: false });
     }
     next = 0;
     course = mainStreet;
