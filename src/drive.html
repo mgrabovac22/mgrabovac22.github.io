@@ -12,24 +12,19 @@
   <main id="game" aria-labelledby="drive-title">
     <div id="view" aria-hidden="true"></div>
     <header class="top">
-      <a class="back button" href="./"><span aria-hidden="true">↖</span> <span data-copy="back">Portfolio</span></a>
-      <div class="brand"><span>MG / PLAYGROUND</span><h1 id="drive-title" data-copy="title">Night Shift</h1></div>
+      <a class="back button" href="./">
+        <span class="back-label"><span aria-hidden="true">↖</span><span data-copy="back">Portfolio</span></span>
+        <span class="breadcrumb" aria-hidden="true"><span class="breadcrumb-separator">›</span><span id="station-name">—</span><span class="station-meta" id="chapter-index">—</span></span>
+      </a>
+      <div class="current-route" role="group" aria-label="CV in the city">
+        <h1 class="sr-only" id="drive-title" data-copy="title">Night Shift</h1>
+        <button type="button" class="current-section" id="read-story" aria-haspopup="dialog" aria-controls="story-reader" disabled><span id="chapter">—</span></button>
+      </div>
       <div class="actions">
         <button type="button" id="reset" data-copy="reset" disabled>Reset</button>
-        <button type="button" id="pause" data-copy="pause" disabled>Pause</button>
+        <button type="button" id="heal" data-copy="heal" disabled>Restore text</button>
       </div>
     </header>
-    <aside class="route" aria-label="CV in the city">
-      <div class="route-entry">
-        <span class="label" id="chapter">—</span>
-        <span class="station-meta" id="chapter-index">—</span>
-        <strong id="station-name">—</strong>
-      </div>
-      <div class="route-actions">
-        <button type="button" id="read-story" data-copy="read" disabled>Read entry</button>
-        <button type="button" id="heal" data-copy="heal" disabled>Restore signs</button>
-      </div>
-    </aside>
     <dialog id="story-reader" aria-labelledby="entry-title">
       <form method="dialog"><button data-copy="close">Close</button></form>
       <article id="story-entry"></article>
@@ -40,8 +35,8 @@
         <summary data-copy="controls">Controls</summary>
         <div class="key-guide">
           <p><kbd>W A S D</kbd> <kbd>↑ ← ↓ →</kbd> <span data-copy="move">Drive and steer</span></p>
-          <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span> <kbd>P</kbd> <span data-copy="pause">Pause</span></p>
-          <p><kbd>H</kbd> <span data-copy="heal">Restore signs</span></p>
+          <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span></p>
+          <p><kbd>H</kbd> <span data-copy="heal">Restore text</span></p>
         </div>
       </details>
       <div class="speed" role="group" aria-label="Speed"><b id="speed">000</b><span>KM/H</span></div>

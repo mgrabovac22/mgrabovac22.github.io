@@ -18,7 +18,6 @@ const cover = find('#cover');
 const coverText = find('#cover-text');
 const errorBack = find('.error-back');
 const start = find('#start');
-const pause = find('#pause');
 const reset = find('#reset');
 const healButton = find('#heal');
 const readButton = find('#read-story');
@@ -120,7 +119,6 @@ function fail(message) {
   coverText.textContent = message;
   start.hidden = true;
   errorBack.hidden = false;
-  pause.disabled = true;
   reset.disabled = true;
   healButton.disabled = true;
   readButton.disabled = true;
@@ -139,7 +137,7 @@ async function boot() {
   document.querySelector('meta[name=description]').content = t.description;
   for (const node of document.querySelectorAll('[data-copy]')) node.textContent = t[node.dataset.copy];
   for (const button of touchButtons) button.setAttribute('aria-label', t[button.dataset.input]);
-  find('.route').setAttribute('aria-label', t.route);
+  find('.current-route').setAttribute('aria-label', t.route);
   find('.speed').setAttribute('aria-label', t.speed);
 
   let renderer;
@@ -211,7 +209,6 @@ async function boot() {
   let launchYaw = 0;
   let lastChapter = -1;
   let currentPage;
-  let resumeAfterReading = false;
   let hudAt = 0;
   let previous = 0;
   let frame = 0;
@@ -267,6 +264,8 @@ async function boot() {
       chapter.textContent = story.page.chapterTitle;
       stationName.textContent = story.page.title;
       chapterIndex.textContent = String(story.index + 1).padStart(2, '0') + ' / ' + String(story.total).padStart(2, '0');
+      readButton.setAttribute('aria-label', `${story.page.chapterTitle} · ${t.read}: ${story.page.title}`);
+      readButton.title = t.read + ': ' + story.page.title;
     }
     renderer.render(scene, camera);
   }
@@ -364,14 +363,8 @@ async function boot() {
   }
   function setPaused(value) {
     stopped = value;
-    pause.textContent = stopped ? t.resume : t.pause;
-    pause.setAttribute('aria-pressed', String(stopped));
     clearInput();
-    if (stopped) announce(t.paused, Infinity);
-    else {
-      notice.textContent = '';
-      wake();
-    }
+    if (!stopped) wake();
   }
   function showTouch() {
     touch.hidden = !started || !(coarse.matches || view.clientWidth < 640) || graphicsLost;
@@ -409,18 +402,16 @@ async function boot() {
         link.rel = 'noopener noreferrer';
       }
     }
-    resumeAfterReading = !stopped;
     setPaused(true);
     reader.showModal();
   }
   reader.addEventListener('close', () => {
-    if (resumeAfterReading) setPaused(false);
+    if (!graphicsLost) setPaused(false);
   });
   coarse.addEventListener('change', showTouch);
   start.addEventListener('click', () => {
     started = true;
     cover.hidden = true;
-    pause.disabled = false;
     reset.disabled = false;
     healButton.disabled = false;
     readButton.disabled = false;
@@ -428,15 +419,12 @@ async function boot() {
     find('#game').focus({ preventScroll: true });
     setPaused(false);
   });
-  pause.addEventListener('click', () => setPaused(!stopped));
   reset.addEventListener('click', resetCar);
   healButton.addEventListener('click', healSigns);
   readButton.addEventListener('click', readEntry);
   window.addEventListener('keydown', event => {
     if (!started || reader.open || graphicsLost || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (!event.repeat && event.code === 'KeyP') {
-      setPaused(!stopped);
-    } else if (!event.repeat && event.code === 'KeyR') {
+    if (!event.repeat && event.code === 'KeyR') {
       resetCar();
     } else if (!event.repeat && event.code === 'KeyH') {
       healSigns();
