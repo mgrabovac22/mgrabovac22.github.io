@@ -10,6 +10,9 @@ const amber = surface('#bd9461');
 const paper = surface('#e6e8df');
 const teal = new THREE.MeshBasicMaterial({ color: '#95cabc' });
 const gold = new THREE.MeshBasicMaterial({ color: '#e8bb73' });
+const cornerGlass = new THREE.MeshStandardMaterial({
+  color: '#a8c3bd', roughness: .4, transparent: true, opacity: .28, depthWrite: false,
+});
 
 function group(parent, x, z, rotation = 0) {
   const item = new THREE.Group();
@@ -225,6 +228,53 @@ function plotter(parent) {
 
 const scenarios = [meeting, classroom, coffeeBreak, receiving, laboratory, facilities];
 const anchors = { about: 2, career: 0, education: 1, projects: 4, qualifications: 5, contact: 3 };
+
+export function addOfficeCorners(parent, index, person) {
+  const corners = [-1, 1].map((side, slot) => {
+    const nook = group(parent, side * 12.2, side * (index % 2 ? 6.1 : 4.9), -.24 + side * .13);
+    floorMat(nook, 0, 0, 5.55, 3.75);
+    box(nook, metal, 5.56, .052, .074, 0, .022, 1.86);
+    box(nook, metal, 5.56, .052, .074, 0, .022, -1.86);
+    box(nook, ink, 5.48, .14, .16, 0, .069, -1.79);
+    for (const x of [-2.67, 0, 2.67]) box(nook, metal, .081, 1.57, .091, x, .79, -1.79);
+    box(nook, metal, 5.44, .047, .063, 0, 1.57, -1.79);
+    const glass = box(nook, cornerGlass, 5.31, 1.34, .044, 0, .83, -1.79);
+    glass.castShadow = false;
+    const activity = [meeting, coffeeBreak, laboratory, receiving][(index + slot * 2) % 4];
+    const actors = [];
+    const operate = activity(nook, (x, z, behavior, phase, facing, stride) => {
+      if (actors.length < 2) {
+        actors.push(person(nook, x, z, slot ? green : fabric, behavior, phase + index * .21, { facing, stride }));
+      }
+    });
+    const gallery = group(parent, side * 12.5, -side * 6.05, side * .19);
+    floorMat(gallery, 0, 0, 4.5, 3.3);
+    box(gallery, ink, 3.9, .079, .21, 0, .053, -1.47);
+    for (const x of [-1.74, 1.74]) box(gallery, metal, .086, 1.60, .10, x, .8, -1.47);
+    box(gallery, metal, 3.6, .054, .097, 0, 1.59, -1.47);
+    const panel = projector(gallery, 2.44, -.99);
+    const bench = table(gallery, 0, .62, 2.89, .66);
+    bench.scale.y = .61;
+    note(bench, -.47, .03, .32);
+    note(bench, .66, -.04, -.18);
+    for (const x of [-1.86, 1.83]) {
+      cylinder(gallery, ink, .27, .36, x, .18, .87);
+      for (let i = 0; i < 3; i++) {
+        ball(gallery, i === 1 ? green : fabric, .17, .32 + i * .065, .17,
+          x + (i - 1) * .11, .55 + i * .05, .87).rotation.z = (i - 1) * .36;
+      }
+    }
+    const guest = person(gallery, .37, 1.06, slot ? fabric : green, 'present', index * .35, { facing: Math.PI });
+    return time => {
+      const clock = time + index * .57 + slot * 2.8;
+      operate(clock);
+      panel(clock);
+      guest(clock, true);
+      actors.forEach(actor => actor(clock, true));
+    };
+  });
+  return time => corners.forEach(animate => animate(time));
+}
 
 export function addOfficeScene(parent, page, index, person) {
   const actors = [];
