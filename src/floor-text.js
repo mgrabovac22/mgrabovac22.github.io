@@ -88,4 +88,5 @@ export function floorText(room, page) {
   panel.rotation.x = -Math.PI / 2;
   panel.renderOrder = 1;
   room.add(panel);
+  return panel;
 }

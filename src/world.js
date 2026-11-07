@@ -160,6 +160,9 @@ export async function mountWorld(host, motion, route, pages, office, ready, fail
   let viewWidth = 30;
   let firstFrame = true;
   let nearbyPins = [];
+  let lift;
+  const liftOffset = new THREE.Vector3();
+  const liftTarget = new THREE.Vector3();
 
   const textures = new Set();
   scene.traverse(object => {
@@ -176,6 +179,7 @@ export async function mountWorld(host, motion, route, pages, office, ready, fail
   progress = route.progress / segments;
 
   function locate(event) {
+    if (lift) return undefined;
     const bounds = renderer.canvas.getBoundingClientRect();
     pointer.set(2 * (event.clientX - bounds.left) / bounds.width - 1, 1 - 2 * (event.clientY - bounds.top) / bounds.height);
     ray.setFromCamera(pointer, camera);
@@ -193,7 +197,7 @@ export async function mountWorld(host, motion, route, pages, office, ready, fail
 
   const invalidate = stageLoop(host, (time, dt) => {
     const reduced = motion.matches;
-    const desired = (reduced ? route.index : route.progress) / segments;
+    const desired = (lift?.index ?? (reduced ? route.index : route.progress)) / segments;
     if (route.jump !== jump) {
       jump = route.jump;
       progress = desired;
@@ -224,7 +228,7 @@ export async function mountWorld(host, motion, route, pages, office, ready, fail
         cell.animate(reduced ? 0 : time, cell.page === pages[route.index]);
         cell.needsStaticPose = !reduced;
       }
-      const active = visible && cell.page === pages[route.index] && Math.abs(progress - desired) * segments < .2 && flight > .44;
+      const active = !lift && visible && cell.page === pages[route.index] && Math.abs(progress - desired) * segments < .2 && flight > .44;
       for (const [index, pin] of cell.pins.entries()) {
         pin.marker.visible = active;
         pin.halo.visible = active;
@@ -244,7 +248,28 @@ export async function mountWorld(host, motion, route, pages, office, ready, fail
         }
       }
     }
+    if (lift) {
+      lift.progress = reduced ? 1 : Math.min(1, lift.progress + dt / .88);
+      const fraction = THREE.MathUtils.smootherstep(lift.progress, 0, 1);
+      const distance = 12;
+      const viewHeight = distance * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5));
+      const viewWidth = viewHeight * camera.aspect;
+      const { width, height } = lift.panel.geometry.parameters;
+      const sheetWidth = Math.min(.84, 760 / size.x) * viewWidth;
+      const scale = Math.min(sheetWidth / width, viewHeight * .72 / height);
+      liftOffset.set(0, 0, -distance).applyQuaternion(camera.quaternion);
+      liftTarget.copy(camera.position).add(liftOffset);
+      lift.group.position.lerpVectors(lift.start, liftTarget, fraction);
+      lift.group.quaternion.slerpQuaternions(lift.rotation, camera.quaternion, fraction);
+      lift.group.scale.setScalar(THREE.MathUtils.lerp(1, scale, fraction));
+      lift.surface.material.opacity = THREE.MathUtils.smoothstep(fraction, .02, .62);
+    }
     renderer.draw(scene, camera);
+    if (lift?.progress === 1) {
+      const done = lift.done;
+      cancelLift();
+      done();
+    }
     renderer.canvas.classList.add('world-painted');
     if (firstFrame) {
       firstFrame = false;
@@ -272,5 +297,37 @@ export async function mountWorld(host, motion, route, pages, office, ready, fail
   }, { motion, fps: compact ? 30 : 60 });
   host.closest('.world-scroll').addEventListener('scroll', invalidate, { passive: true });
   renderer.canvas.addEventListener('webglcontextlost', failed, { once: true });
-  return true;
+  function cancelLift() {
+    if (!lift) return;
+    lift.panel.visible = true;
+    scene.remove(lift.group);
+    lift.surface.material.dispose();
+    lift = null;
+  }
+  function liftPanel(index, done) {
+    const { panel } = cells[index];
+    if (!panel) {
+      done();
+      return;
+    }
+    cancelLift();
+    const group = new THREE.Group();
+    const start = panel.getWorldPosition(new THREE.Vector3());
+    const rotation = panel.getWorldQuaternion(new THREE.Quaternion());
+    group.position.copy(start);
+    group.quaternion.copy(rotation);
+    const surface = new THREE.Mesh(panel.geometry, new THREE.MeshBasicMaterial({
+      color: '#f4f4e9', transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+    }));
+    surface.position.z = -.03;
+    surface.renderOrder = 20;
+    const writing = new THREE.Mesh(panel.geometry, panel.material);
+    writing.renderOrder = 21;
+    group.add(surface, writing);
+    panel.visible = false;
+    scene.add(group);
+    lift = { group, panel, surface, start, rotation, index, progress: 0, done };
+    invalidate();
+  }
+  return { liftPanel, cancelLift };
 }

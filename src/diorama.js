@@ -188,7 +188,7 @@ function instanceCharacter(rig) {
 }
 
 function person(parent, x, z, outfit, behavior, phase = 0, {
-  scale = 1, stride = 2.6, pace = .34, beat = 6.4, facing,
+  scale = 1, stride = 2.6, pace = .34, beat = 6.4, facing, pathDepth = .29,
 } = {}) {
   const rig = new THREE.Group();
   rig.position.set(x, 0, z);
@@ -250,8 +250,8 @@ function person(parent, x, z, outfit, behavior, phase = 0, {
     if (walking) {
       const heading = t * pace;
       rig.position.x = x + Math.sin(heading) * stride;
-      rig.position.z = z + Math.cos(heading) * .29;
-      rig.rotation.y = Math.atan2(Math.cos(heading) * stride, -Math.sin(heading) * .29);
+      rig.position.z = z + Math.cos(heading) * pathDepth;
+      rig.rotation.y = Math.atan2(Math.cos(heading) * stride, -Math.sin(heading) * pathDepth);
       rig.position.y = Math.abs(Math.sin(t * beat)) * .035 * scale;
     } else if (seated) {
       rig.rotation.y = facing ?? Math.PI;
@@ -616,21 +616,24 @@ export function addRoom(scene, page, index) {
   const districtMotion = page.title ? addOfficeDistricts(room, page, index, person) : null;
   let exhibit;
   let activity;
+  let panel;
   const giant = page.id === 'projects'
     ? person(room, 0, -14.1, mat.gray, 'carry', 0, { scale: 5.7, stride: 20, pace: .32, beat: 3.5 })
     : null;
   let arrivedAt = null;
   if (page.first) {
     const layout = new THREE.Group();
-    layout.position.z = -8.85;
+    layout.position.set(-4.72, 0, -9.65);
+    layout.scale.setScalar(.80);
     room.add(layout);
     exhibit = layouts[page.id](layout);
   }
   if (page.title) {
-    floorText(room, page);
+    panel = floorText(room, page);
     const below = new THREE.Group();
-    below.position.set(index % 2 ? -.55 : .63, 0, 5.62);
-    below.scale.setScalar(.88);
+    below.position.set(-9.85, 0, 5.38 + (index % 3) * .36);
+    below.rotation.y = .13;
+    below.scale.setScalar(.70);
     room.add(below);
     activity = addOfficeScene(below, page, index, person);
   } else if (index % 2) {
@@ -641,6 +644,7 @@ export function addRoom(scene, page, index) {
   batchFurnishings(room);
   return {
     room,
+    panel,
     animate(time, active) {
       detailMotion(time, active);
       districtMotion?.(time);

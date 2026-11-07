@@ -191,7 +191,6 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
   const queue = [];
   const signalGreen = luminous(0xb5d4a3);
   const signalRed = luminous(0xf68167);
-  let blasts = 0;
   const warmPool = new THREE.MeshBasicMaterial({
     map: textureCanvas(64, 64, ctx => {
       const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -205,7 +204,11 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
   const groundLight = new THREE.PlaneGeometry().rotateX(-Math.PI / 2);
   const listener = (kind, target) => event => {
     if (event.body === car && !target.spent && !target.knocked && car.velocity.length() >= 1.6) {
-      queue.push({ kind, target, impact: car.velocity.clone() });
+      const contact = event.contact;
+      const offset = contact.bi === car ? contact.ri : contact.rj;
+      const localHit = kind === 'crate' ? car.vectorToLocalFrame(offset) : null;
+      const localCrate = kind === 'crate' ? car.pointToLocalFrame(target.collider.position) : null;
+      queue.push({ kind, target, impact: car.velocity.clone(), localHit, localCrate });
     }
   };
 
@@ -399,13 +402,32 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
 
   let lastI = null;
   let lastJ = null;
-  function sync(position) {
+  const reach = 2;
+  function warmUpcoming(position, velocity) {
+    const nextI = Math.floor((position.x + velocity.x * .95) / blockSize);
+    const nextJ = Math.floor((position.z + velocity.z * .95) / blockSize);
+    if (nextI === lastI && nextJ === lastJ) return;
+    for (let dx = -reach; dx <= reach; dx++) {
+      for (let dz = -reach; dz <= reach; dz++) {
+        const i = nextI + dx;
+        const j = nextJ + dz;
+        const key = blockKey(i, j);
+        if (blocks.has(key)) continue;
+        blocks.set(key, build(i, j));
+        return;
+      }
+    }
+  }
+
+  function sync(position, velocity) {
     const i = Math.floor(position.x / blockSize);
     const j = Math.floor(position.z / blockSize);
-    if (lastI === i && lastJ === j) return;
+    if (lastI === i && lastJ === j) {
+      if (velocity) warmUpcoming(position, velocity);
+      return;
+    }
     lastI = i;
     lastJ = j;
-    const reach = 2;
     for (let dx = -reach; dx <= reach; dx++) {
       for (let dz = -reach; dz <= reach; dz++) {
         const key = blockKey(i + dx, j + dz);
@@ -460,14 +482,12 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
   }
 
   function process(time, onBlast) {
-    for (const { kind, target, impact } of queue.splice(0)) {
+    for (const { kind, target, impact, localHit, localCrate } of queue.splice(0)) {
       if (kind === 'crate' && !target.spent) {
         target.spent = true;
         target.view.visible = false;
         world.removeBody(target.collider);
-        blasts++;
-        const variant = (blasts % 2 ? 1 : -1) * (.24 + seeded(blasts, Math.round(target.z))() * .73);
-        onBlast(target.x, target.z, impact, variant);
+        onBlast(target.x, target.z, impact, localHit, localCrate);
       } else if (kind === 'walker' && !target.knocked) {
         target.knocked = true;
         target.view.visible = false;

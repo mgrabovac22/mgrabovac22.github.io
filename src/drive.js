@@ -206,9 +206,11 @@ function boot() {
   const position = car.chassis.position;
   const cameraGoal = new THREE.Vector3();
   const focus = new THREE.Vector3();
+  const focusGoal = new THREE.Vector3();
   const forward = new THREE.Vector3(0, 0, -1);
   let yaw = 0;
   let cameraYaw = 0;
+  let cameraClearance = 1;
   let time = 0;
   let noticeUntil = 0;
   let stopped = true;
@@ -230,16 +232,17 @@ function boot() {
     noticeUntil = time + duration;
   }
   function draw(dt, snap = false) {
-    car.render();
+    car.render(dt, started && !reduced.matches);
+    const visual = car.viewPosition;
     if (!launched && !isTipped(car.chassis)) yaw = flatYaw(car.chassis);
     const angularError = Math.atan2(Math.sin(yaw - cameraYaw), Math.cos(yaw - cameraYaw));
     cameraYaw = snap || reduced.matches ? yaw : cameraYaw + angularError * (1 - Math.exp(-5.4 * dt));
     forward.set(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
     const narrow = camera.aspect < .9;
-    const airborne = Math.max(0, position.y - .75);
+    const airborne = Math.max(0, visual.y - .75);
     const backDistance = narrow ? 8.75 : 7.65;
     const height = (narrow ? 3.25 : 3.05) + airborne * .52;
-    const eye = new Vec3(position.x, position.y + .75, position.z);
+    const eye = new Vec3(visual.x, visual.y + .75, visual.z);
     const back = new Vec3(-forward.x * backDistance, height - .75, -forward.z * backDistance);
     let clearance = 1;
     world.raycastAll(eye, eye.vadd(back), { skipBackfaces: true }, hit => {
@@ -247,19 +250,23 @@ function boot() {
         clearance = Math.min(clearance, Math.max(.39, (hit.distance - .43) / back.length()));
       }
     });
-    cameraGoal.set(position.x + back.x * clearance, eye.y + back.y * clearance, position.z + back.z * clearance);
+    cameraClearance = snap || reduced.matches ? clearance :
+      THREE.MathUtils.damp(cameraClearance, clearance, clearance < cameraClearance ? 22 : 5.6, dt);
+    cameraGoal.set(visual.x + back.x * cameraClearance, eye.y + back.y * cameraClearance, visual.z + back.z * cameraClearance);
     if (snap || reduced.matches) camera.position.copy(cameraGoal);
     else camera.position.lerp(cameraGoal, 1 - Math.exp(-9.4 * dt));
-    focus.set(position.x + forward.x * 7.3, Math.max(1.18, position.y + .15), position.z + forward.z * 7.3);
+    focusGoal.set(visual.x + forward.x * 7.3, Math.max(1.18, visual.y + .15), visual.z + forward.z * 7.3);
     if (narrow) {
       const alongAvenue = THREE.MathUtils.smoothstep(Math.abs(forward.z), .78, .98);
-      const nearCenter = 1 - THREE.MathUtils.smoothstep(Math.abs(position.x), 4, 8);
-      focus.x -= position.x * alongAvenue * nearCenter * .46;
+      const nearCenter = 1 - THREE.MathUtils.smoothstep(Math.abs(visual.x), 4, 8);
+      focusGoal.x -= visual.x * alongAvenue * nearCenter * .46;
     }
+    if (snap || reduced.matches) focus.copy(focusGoal);
+    else focus.lerp(focusGoal, 1 - Math.exp(-12 * dt));
     camera.lookAt(focus);
     skybox.position.copy(camera.position);
-    const anchorX = Math.round(position.x / 4) * 4;
-    const anchorZ = Math.round(position.z / 4) * 4;
+    const anchorX = Math.round(visual.x * 16) / 16;
+    const anchorZ = Math.round(visual.z * 16) / 16;
     sun.target.position.set(anchorX, 0, anchorZ);
     sun.position.set(anchorX - 35, 32, anchorZ - 30);
     const story = stories.update(position, car.chassis.velocity, forward, camera.position.z, dt, reduced.matches);
@@ -321,7 +328,7 @@ function boot() {
       const heading = launched ? launchYaw : yaw;
       const roadAxis = road === 'east-west' ? Math.PI / 2 : 0;
       const safeYaw = road ? roadAxis + Math.round((heading - roadAxis) / Math.PI) * Math.PI : heading;
-      car.setPose(x, .91, z, safeYaw);
+      car.setPose(x, .91, z, safeYaw, !reduced.matches);
       yaw = safeYaw;
       launched = false;
       tippedFor = 0;
@@ -334,18 +341,18 @@ function boot() {
     const dt = Math.min((now - previous) / 1000, .045);
     previous = now;
     time += dt;
-    city.sync(position);
+    city.sync(position, car.chassis.velocity);
     for (const action of controls.values()) input[action] = false;
     for (const code of keys) input[controls.get(code)] = true;
     for (const action of pointers.values()) input[action] = true;
     car.drive(input, dt);
     world.step(1 / 60, dt, 4);
     recovery(dt);
-    city.process(time, (x, z, impact, variant) => {
+    city.process(time, (x, z, impact, localHit, localCrate) => {
       if (!launched) launchYaw = flatYaw(car.chassis);
       launched = true;
       launchedAt = time;
-      launcherImpulse(car.chassis, x, z, impact, variant);
+      launcherImpulse(car.chassis, x, z, impact, localHit, localCrate);
       effects.blast(x, z);
       announce(t.launch);
     });

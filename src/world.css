@@ -46,6 +46,17 @@ html.world-open, html.world-open body { overflow: hidden; }
 .stop { min-height: 76vh; min-height: max(345px, 76dvh); padding: clamp(5rem, 10vh, 7rem) max(7vw, calc((100% - 640px) / 2)) 4.9rem; }
 .stop:last-child { min-height: 100vh; min-height: 100dvh; }
 .has-3d:not(.reading) .stop { padding: 0; }
+.world.lifting-reader .world-scroll { overflow: hidden; }
+.world.lifting-reader .map-pin { visibility: hidden; }
+.world.reading { background: radial-gradient(ellipse at 50% 35%, #687b6b, #293b32 88%); color: #24372c; }
+.world.reading .stop article {
+  background: #f4f4e9; border: 1px solid #b0baab; border-radius: 3px;
+  padding: clamp(1.15rem, 4vw, 2.7rem); box-shadow: 0 13px 45px #11231a55;
+  animation: reader-surface .24s ease-out both;
+}
+.world.reading :is(.fallback-index, .fallback-meta) { color: #415d48; }
+.world.reading .stop h3:focus-visible { outline-color: #42594b; }
+@keyframes reader-surface { from { opacity: 0; } to { opacity: 1; } }
 .stop article { max-width: 640px; margin-inline: auto; }
 .fallback-index, .fallback-meta { color: #d7e6b4; }
 .stop h3 { font-size: clamp(2rem, 5.4vw, 3.8rem); letter-spacing: -.06em; line-height: 1.03; margin-block: .7rem 1rem; }

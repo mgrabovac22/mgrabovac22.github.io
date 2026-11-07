@@ -10,6 +10,9 @@ import fontData from './drive-font.json' with { type: 'json' };
 const font = new FontLoader().parse(fontData);
 const glyphs = new Map();
 const ink = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .58, metalness: .11, fog: false });
+const panelTint = new THREE.MeshBasicMaterial({
+  color: '#cddfce', transparent: true, opacity: .79, depthWrite: false, fog: false, toneMapped: false,
+});
 const palette = {
   chapter: [new THREE.Color('#493018'), new THREE.Color('#c49b5e')],
   headline: [new THREE.Color('#0a1918'), new THREE.Color('#d3b17b')],
@@ -17,7 +20,8 @@ const palette = {
 };
 const spacing = 2 * blockSize;
 const firstCrossing = -17;
-const width = 15;
+const width = 13.8;
+const signX = -1.3;
 const elevation = 4.15;
 const maxHeight = 5.8;
 const viewRange = 118;
@@ -93,11 +97,12 @@ function letterLayout(page, index) {
   add(page.tags?.join(' · '), 'body', .43, .10);
   add(page.links.map(link => link.label).join(' · '), 'chapter', .39);
   const height = rows.reduce((sum, row) => sum + row.size * 1.23 + row.gap, 0);
+  const lineWidth = Math.max(...rows.map(row => measure(row.line) * row.size));
   const scale = Math.min(1, maxHeight / height);
   let y = height;
   const pieces = [];
   for (const { line, role, size, gap } of rows) {
-    let x = -measure(line) * size / 2;
+    let x = -lineWidth / 2;
     y -= size * 1.15;
     for (const character of line) {
       const glyph = characterGeometry(character, role);
@@ -121,11 +126,24 @@ function createLetters(scene, post) {
     glyph.geometry.clone().scale(size, size, size).translate(x, y, 0));
   const joined = mergeGeometries(geometries);
   for (const geometry of geometries) geometry.dispose();
+  joined.computeBoundingBox();
+  const bounds = joined.boundingBox;
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  const backing = new THREE.PlaneGeometry(size.x + .88, size.y + .67).translate(center.x, center.y, -.15);
+  function face() {
+    const side = new THREE.Group();
+    const tint = new THREE.Mesh(backing, panelTint);
+    tint.renderOrder = 2;
+    const letters = new THREE.Mesh(joined, ink);
+    side.add(tint, letters);
+    return side;
+  }
 
   const sign = new THREE.Group();
-  sign.position.set(0, elevation, post.z);
-  const front = new THREE.Mesh(joined, ink);
-  const rear = new THREE.Mesh(joined, ink);
+  sign.position.set(signX, elevation, post.z);
+  const front = face();
+  const rear = face();
   front.position.z = .09;
   rear.position.z = -.09;
   rear.rotation.y = Math.PI;
@@ -143,7 +161,7 @@ function addFragments(scene, world, post, parts, travel) {
   return subset.map(({ glyph, x, y, size }, i) => {
     const mesh = new THREE.Mesh(glyph.geometry, ink);
     mesh.scale.setScalar(size);
-    mesh.position.set(x, elevation + y, post.z);
+    mesh.position.set(signX + x, elevation + y, post.z);
     scene.add(mesh);
 
     const extents = glyph.bounds.clone().multiplyScalar(size / 2);
@@ -248,7 +266,7 @@ export function createSkyStories(scene, world, language) {
       }
       if (distance >= viewRange && post.sign) {
         scene.remove(post.sign);
-        post.sign.children[0].geometry.dispose();
+        for (const child of post.sign.children[0].children) child.geometry.dispose();
         post.sign = null;
       }
       if (breaks) {

@@ -76,6 +76,7 @@ new ResizeObserver(scheduleScroll).observe(document.querySelector('#world-route'
 
 let modulePromise;
 let mapState = 'idle';
+let mapView;
 let flightTimer;
 function prepareWorld() {
   modulePromise ??= import('./world.js')
@@ -102,6 +103,7 @@ function textAccessibility(reading) {
   stage.inert = reading;
 }
 function useFallback() {
+  cancelReadingLift();
   world.classList.remove('waiting', 'flying', 'has-3d');
   textAccessibility(true);
   mapState = 'fallback';
@@ -123,7 +125,8 @@ async function ensureWorld() {
   scrollToLevel(selected, false);
   try {
     const { module, office } = prepared;
-    if (!await module.mountWorld(viewport, motion, route, pages, office, mapLoaded, useFallback)) useFallback();
+    mapView = await module.mountWorld(viewport, motion, route, pages, office, mapLoaded, useFallback);
+    if (!mapView) useFallback();
   } catch {
     useFallback();
   }
@@ -133,19 +136,41 @@ function scrollToLevel(index, animated = true) {
   scheduleScroll();
 }
 function navigate(index) {
+  if (world.classList.contains('lifting-reader')) return;
   const safe = Math.max(0, Math.min(index, pages.length - 1));
   if (safe === route.index && Math.abs(scroller.scrollTop - sections[safe].offsetTop) < 2) return;
   history.replaceState(null, '', '#' + pages[safe].id);
   scrollToLevel(safe);
 }
 
-readButton.addEventListener('click', () => {
-  const index = route.index;
-  const reading = world.classList.toggle('reading');
+function cancelReadingLift() {
+  mapView?.cancelLift();
+  world.classList.remove('lifting-reader');
+  readButton.disabled = false;
+}
+
+function showReading(index, reading) {
+  world.classList.toggle('reading', reading);
   readButton.textContent = reading ? t.map : t.read;
   textAccessibility(reading);
   scrollToLevel(index, false);
   if (reading) sections[index].querySelector('h3').focus({ preventScroll: true });
+}
+
+readButton.addEventListener('click', () => {
+  const index = route.index;
+  const reading = !world.classList.contains('reading');
+  if (!reading || motion.matches || !mapView) {
+    showReading(index, reading);
+    return;
+  }
+  world.classList.remove('flying');
+  world.classList.add('lifting-reader');
+  readButton.disabled = true;
+  mapView.liftPanel(index, () => {
+    cancelReadingLift();
+    if (world.open) showReading(index, true);
+  });
 });
 
 let entryTrigger;
@@ -187,6 +212,7 @@ function followLocation() {
 }
 closeButton.addEventListener('click', () => world.close());
 world.addEventListener('close', () => {
+  cancelReadingLift();
   root.classList.remove('world-open');
   homeShell.inert = false;
   world.classList.remove('waiting', 'flying');
@@ -197,7 +223,7 @@ window.addEventListener('popstate', followLocation);
 window.addEventListener('hashchange', followLocation);
 stepButtons.forEach(button => button.addEventListener('click', () => navigate(route.index + Number(button.dataset.step))));
 world.addEventListener('keydown', event => {
-  if (!world.classList.contains('has-3d') || world.classList.contains('reading') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (!world.classList.contains('has-3d') || world.classList.contains('reading') || world.classList.contains('lifting-reader') || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   if (event.key === 'PageDown' || event.key === 'ArrowDown') {
     event.preventDefault();
     navigate(route.index + 1);

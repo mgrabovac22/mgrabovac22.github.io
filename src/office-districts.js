@@ -466,27 +466,75 @@ function sideDetails(parent, side, index) {
   }
 }
 
+function deliveryLane(parent, x, z, index, person) {
+  const lane = group(parent, x, 0, z, -.19);
+  const road = box(lane, deck, 2.36, .021, 9.2, 0, .012, 0);
+  road.castShadow = false;
+  for (let i = 0; i < 7; i++) {
+    box(lane, frame, .046, .015, .40, -.92, .029, (i - 3) * 1.11).castShadow = false;
+  }
+  box(lane, graphite, 2.22, .12, 1.37, .05, .076, 3.54);
+  box(lane, oak, 2.12, .05, 1.31, .05, .16, 3.54);
+  const cargo = moving(lane, -.04, .29, 2.07);
+  parcel(cargo);
+  const clerk = person(lane, .81, 3.04, navy, 'carry', index * .23, {
+    stride: .29, pathDepth: .53, scale: .9, pace: .47,
+  });
+  const truck = moving(lane, 0, 0, 0);
+  box(truck, graphite, 1.03, .17, 2.36, 0, .29, 0);
+  box(truck, navy, 1.01, .74, .69, 0, .64, -.81);
+  box(truck, teal, .87, .26, .033, 0, .78, -1.17);
+  box(truck, porcelain, 1.04, .73, 1.45, 0, .65, .29);
+  box(truck, brass, 1.047, .086, 1.46, 0, .82, .29);
+  const gate = group(truck, 0, .33, 1.03);
+  box(gate, frame, .91, .55, .066, 0, .27, 0);
+  for (const side of [-1, 1]) {
+    box(truck, amber, .123, .079, .033, side * .39, .34, 1.12);
+    for (const axle of [-.79, .68]) {
+      cylinder(truck, graphite, .23, .14, side * .49, .24, axle).rotation.z = Math.PI / 2;
+      cylinder(truck, frame, .11, .021, side * .56, .24, axle).rotation.z = Math.PI / 2;
+    }
+  }
+  return time => {
+    const t = (time + 4.9) % 21;
+    truck.position.z = -3.75 + 5.45 * (ramp(t, 0, 5.1) - ramp(t, 14.5, 21));
+    const open = ramp(t, 5.5, 6.7) - ramp(t, 12.0, 14.1);
+    gate.rotation.x = open * 1.43;
+    cargo.visible = t >= 6.7 && t < 16.5;
+    cargo.position.z = 2.57 + ramp(t, 6.7, 10.6) * 1.03;
+    cargo.position.y = .55 - ramp(t, 6.7, 9.0) * .28;
+    clerk(time, open > .8);
+  };
+}
+
 export function addOfficeDistricts(parent, page, index, person) {
   const variation = layouts[index % layouts.length];
-  const left = group(parent, -11.85 - (index % 3) * .41, 0, -4.15 + (index % 3) * .34, -.10 - (index % 3) * .13);
+  const left = group(parent, (index === 0 ? -13.25 : -11.9) - (index % 3) * .39, 0,
+    (index === 0 ? -7.1 : -5.05) + (index % 3) * .33, -.10 - (index % 3) * .13);
   const right = group(parent, 11.4 + (index % 4) * .31, 0, -7.03 + (index % 3) * 1.23, .12 + (index % 3) * .10);
   left.scale.setScalar(page.first && page.chapter % 2 === 0 ? 1 : .72 + (index % 2) * .06);
   right.scale.setScalar(page.first && page.chapter % 2 === 1 ? 1 : .74 + (index % 3) * .04);
   const leftAction = upperScenes[variation[0]](left, person);
   const rightAction = upperScenes[variation[1]](right, person);
-  const side = index % 2 ? 1 : -1;
   const isSculpture = index % 3 === 1;
-  const low = group(parent, side * (isSculpture ? 13.9 : 11.45 + (index % 3) * .65), 0,
-    isSculpture ? 2.95 : 5.80 - (index % 3) * .57, -.24 * side);
+  const low = group(parent, isSculpture ? 13.9 : 11.45 + (index % 3) * .65, 0,
+    isSculpture ? 2.95 : 5.80 - (index % 3) * .57, -.24);
   low.scale.setScalar(.82);
   const lowAction = isSculpture ? kineticDisplay(low, person) : waterCourt(low, person);
   sideDetails(parent, -1, index);
   sideDetails(parent, 1, index + 1);
-  const air = index % 3 === 0 ? patrol(group(parent, -side * 11.15, 0, 5.54)) : null;
+  const air = index % 3 === 0 ? patrol(group(parent, 12.4, 0, 3.75)) : null;
+  const traffic = deliveryLane(parent, index % 2 ? 15.2 : -13.85, index % 2 ? -5.4 : 3.4, index, person);
+  const walkers = [
+    person(parent, -12.5, .44, navy, 'walk', .66 + index * .42, { stride: .87, pathDepth: 1.58, pace: .51 }),
+    person(parent, 10.4, 2.2, teal, 'walk', 2.2 + index * .83, { stride: .81, pathDepth: 1.31, pace: .43 }),
+  ];
   return time => {
     leftAction(time + .64 + index * 1.17);
     rightAction(time + 2.1 + index * 1.35);
     lowAction(time + .9 + index * .77);
     air?.(time + index * 1.6);
+    traffic(time + index * 2.35);
+    walkers.forEach(walker => walker(time, true));
   };
 }
