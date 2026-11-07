@@ -90,24 +90,22 @@ const models = styles.map(([coat, pants, skin, hair, shirt], style) => skeleton.
 }));
 
 // One continuous pavement circuit, including curved corners.
-function footpath(inset, radius) {
-  const a = inset;
-  const b = 44 - inset;
+export function walkingLoop(left, top, right, bottom, radius) {
   const p = (x, z) => new THREE.Vector2(x, z);
   const path = new THREE.CurvePath();
-  path.add(new THREE.LineCurve(p(a, b - radius), p(a, a + radius)));
-  path.add(new THREE.QuadraticBezierCurve(p(a, a + radius), p(a, a), p(a + radius, a)));
-  path.add(new THREE.LineCurve(p(a + radius, a), p(b - radius, a)));
-  path.add(new THREE.QuadraticBezierCurve(p(b - radius, a), p(b, a), p(b, a + radius)));
-  path.add(new THREE.LineCurve(p(b, a + radius), p(b, b - radius)));
-  path.add(new THREE.QuadraticBezierCurve(p(b, b - radius), p(b, b), p(b - radius, b)));
-  path.add(new THREE.LineCurve(p(b - radius, b), p(a + radius, b)));
-  path.add(new THREE.QuadraticBezierCurve(p(a + radius, b), p(a, b), p(a, b - radius)));
+  path.add(new THREE.LineCurve(p(left, bottom - radius), p(left, top + radius)));
+  path.add(new THREE.QuadraticBezierCurve(p(left, top + radius), p(left, top), p(left + radius, top)));
+  path.add(new THREE.LineCurve(p(left + radius, top), p(right - radius, top)));
+  path.add(new THREE.QuadraticBezierCurve(p(right - radius, top), p(right, top), p(right, top + radius)));
+  path.add(new THREE.LineCurve(p(right, top + radius), p(right, bottom - radius)));
+  path.add(new THREE.QuadraticBezierCurve(p(right, bottom - radius), p(right, bottom), p(right - radius, bottom)));
+  path.add(new THREE.LineCurve(p(right - radius, bottom), p(left + radius, bottom)));
+  path.add(new THREE.QuadraticBezierCurve(p(left + radius, bottom), p(left, bottom), p(left, bottom - radius)));
   return path;
 }
-const circuits = [footpath(7.25, 1.56), footpath(7.88, 1.75)];
+const circuits = [7.25, 7.88].map((inset, index) => walkingLoop(inset, inset, 44 - inset, 44 - inset, index ? 1.75 : 1.56));
 
-export function createWalker(parent, style, phase, direction) {
+export function createWalker(parent, style, phase, direction, path = circuits[style % circuits.length]) {
   const view = new THREE.Group();
   const parts = [];
   skeleton.forEach(([joint, x, y, z], i) => {
@@ -119,13 +117,13 @@ export function createWalker(parent, style, phase, direction) {
   parent.add(view);
   const collider = new Body({ type: Body.KINEMATIC, shape: new Box(new Vec3(.245, .84, .21)),
     collisionFilterGroup: 8, collisionFilterMask: 4, collisionResponse: false });
-  return { view, parts, collider, phase, direction, style, knocked: false };
+  const pace = (.0105 + style * .00034) * circuits[style % circuits.length].getLength() / path.getLength();
+  return { view, parts, collider, path, pace, phase, direction, style, knocked: false };
 }
 
 export function updateWalker(walker, time, originX, originZ, animated) {
-  const { view, parts, phase, direction, style, collider } = walker;
-  const path = circuits[style % circuits.length];
-  const progress = (phase + time * (.0105 + style * .00034) * direction) % 1;
+  const { view, parts, path, pace, phase, direction, style, collider } = walker;
+  const progress = (phase + time * pace * direction) % 1;
   const f = (progress + 1) % 1;
   const point = path.getPoint(f);
   const next = path.getPoint((f + .0008) % 1);

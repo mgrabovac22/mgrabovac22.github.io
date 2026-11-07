@@ -43,6 +43,15 @@ button:disabled { opacity: .6; cursor: default; }
 #notice { position: absolute; bottom: max(14%, calc(var(--hud-bottom) + 3.25rem)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 76vw; padding: .45rem .8rem; border-radius: 3px; color: #fff2d7; background: var(--panel); text-align: center; font-size: .85rem; font-weight: 700; }
 #game:has(.touch:not([hidden])) #notice { bottom: calc(var(--touch-bottom) + var(--touch-size) + .75rem); }
 #notice:empty { display: none; }
+.park-redirect {
+  position: absolute; z-index: 2; bottom: max(14%, calc(var(--hud-bottom) + 3.25rem)); left: 50%; translate: -50% 0;
+  display: flex; align-items: center; gap: .6rem; width: max-content; max-width: min(92vw, 28rem); padding: .38rem .45rem .38rem .8rem;
+  border: 1px solid #8fb5bf; border-radius: 5px; background: #132e3a; color: #f0f6f4; font-size: .86rem; font-weight: 750;
+}
+.park-redirect button { padding-inline: .64rem; flex: none; background: #1c4a57; font-size: .75rem; }
+.park-redirect button:hover { background: #2d5963; }
+#game:has(.touch:not([hidden])) .park-redirect { bottom: calc(var(--touch-bottom) + var(--touch-size) + .75rem); }
+#game:has(.park-redirect:not([hidden])) #notice { visibility: hidden; }
 .bottom { position: absolute; z-index: 2; inset: auto max(1rem, env(safe-area-inset-right)) var(--hud-bottom) max(1rem, env(safe-area-inset-left)); display: flex; align-items: end; justify-content: space-between; pointer-events: none; }
 .controls { pointer-events: auto; position: relative; }
 summary::before { content: "+"; color: var(--acid); }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Body, Box, Vec3 } from 'cannon-es';
 import { createWalker, ragdoll, updateWalker } from './drive-people.js';
+import { buildPark, linkedinParkBlock } from './drive-park.js';
 
 export const blockSize = 44;
 const road = 11.6;
@@ -152,26 +153,72 @@ function mesh(parent, surface, w, h, d, x = 0, y = 0, z = 0, geometry = boxGeome
   return object;
 }
 
-function createCrate(parent, x, z, size) {
+function createCrate(parent, x, z, size, elevation = 0, label = null) {
   const view = new THREE.Group();
   parent.add(view);
-  view.position.set(x, size / 2 + .035, z);
+  view.position.set(x, elevation + size / 2 + .035, z);
   mesh(view, assets.crate, size, size, size);
   for (const side of [-1, 1]) {
     mesh(view, assets.crateEdge, size * 1.035, size * .075, size * 1.035, 0, side * size * .43, 0);
     mesh(view, assets.crateEdge, size * .105, size * .91, size * 1.036, side * size * .35);
   }
-  const marking = mesh(view, assets.amberLight, size * .62, size * .065, .01, 0, 0, size * .51);
-  marking.rotation.z = .37;
+  if (label) {
+    for (let face = 0; face < 4; face++) {
+      const angle = face * Math.PI / 2;
+      const marking = mesh(view, label, size * .89, size * .43, 1,
+        Math.sin(angle) * size * .521, .02, Math.cos(angle) * size * .521, signPlane);
+      marking.rotation.y = angle;
+    }
+  } else {
+    const marking = mesh(view, assets.amberLight, size * .62, size * .065, .01, 0, 0, size * .51);
+    marking.rotation.z = .37;
+  }
   const collider = new Body({ mass: 0, shape: new Box(new Vec3(size / 2 + .045, size / 2, size / 2 + .045)),
     collisionFilterGroup: 16, collisionFilterMask: 4, collisionResponse: false });
-  collider.position.set(x, size / 2, z);
+  collider.position.set(x, elevation + size / 2, z);
   return { view, collider, x, z, spent: false };
 }
 
-export function createCity(scene, world, car, isCompact, maxAnisotropy) {
+function makeParkSigns(copy, anisotropy) {
+  const sign = (width, height, paint) => new THREE.MeshBasicMaterial({
+    map: textureCanvas(width, height, paint, anisotropy), toneMapped: false,
+  });
+  return {
+    park: sign(512, 166, ctx => {
+      ctx.fillStyle = '#173933';
+      ctx.fillRect(0, 0, 512, 166);
+      ctx.strokeStyle = '#b5ceb4';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(7, 7, 498, 152);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f6f4e4';
+      ctx.font = '800 53px system-ui';
+      ctx.fillText(copy.title, 256, 75, 466);
+      ctx.fillStyle = '#c4dbbc';
+      ctx.font = '700 34px system-ui';
+      ctx.fillText(copy.crates, 256, 126, 466);
+    }),
+    crate: sign(320, 160, ctx => {
+      ctx.fillStyle = '#084d80';
+      ctx.fillRect(0, 0, 320, 160);
+      ctx.strokeStyle = '#d2e7f2';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(5, 5, 310, 150);
+      ctx.fillStyle = '#f7faf9';
+      ctx.textAlign = 'center';
+      ctx.font = '800 57px system-ui';
+      ctx.fillText('LinkedIn', 160, 78, 294);
+      ctx.fillStyle = '#d2e7f2';
+      ctx.font = '700 26px system-ui';
+      ctx.fillText(copy.crate, 160, 125, 280);
+    }),
+  };
+}
+
+export function createCity(scene, world, car, isCompact, maxAnisotropy, parkCopy) {
   const blocks = new Map();
   const anisotropy = Math.min(maxAnisotropy, isCompact ? 8 : 12);
+  const parkSigns = parkCopy ? makeParkSigns(parkCopy, anisotropy) : null;
   groundTextures(anisotropy);
   const facades = [0, 1, 2, 3].map(style => facade(style, anisotropy));
   const plaques = ['ATRIUM', 'FORUM', 'NORTH HOUSE', 'EXCHANGE'].map(name => new THREE.MeshBasicMaterial({
@@ -224,6 +271,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
     const colliders = [];
     const crates = [];
     const walkers = [];
+    const isPark = linkedinParkBlock(i, j);
     function collider(cx, cz, width, height, depth, y = height / 2) {
       const body = new Body({ mass: 0, shape: new Box(new Vec3(width / 2, height / 2, depth / 2)) });
       body.position.set(x + cx, y, z + cz);
@@ -253,7 +301,9 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
         add(assets.paint, direction * 6.7, .016, stripe * 1.08, 1.64, .021, .56);
       }
     }
-    for (const [bx, bz] of [[15, 15], [29, 15], [15, 29], [29, 29]]) {
+    const park = isPark ? buildPark(parent, add, collider, parkSigns?.park, isCompact) : null;
+    const buildingLots = isPark ? [] : [[15, 15], [29, 15], [15, 29], [29, 29]];
+    for (const [bx, bz] of buildingLots) {
       if (random() < .19) {
         add(assets.marble, bx, .105, bz, 9.6, .043, 9.6);
         add(assets.dirt, bx, .131, bz, 9.05, .026, 9.05);
@@ -316,6 +366,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
       collider(bx, bz, w + .13, height + (stepped ? 3 : .45), d + .13);
     }
     for (const k of [9, 22, 35]) {
+      if (isPark && k === 22) continue;
       add(assets.steel, 6.23, 2.1, k, .17, 3.91, .17, 0, columnGeometry);
       add(assets.steel, 5.65, 4.08, k, 1.36, .11, .16);
       add(assets.amberLight, 5.02, 3.99, k, .44, .095, .34);
@@ -339,14 +390,31 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
       add(signalRed, cx, 2.98, cz, .17, .13, .297);
       add(signalGreen, cx, 2.60, cz, .17, .13, .297);
     }
-    for (const [cx, cz] of [[5.05, 11 + random() * 13], [25 + random() * 9, 5.1], [7.48, 29]]) {
+    const curbCrateZ = 11 + random() * 13;
+    const roadside = [[25 + random() * 9, 5.1], [7.48, 29]];
+    if (!isPark) roadside.unshift([5.05, curbCrateZ]);
+    for (const [cx, cz] of roadside) {
       crates.push(createCrate(parent, cx, cz, .79 + random() * .19));
     }
-    if (i === 0 && j === -1) crates.push(createCrate(parent, 4.72, 22, 1.03));
+    let linkedinPile;
+    if (isPark && parkSigns) {
+      linkedinPile = [];
+      for (let row = 0; row < 3; row++) {
+        for (let column = 0; column < 4; column++) {
+          const x = 8.55 + row * 1.38;
+          const z = 17.0 + column * 1.45;
+          linkedinPile.push(createCrate(parent, x, z, 1.20, .09, parkSigns.crate));
+          if (row > 0 && (column === 1 || column === 2)) linkedinPile.push(createCrate(parent, x, z, 1.04, 1.29, parkSigns.crate));
+        }
+      }
+      for (const crate of linkedinPile) crate.pile = linkedinPile;
+      crates.push(...linkedinPile);
+    }
     walkers.push(createWalker(parent, (i === 0 && j === 0) ? 0 : Math.floor(random() * 5),
       (i === 0 && j === 0) ? .216 : random(), 1));
     walkers.push(createWalker(parent, Math.floor(random() * 5), .29 + random() * .55, -1));
     if (!isCompact && random() > .46) walkers.push(createWalker(parent, Math.floor(random() * 5), random(), 1));
+    if (park) walkers.push(...park.walkers);
     let courier = null;
     if ((Math.abs(i) + Math.abs(j)) % 3 === 1) {
       const body = new THREE.Group();
@@ -381,7 +449,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
       walker.originX = x;
       walker.originZ = z;
     }
-    return { parent, colliders, crates, walkers, courier, active: false, i, j };
+    return { parent, colliders, crates, walkers, courier, park, linkedinPile, active: false, i, j };
   }
 
   function setActive(block, active) {
@@ -439,6 +507,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
       setActive(block, range <= 1);
       if (range > reach) {
         scene.remove(block.parent);
+        block.park?.dispose();
         block.parent.traverse(object => { if (object.isInstancedMesh) object.dispose(); });
         blocks.delete(key);
       }
@@ -455,6 +524,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
         walker.view.visible = local < 88;
         if (block.active || walker.view.visible) updateWalker(walker, time, walker.originX, walker.originZ, motion && local < 64);
       }
+      block.park?.update(time, motion && local < 64);
       if (!block.courier) continue;
       const { body, rotors } = block.courier;
       const phase = time * .39 + block.i + block.j;
@@ -484,10 +554,12 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
   function process(time, onBlast) {
     for (const { kind, target, impact, localHit, localCrate } of queue.splice(0)) {
       if (kind === 'crate' && !target.spent) {
-        target.spent = true;
-        target.view.visible = false;
-        world.removeBody(target.collider);
-        onBlast(target.x, target.z, impact, localHit, localCrate);
+        for (const crate of target.pile ?? [target]) {
+          crate.spent = true;
+          crate.view.visible = false;
+          world.removeBody(crate.collider);
+        }
+        onBlast(target.x, target.z, impact, localHit, localCrate, target.pile);
       } else if (kind === 'walker' && !target.knocked) {
         target.knocked = true;
         target.view.visible = false;
@@ -518,5 +590,16 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy) {
     }
   }
 
-  return { sync, update, process, safeLanding };
+  function resetParkCrates() {
+    for (const block of blocks.values()) {
+      for (const crate of block.linkedinPile ?? []) {
+        if (!crate.spent) continue;
+        crate.spent = false;
+        crate.view.visible = true;
+        if (block.active) world.addBody(crate.collider);
+      }
+    }
+  }
+
+  return { sync, update, process, safeLanding, resetParkCrates };
 }

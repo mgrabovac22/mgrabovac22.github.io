@@ -7,6 +7,7 @@ import { createCity } from './drive-city.js';
 import { createSkyStories } from './drive-story.js';
 import { loadPortfolio } from './portfolio.js';
 import { createStory } from './story.js';
+import { createLinkedInCountdown, linkedInProfile } from './drive-linkedin.js';
 
 const language = new URLSearchParams(location.search).get('lang') === 'hr' ? 'hr' : 'en';
 const content = loadPortfolio(language).then(data => ({ data, pages: createStory(data) })).catch(() => null);
@@ -69,32 +70,52 @@ function sky(scene) {
 
 function makeEffects(scene) {
   const pool = [];
+  const pending = [];
   const random = () => Math.random() * 2 - 1;
   const colors = [0xffe1a3, 0xfda259, 0xd29266, 0x715545];
   const geometry = new THREE.BoxGeometry(.12, .12, .12);
   const bits = colors.map(color => new THREE.MeshBasicMaterial({ color }));
   const ringGeometry = new THREE.RingGeometry(.88, 1, 40);
-  function blast(x, z) {
+  function blast(x, z, strength = 1) {
     const ring = new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({
       color: 0xffc378, transparent: true, opacity: .88, depthWrite: false, side: THREE.DoubleSide,
     }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(x, .23, z);
     scene.add(ring);
-    const parts = Array.from({ length: reduced.matches ? 8 : 28 }, (_, index) => {
+    const count = reduced.matches ? 8 : strength < 1 ? 14 : strength > 1 ? 42 : 28;
+    const parts = Array.from({ length: count }, (_, index) => {
       const mesh = new THREE.Mesh(geometry, bits[index % bits.length]);
-      mesh.scale.setScalar(.60 + Math.random() * 2.1);
+      mesh.scale.setScalar((.60 + Math.random() * 2.1) * strength);
       mesh.position.set(x + random() * .28, .43, z + random() * .28);
       scene.add(mesh);
-      return { mesh, velocity: new THREE.Vector3(random() * 9, 3 + Math.random() * 8, random() * 9) };
+      return { mesh, velocity: new THREE.Vector3(random() * 9, 3 + Math.random() * 8, random() * 9).multiplyScalar(strength) };
     });
-    pool.push({ ring, parts, age: 0 });
+    pool.push({ ring, parts, strength, age: 0 });
   }
+
+  function chain(x, z, pile) {
+    blast(x, z, 1.6);
+    const positions = [...new Map(pile.map(crate => [crate.x + ':' + crate.z, crate])).values()];
+    const secondary = positions.filter(crate => crate.x !== x || crate.z !== z)
+      .sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+    secondary.filter((_, index) => index % 2 === 0).forEach((crate, index) => {
+      pending.push({ x: crate.x, z: crate.z, delay: (index + 1) * .095 });
+    });
+  }
+
   function update(dt) {
+    for (let i = pending.length - 1; i >= 0; i--) {
+      const burst = pending[i];
+      burst.delay -= dt;
+      if (burst.delay > 0) continue;
+      blast(burst.x, burst.z, .72);
+      pending.splice(i, 1);
+    }
     for (let i = pool.length - 1; i >= 0; i--) {
       const event = pool[i];
       event.age += dt;
-      event.ring.scale.setScalar(.55 + event.age * 8.5);
+      event.ring.scale.setScalar((.55 + event.age * 8.5) * event.strength);
       event.ring.material.opacity = Math.max(0, .76 - event.age * 1.22);
       for (const part of event.parts) {
         part.velocity.y -= 16 * dt;
@@ -111,7 +132,7 @@ function makeEffects(scene) {
       }
     }
   }
-  return { blast, update };
+  return { blast, chain, update };
 }
 
 function fail(message) {
@@ -133,6 +154,8 @@ async function boot() {
   }
   const { data, pages } = portfolio;
   const t = data.t.drive;
+  const linkedIn = linkedInProfile(data.profile.linkedin);
+  const parkCopy = linkedIn ? t.linkedinPark : undefined;
   document.title = t.title + ' — ' + data.profile.name;
   document.querySelector('meta[name=description]').content = t.description;
   for (const node of document.querySelectorAll('[data-copy]')) node.textContent = t[node.dataset.copy];
@@ -183,9 +206,10 @@ async function boot() {
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
   const car = createCar(scene, world);
-  const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy());
+  const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy(), parkCopy);
   const stories = createSkyStories(scene, world, pages);
   const effects = makeEffects(scene);
+  const linkedinCountdown = createLinkedInCountdown(find('#park-redirect'), linkedIn, parkCopy);
   const keys = new Set();
   const pointers = new Map();
   const input = {};
@@ -288,6 +312,8 @@ async function boot() {
     speedValue.textContent = String(Math.round(speed)).padStart(3, '0');
   }
   function resetCar() {
+    linkedinCountdown.cancel();
+    city.resetParkCrates();
     car.setPose(initial.x, initial.y, initial.z);
     tippedFor = 0;
     launched = false;
@@ -337,13 +363,18 @@ async function boot() {
     car.drive(input, dt);
     world.step(1 / 60, dt, 4);
     recovery(dt);
-    city.process(time, (x, z, impact, localHit, localCrate) => {
+    city.process(time, (x, z, impact, localHit, localCrate, pile) => {
       if (!launched) launchYaw = flatYaw(car.chassis);
       launched = true;
       launchedAt = time;
       launcherImpulse(car.chassis, x, z, impact, localHit, localCrate);
-      effects.blast(x, z);
-      announce(t.launch);
+      if (pile) {
+        effects.chain(x, z, pile);
+        linkedinCountdown.start();
+      } else {
+        effects.blast(x, z);
+        announce(t.launch);
+      }
     });
     city.update(time, position, !reduced.matches);
     if (noticeUntil <= time && notice.textContent) notice.textContent = '';
@@ -468,6 +499,7 @@ async function boot() {
   renderer.domElement.addEventListener('webglcontextlost', event => {
     event.preventDefault();
     graphicsLost = true;
+    linkedinCountdown.cancel();
     clearInput();
     fail(t.lost);
   });

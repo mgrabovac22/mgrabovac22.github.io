@@ -845,6 +845,13 @@
         "noGraphics": "WebGL is unavailable on this device. The portfolio is still available.",
         "lost": "The graphics connection was lost. Reload the page to try again.",
         "launch": "Crate blast!",
+        "linkedinPark": {
+          "title": "LinkedIn Park",
+          "crates": "Hit the crates to open the profile",
+          "crate": "PROFILE CRATE",
+          "countdown": "LinkedIn opens in {seconds} s",
+          "cancel": "Keep driving"
+        },
         "recovered": "Back on your wheels",
         "left": "Steer left",
         "right": "Steer right",
@@ -920,6 +927,13 @@
         "noGraphics": "WebGL nije dostupan na ovom uređaju. Portfolio je i dalje dostupan.",
         "lost": "Veza s grafikom je prekinuta. Ponovno učitaj stranicu za novi pokušaj.",
         "launch": "Eksplozija kutije!",
+        "linkedinPark": {
+          "title": "LinkedIn park",
+          "crates": "Udari u kutije za otvaranje profila",
+          "crate": "KUTIJA ZA PROFIL",
+          "countdown": "LinkedIn se otvara za {seconds} s",
+          "cancel": "Nastavi vožnju"
+        },
         "recovered": "Ponovno na kotačima",
         "left": "Skreni lijevo",
         "right": "Skreni desno",
