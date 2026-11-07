@@ -7,10 +7,10 @@
   <meta name="description" content="An interactive third-person drive through a procedural city by Marin Grabovac.">
   <link rel="icon" href="./art/mark.svg" type="image/svg+xml">
   <title>Night Shift — Marin Grabovac</title>
-  <script type="module" crossorigin src="./site-assets/drive-DF35-A0h.js"></script>
-  <link rel="modulepreload" crossorigin href="./site-assets/locale-Dxpz7-2G.js">
-  <link rel="modulepreload" crossorigin href="./site-assets/three-Dc6GQQgd.js">
-  <link rel="stylesheet" crossorigin href="./site-assets/drive-D-G_AmM3.css">
+  <script type="module" crossorigin src="./site-assets/drive-_xeVgvhg.js"></script>
+  <link rel="modulepreload" crossorigin href="./site-assets/story-C6clXas7.js">
+  <link rel="modulepreload" crossorigin href="./site-assets/three-BhHOFm3n.js">
+  <link rel="stylesheet" crossorigin href="./site-assets/drive-DkYGGejR.css">
 </head>
 <body>
   <main id="game" aria-labelledby="drive-title">
@@ -27,7 +27,15 @@
       <span class="label" id="chapter">—</span>
       <strong id="station-name">—</strong>
       <span class="station-meta" id="chapter-index">—</span>
+      <div class="route-actions">
+        <button type="button" id="read-story" data-copy="read" disabled>Read entry</button>
+        <button type="button" id="heal" data-copy="heal" disabled>Restore letters</button>
+      </div>
     </aside>
+    <dialog id="story-reader" aria-labelledby="entry-title">
+      <form method="dialog"><button data-copy="close">Close</button></form>
+      <article id="story-entry"></article>
+    </dialog>
     <p id="notice" role="status" aria-live="polite"></p>
     <div class="bottom">
       <details class="controls">
@@ -35,6 +43,7 @@
         <div class="key-guide">
           <p><kbd>W A S D</kbd> <kbd>↑ ← ↓ →</kbd> <span data-copy="move">Drive and steer</span></p>
           <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span> <kbd>P</kbd> <span data-copy="pause">Pause</span></p>
+          <p><kbd>H</kbd> <span data-copy="heal">Restore letters</span></p>
         </div>
       </details>
       <div class="speed" role="group" aria-label="Speed"><b id="speed">000</b><span>KM/H</span></div>

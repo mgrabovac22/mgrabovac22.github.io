@@ -4,20 +4,12 @@ import { mountPortrait } from './portrait.js';
 import { createStory } from './story.js';
 import { getLocale } from './locale.js';
 
-const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const motion = new EventTarget();
-let motionOverride = null;
-try {
-  const stored = sessionStorage.getItem('portfolio-motion');
-  if (stored !== null) motionOverride = stored === 'paused';
-} catch {}
-Object.defineProperty(motion, 'matches', { get: () => motionOverride ?? systemMotion.matches });
+const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const locale = getLocale(document.documentElement.lang);
 const { t } = locale;
 const pages = createStory(locale.language);
 const root = document.documentElement;
 const homeShell = document.querySelector('.home-shell');
-const motionControls = [...document.querySelectorAll('[data-motion]')];
 const world = document.querySelector('#world');
 const scroller = document.querySelector('#world-scroll');
 const stage = document.querySelector('#world-stage');
@@ -36,18 +28,8 @@ const route = { progress: 0, index: 0, jump: 0 };
 function syncMotion() {
   root.classList.toggle('motion-paused', motion.matches);
   if (motion.matches) world.classList.remove('flying');
-  for (const button of motionControls) button.setAttribute('aria-pressed', String(motion.matches));
-  motion.dispatchEvent(new Event('change'));
 }
-for (const button of motionControls) {
-  button.hidden = false;
-  button.addEventListener('click', () => {
-    motionOverride = !motion.matches;
-    try { sessionStorage.setItem('portfolio-motion', motionOverride ? 'paused' : 'playing'); } catch {}
-    syncMotion();
-  });
-}
-systemMotion.addEventListener('change', syncMotion);
+motion.addEventListener('change', syncMotion);
 syncMotion();
 
 for (const page of pages) {

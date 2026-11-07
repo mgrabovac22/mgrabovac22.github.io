@@ -23,7 +23,15 @@
       <span class="label" id="chapter">—</span>
       <strong id="station-name">—</strong>
       <span class="station-meta" id="chapter-index">—</span>
+      <div class="route-actions">
+        <button type="button" id="read-story" data-copy="read" disabled>Read entry</button>
+        <button type="button" id="heal" data-copy="heal" disabled>Restore letters</button>
+      </div>
     </aside>
+    <dialog id="story-reader" aria-labelledby="entry-title">
+      <form method="dialog"><button data-copy="close">Close</button></form>
+      <article id="story-entry"></article>
+    </dialog>
     <p id="notice" role="status" aria-live="polite"></p>
     <div class="bottom">
       <details class="controls">
@@ -31,6 +39,7 @@
         <div class="key-guide">
           <p><kbd>W A S D</kbd> <kbd>↑ ← ↓ →</kbd> <span data-copy="move">Drive and steer</span></p>
           <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span> <kbd>P</kbd> <span data-copy="pause">Pause</span></p>
+          <p><kbd>H</kbd> <span data-copy="heal">Restore letters</span></p>
         </div>
       </details>
       <div class="speed" role="group" aria-label="Speed"><b id="speed">000</b><span>KM/H</span></div>

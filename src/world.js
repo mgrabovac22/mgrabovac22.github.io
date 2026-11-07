@@ -108,7 +108,7 @@ export async function prepareOffice(pages) {
   for (let index = 0; index < pages.length; index += 2) {
     const [x, z] = pages[index].position;
     for (const edge of [-1, 1]) {
-      const spread = (index % 4 ? 15.9 : 17.3) * edge;
+      const spread = (index % 4 ? 17.0 : 18.2) * edge;
       const along = edge * 6;
       branches.push({ position: [x + side.x * spread + axis.x * along, z + side.z * spread + axis.z * along] });
     }

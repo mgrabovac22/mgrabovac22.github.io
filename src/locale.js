@@ -46,7 +46,6 @@ const messages = {
   en: {
     locale: 'Hrvatski', cv: 'Download CV', about: 'Learn about me', close: 'Back to desk', world: 'Portfolio office',
     language: 'Language', skip: 'Skip to content', skipIntro: 'Skip intro',
-    motion: 'Pause animations',
     title: 'Developer Portfolio', portal: 'Entering the office', controls: 'Map controls',
     previous: 'Previous stop', next: 'Next stop', scroll: 'Scroll to travel', read: 'Read text', map: 'Return to map',
     region: 'Explore the 3D office by scrolling', website: 'Open website', github: 'Open GitHub', linkedin: 'Open LinkedIn',
@@ -57,7 +56,6 @@ const messages = {
   hr: {
     locale: 'English', cv: 'Preuzmi CV', about: 'Upoznaj me', close: 'Povratak na stol', world: 'Ured portfolija',
     language: 'Jezik', skip: 'Preskoči na sadržaj', skipIntro: 'Preskoči uvod',
-    motion: 'Pauziraj animacije',
     title: 'Developerski portfolio', portal: 'Ulazak u ured', controls: 'Kontrole karte',
     previous: 'Prethodna postaja', next: 'Sljedeća postaja', scroll: 'Skrolaj za kretanje', read: 'Čitaj tekst', map: 'Povratak na kartu',
     region: 'Istraži 3D ured pomicanjem', website: 'Otvori stranicu', github: 'Otvori GitHub', linkedin: 'Otvori LinkedIn',

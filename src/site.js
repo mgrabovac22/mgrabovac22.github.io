@@ -10,8 +10,6 @@ const icons = {
   up: '<path d="M8 13V3m-4 4 4-4 4 4"/>',
   download: '<path d="M8 2.5v7m-3-3 3 3 3-3M3 10.5v2.8h10v-2.8"/>',
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
-  pause: '<path d="M5.5 3.5v9m5-9v9"/>',
-  play: '<path d="m5 3 7 5-7 5Z"/>',
   wheel: '<circle cx="8" cy="8" r="5.4"/><path d="m3 7 5 1.7L13 7M8 8.7v4.7"/>',
 };
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">${icons[name]}</svg>`;
@@ -48,7 +46,6 @@ export function renderSite(html, context) {
   if (context.path.endsWith('/drive.html')) return html;
   const language = context.path.endsWith('/hr.html') ? 'hr' : 'en';
   const { profile, stops, t } = getLocale(language);
-  const motionControl = `<button class="motion-control" type="button" data-motion aria-label="${t.motion}" aria-pressed="false" hidden>${icon('pause')}${icon('play')}</button>`;
   const story = createStory(language);
   const name = escape(profile.name);
   const title = `${name} — ${t.title}`;
@@ -78,7 +75,7 @@ export function renderSite(html, context) {
     <header class="site-header shell">
       ${localeLink}
       <a href="#home" class="wordmark" aria-label="${name}"><img src="/art/mark.svg" alt="" width="33" height="33"><span>${name}</span></a>
-      <div class="header-actions">${motionControl}${external({ href: asset(profile.cv.file), label: t.cv, download: true }, 'cv-control')}</div>
+      <div class="header-actions">${external({ href: asset(profile.cv.file), label: t.cv, download: true }, 'cv-control')}</div>
     </header>
     <main id="main" tabindex="-1">
       <section class="hero shell" id="home" aria-labelledby="hero-title">
@@ -115,7 +112,6 @@ export function renderSite(html, context) {
       <div class="hud-left">
         <button class="world-close" type="button" id="world-close" aria-label="${t.close}" title="${t.close}" autofocus hidden>${icon('close')}</button>
         ${localeLink}
-        ${motionControl}
       </div>
       <div class="hud-index mono" aria-hidden="true"><span id="district-name"></span><span id="world-counter">01 / ${story.length}</span></div>
     </div>

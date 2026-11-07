@@ -11,6 +11,8 @@ const text = {
     back: 'Portfolio', reset: 'Reset', pause: 'Pause', resume: 'Resume', route: 'CV in the city',
     controls: 'Controls', move: 'Drive and steer', brake: 'Brake', loading: 'Preparing the city…',
     start: 'Start driving', ready: 'Explore the city and read the stories above the streets.',
+    read: 'Read entry', heal: 'Restore letters', close: 'Close',
+    shattered: 'Letters on the road · H to restore', healed: 'Letters restored', intact: 'All letters are in place',
     noGraphics: 'WebGL is unavailable on this device. The portfolio is still available.',
     lost: 'The graphics connection was lost. Reload the page to try again.',
     launch: 'Crate blast!', recovered: 'Back on your wheels', paused: 'Drive paused',
@@ -20,6 +22,8 @@ const text = {
     back: 'Portfolio', reset: 'Vrati auto', pause: 'Pauza', resume: 'Nastavi', route: 'Životopis iznad grada',
     controls: 'Kontrole', move: 'Vozi i skreći', brake: 'Kočnica', loading: 'Pripremam grad…',
     start: 'Kreni voziti', ready: 'Istraži grad i prati priče iznad ulica.',
+    read: 'Čitaj zapis', heal: 'Obnovi slova', close: 'Zatvori',
+    shattered: 'Slova su na cesti · H za obnovu', healed: 'Slova su vraćena na mjesto', intact: 'Sva su slova na mjestu',
     noGraphics: 'WebGL nije dostupan na ovom uređaju. Portfolio je i dalje dostupan.',
     lost: 'Veza s grafikom je prekinuta. Ponovno učitaj stranicu za novi pokušaj.',
     launch: 'Eksplozija kutije!', recovered: 'Ponovno na kotačima', paused: 'Vožnja pauzirana',
@@ -38,6 +42,10 @@ const errorBack = find('.error-back');
 const start = find('#start');
 const pause = find('#pause');
 const reset = find('#reset');
+const healButton = find('#heal');
+const readButton = find('#read-story');
+const reader = find('#story-reader');
+const entry = find('#story-entry');
 const notice = find('#notice');
 const speedValue = find('#speed');
 const stationName = find('#station-name');
@@ -140,13 +148,15 @@ function fail(message) {
   errorBack.hidden = false;
   pause.disabled = true;
   reset.disabled = true;
+  healButton.disabled = true;
+  readButton.disabled = true;
   touch.hidden = true;
 }
 
 function boot() {
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: !compact, powerPreference: compact ? 'low-power' : 'high-performance' });
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: compact ? 'low-power' : 'high-performance' });
   } catch {
     fail(t.noGraphics);
     return;
@@ -157,7 +167,6 @@ function boot() {
   renderer.toneMappingExposure = 1.14;
   renderer.shadowMap.enabled = !compact;
   renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, compact ? 1.12 : 1.65));
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0xb0bbb5, .014);
   const skybox = sky(scene);
@@ -174,7 +183,7 @@ function boot() {
   sun.position.set(-30, 21, -36);
   bounce.position.set(12, 9, 20);
   sun.castShadow = !compact;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -33, right: 33, top: 33, bottom: -33, near: 1, far: 105 });
   sun.shadow.camera.updateProjectionMatrix();
   sun.shadow.normalBias = .057;
@@ -188,8 +197,8 @@ function boot() {
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
   const car = createCar(scene, world);
-  const city = createCity(scene, world, car.chassis, compact);
-  const stories = createSkyStories(scene, language);
+  const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy());
+  const stories = createSkyStories(scene, world, language);
   const effects = makeEffects(scene);
   const keys = new Set();
   const pointers = new Map();
@@ -210,6 +219,8 @@ function boot() {
   let launchedAt = 0;
   let launchYaw = 0;
   let lastChapter = -1;
+  let currentPage;
+  let resumeAfterReading = false;
   let hudAt = 0;
   let previous = 0;
   let frame = 0;
@@ -240,17 +251,24 @@ function boot() {
     if (snap || reduced.matches) camera.position.copy(cameraGoal);
     else camera.position.lerp(cameraGoal, 1 - Math.exp(-9.4 * dt));
     focus.set(position.x + forward.x * 7.3, Math.max(1.18, position.y + .15), position.z + forward.z * 7.3);
+    if (narrow) {
+      const alongAvenue = THREE.MathUtils.smoothstep(Math.abs(forward.z), .78, .98);
+      const nearCenter = 1 - THREE.MathUtils.smoothstep(Math.abs(position.x), 4, 8);
+      focus.x -= position.x * alongAvenue * nearCenter * .46;
+    }
     camera.lookAt(focus);
     skybox.position.copy(camera.position);
     const anchorX = Math.round(position.x / 4) * 4;
     const anchorZ = Math.round(position.z / 4) * 4;
     sun.target.position.set(anchorX, 0, anchorZ);
     sun.position.set(anchorX - 35, 32, anchorZ - 30);
-    const story = stories.update(position, forward, camera, dt, reduced.matches);
+    const story = stories.update(position, car.chassis.velocity, forward, camera.position.z, dt, reduced.matches);
+    if (story.shattered) announce(t.shattered, 5);
     if (lastChapter !== story.index) {
       lastChapter = story.index;
-      chapter.textContent = story.card.chapter;
-      stationName.textContent = story.card.title;
+      currentPage = story.page;
+      chapter.textContent = story.page.chapterTitle;
+      stationName.textContent = story.page.title;
       chapterIndex.textContent = String(story.index + 1).padStart(2, '0') + ' / ' + String(story.total).padStart(2, '0');
     }
     renderer.render(scene, camera);
@@ -259,8 +277,12 @@ function boot() {
     const { clientWidth, clientHeight } = view;
     if (!clientWidth || !clientHeight || graphicsLost) return;
     camera.aspect = clientWidth / clientHeight;
-    camera.fov = camera.aspect < .9 ? 60 : 53;
+    camera.fov = camera.aspect < .9 ? 64 : 53;
     camera.updateProjectionMatrix();
+    const pixelBudget = compact ? 1_900_000 : 4_000_000;
+    const maxRatio = compact ? 1.85 : 2;
+    const budgetRatio = Math.sqrt(pixelBudget / (clientWidth * clientHeight));
+    renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio, 1.45), maxRatio, budgetRatio));
     renderer.setSize(clientWidth, clientHeight, false);
     draw(0, true);
     showTouch();
@@ -276,7 +298,7 @@ function boot() {
     yaw = 0;
     forward.set(0, 0, -1);
     city.sync(position);
-    stories.reset(position, forward);
+    stories.reposition(position);
     city.update(time, position, !reduced.matches);
     showHud();
     draw(0, true);
@@ -357,24 +379,70 @@ function boot() {
   function showTouch() {
     touch.hidden = !started || !(coarse.matches || view.clientWidth < 640) || graphicsLost;
   }
+  function healLetters() {
+    const restored = stories.heal(stopped || reduced.matches);
+    announce(restored ? t.healed : t.intact);
+    if (stopped) draw(0, true);
+  }
+  function readEntry() {
+    if (!currentPage || reader.open) return;
+    const { title, chapterTitle, meta, date, body, points, tags, links } = currentPage;
+    entry.replaceChildren();
+    const append = (parent, tag, value) => {
+      const item = document.createElement(tag);
+      item.textContent = value;
+      parent.append(item);
+      return item;
+    };
+    append(entry, 'p', chapterTitle).className = 'label';
+    append(entry, 'h2', title).id = 'entry-title';
+    if (meta || date) append(entry, 'p', [meta, date].filter(Boolean).join(' · '));
+    if (body) append(entry, 'p', body);
+    if (points?.length) {
+      const list = append(entry, 'ul', '');
+      for (const point of points) append(list, 'li', point);
+    }
+    if (tags?.length) append(entry, 'p', tags.join(' · '));
+    for (const { label, href, download } of links) {
+      const link = append(entry, 'a', label);
+      link.href = href;
+      if (download) link.download = '';
+      if (href.startsWith('https:')) {
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      }
+    }
+    resumeAfterReading = !stopped;
+    setPaused(true);
+    reader.showModal();
+  }
+  reader.addEventListener('close', () => {
+    if (resumeAfterReading) setPaused(false);
+  });
   coarse.addEventListener('change', showTouch);
   start.addEventListener('click', () => {
     started = true;
     cover.hidden = true;
     pause.disabled = false;
     reset.disabled = false;
+    healButton.disabled = false;
+    readButton.disabled = false;
     showTouch();
     find('#game').focus({ preventScroll: true });
     setPaused(false);
   });
   pause.addEventListener('click', () => setPaused(!stopped));
   reset.addEventListener('click', resetCar);
+  healButton.addEventListener('click', healLetters);
+  readButton.addEventListener('click', readEntry);
   window.addEventListener('keydown', event => {
-    if (!started || graphicsLost || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!started || reader.open || graphicsLost || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (!event.repeat && event.code === 'KeyP') {
       setPaused(!stopped);
     } else if (!event.repeat && event.code === 'KeyR') {
       resetCar();
+    } else if (!event.repeat && event.code === 'KeyH') {
+      healLetters();
     } else if (!stopped && controls.has(event.code) &&
       !(event.code === 'Space' && event.target.closest?.('button, a, summary'))) {
       event.preventDefault();

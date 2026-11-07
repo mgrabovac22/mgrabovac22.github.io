@@ -354,7 +354,7 @@ function officeDetails(parent, page, index) {
     actors.push(person(parent, side * 1.9 - .34, -5.35, mat.jacket, 'type', index * .91));
   }
   if (!branch) {
-    actors.push(person(parent, -side * 2.8, 4.92, mat.jacket, 'walk', 1.1 + index * .53));
+    actors.push(person(parent, -side * 3.4, 6.21, mat.jacket, 'walk', 1.1 + index * .53, { stride: 1.7 }));
     actors.push(person(parent, side * 7.7, 7.91, mat.navy, index % 3 ? 'walk' : 'carry', 2.7 + index * .63));
     plant(parent, -side * 8.28, 7.23, 1.22);
     if (index % 3 === 0) divider(parent, side * 4.1, 9.24, 4.64);
@@ -609,10 +609,11 @@ export function addRoom(scene, page, index) {
   const [x, z] = page.position;
   const room = new THREE.Group();
   room.position.set(x, 0, z);
+  if (!page.title) room.scale.setScalar(.86);
   scene.add(room);
   floorMarkings(room, page.first ? page.chapterTitle : '');
   const detailMotion = officeDetails(room, page, index);
-  const districtMotion = page.title ? addOfficeDistricts(room, index, person) : null;
+  const districtMotion = page.title ? addOfficeDistricts(room, page, index, person) : null;
   let exhibit;
   let activity;
   const giant = page.id === 'projects'

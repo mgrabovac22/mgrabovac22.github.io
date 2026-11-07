@@ -31,20 +31,22 @@ function seeded(i, j) {
   };
 }
 
-function textureCanvas(width, height, draw) {
+function textureCanvas(width, height, draw, anisotropy = 4) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   draw(canvas.getContext('2d'));
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 2;
+  texture.anisotropy = anisotropy;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
   return texture;
 }
 
-function facade(style) {
+function facade(style, anisotropy) {
   const random = seeded(style + 1, 7);
-  const map = textureCanvas(256, 512, ctx => {
+  const map = textureCanvas(512, 1024, ctx => {
+    ctx.scale(2, 2);
     const walls = ['#787d73', '#a59986', '#546c73', '#647d7d'];
     const bays = style === 1 ? 4 : style === 3 ? 7 : 5;
     const rows = style === 1 ? 9 : 13;
@@ -76,33 +78,39 @@ function facade(style) {
       ctx.fillStyle = style === 1 ? '#d2bf9b' : '#c3d6d28c';
       ctx.fillRect(0, row * height + height - 2, 256, style === 1 ? 2 : 1);
     }
-  });
+  }, anisotropy);
   return new THREE.MeshStandardMaterial({ roughness: style === 1 ? .71 : .37, metalness: style === 1 ? .11 : .31, map, envMapIntensity: .61 });
 }
 
-function groundTextures() {
+function groundTextures(anisotropy) {
   const random = seeded(412, 22);
-  assets.asphalt.map = textureCanvas(256, 256, ctx => {
+  assets.asphalt.map = textureCanvas(512, 512, ctx => {
     ctx.fillStyle = '#929894';
-    ctx.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 3400; i++) {
-      ctx.fillStyle = i % 3 ? '#3b443f29' : '#f6e9d344';
-      ctx.fillRect(random() * 256, random() * 256, .5 + random() * 2.7, 1 + random() * 2);
+    ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 11500; i++) {
+      ctx.fillStyle = i % 3 ? '#47534d24' : '#f6e9d32c';
+      ctx.fillRect(random() * 512, random() * 512, .8 + random() * 2.8, .9 + random() * 2.4);
     }
-  });
+  }, anisotropy);
   assets.asphalt.map.wrapS = assets.asphalt.map.wrapT = THREE.RepeatWrapping;
   assets.asphalt.map.repeat.set(5, 5);
-  assets.slab.map = textureCanvas(256, 256, ctx => {
+  assets.slab.map = textureCanvas(512, 512, ctx => {
+    ctx.scale(2, 2);
     ctx.fillStyle = '#aaa9a0';
     ctx.fillRect(0, 0, 256, 256);
     for (let row = 0; row < 8; row++) {
       for (let col = -1; col < 8; col++) {
         const tone = 157 + Math.round(random() * 37);
-        ctx.fillStyle = 'rgb(' + tone + ' ' + (tone - 2) + ' ' + (tone - 8) + ')';
-        ctx.fillRect(col * 32 + row % 2 * 16, row * 32, 30.7, 30.7);
+        const x = col * 32 + row % 2 * 16;
+        const y = row * 32;
+        const stone = ctx.createLinearGradient(x, y, x + 32, y + 32);
+        stone.addColorStop(0, 'rgb(' + (tone + 4) + ' ' + (tone + 2) + ' ' + (tone - 4) + ')');
+        stone.addColorStop(1, 'rgb(' + tone + ' ' + (tone - 2) + ' ' + (tone - 8) + ')');
+        ctx.fillStyle = stone;
+        ctx.fillRect(x, y, 31.3, 31.3);
       }
     }
-  });
+  }, anisotropy);
   assets.slab.map.wrapS = assets.slab.map.wrapT = THREE.RepeatWrapping;
   assets.slab.map.repeat.set(3, 3);
 }
@@ -161,10 +169,11 @@ function createCrate(parent, x, z, size) {
   return { view, collider, x, z, spent: false };
 }
 
-export function createCity(scene, world, car, isCompact) {
+export function createCity(scene, world, car, isCompact, maxAnisotropy) {
   const blocks = new Map();
-  groundTextures();
-  const facades = [0, 1, 2, 3].map(facade);
+  const anisotropy = Math.min(maxAnisotropy, isCompact ? 8 : 12);
+  groundTextures(anisotropy);
+  const facades = [0, 1, 2, 3].map(style => facade(style, anisotropy));
   const plaques = ['ATRIUM', 'FORUM', 'NORTH HOUSE', 'EXCHANGE'].map(name => new THREE.MeshBasicMaterial({
     map: textureCanvas(256, 48, ctx => {
       ctx.fillStyle = '#223234';
@@ -330,7 +339,7 @@ export function createCity(scene, world, car, isCompact) {
     for (const [cx, cz] of [[5.05, 11 + random() * 13], [25 + random() * 9, 5.1], [7.48, 29]]) {
       crates.push(createCrate(parent, cx, cz, .79 + random() * .19));
     }
-    if (i === 0 && j === -1) crates.push(createCrate(parent, 3, 22, 1.03));
+    if (i === 0 && j === -1) crates.push(createCrate(parent, 4.72, 22, 1.03));
     walkers.push(createWalker(parent, (i === 0 && j === 0) ? 0 : Math.floor(random() * 5),
       (i === 0 && j === 0) ? .216 : random(), 1));
     walkers.push(createWalker(parent, Math.floor(random() * 5), .29 + random() * .55, -1));

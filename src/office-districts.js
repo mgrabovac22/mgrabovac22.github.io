@@ -435,8 +435,8 @@ function patrol(parent) {
   drone.scale.setScalar(.78);
   return time => {
     const p = time * .35;
-    drone.position.set(Math.sin(p) * 1.8, 2.7 + Math.sin(p * 2) * .52, Math.cos(p) * 3.6);
-    drone.rotation.set(.13 * Math.sin(p), Math.atan2(Math.cos(p) * 1.8, -Math.sin(p) * 3.6), .16 * Math.cos(p));
+    drone.position.set(Math.sin(p) * 1.24, 2.7 + Math.sin(p * 2) * .52, Math.cos(p) * 3.05);
+    drone.rotation.set(.13 * Math.sin(p), Math.atan2(Math.cos(p) * 1.24, -Math.sin(p) * 3.05), .16 * Math.cos(p));
     spin(time, 19);
   };
 }
@@ -447,18 +447,42 @@ const layouts = [
   [5, 1], [3, 0], [4, 2], [0, 5], [1, 4], [2, 0],
 ];
 
-export function addOfficeDistricts(parent, index, person) {
+function sideDetails(parent, side, index) {
+  const lane = group(parent, side * 9.65, 0, 1.15, side * .11);
+  for (let i = 0; i < 5; i++) {
+    box(lane, frame, .055, .014, .31, 0, .01, (i - 2) * .52).castShadow = false;
+  }
+  const stand = group(lane, side * .64, 0, index % 2 ? -.65 : .74);
+  cylinder(stand, graphite, .26, .054, 0, .036, 0);
+  cylinder(stand, frame, .039, .49, 0, .28, 0);
+  const cap = box(stand, index % 3 ? navy : brass, .32, .16, .085, 0, .51, 0);
+  cap.rotation.x = -.23;
+  box(stand, beacon, .16, .024, .018, 0, .535, .048).castShadow = false;
+  const planter = group(lane, side * 2.50, 0, index % 2 ? 1.14 : -.83);
+  box(planter, porcelain, .66, .20, .50, 0, .113, 0);
+  box(planter, oak, .55, .023, .40, 0, .223, 0);
+  for (let i = 0; i < 3; i++) {
+    ball(planter, i % 2 ? paleLeaf : fern, .14, .16 + (i % 2) * .045, .16, (i - 1) * .16, .36, 0).rotation.z = (i - 1) * .36;
+  }
+}
+
+export function addOfficeDistricts(parent, page, index, person) {
   const variation = layouts[index % layouts.length];
-  const left = group(parent, -11.30 - (index % 3) * .47, 0, -4.34 + (index % 3) * .39, -.10 - (index % 3) * .13);
-  const right = group(parent, 10.68 + (index % 4) * .35, 0, -7.2 + (index % 3) * 1.34, .12 + (index % 3) * .10);
+  const left = group(parent, -11.85 - (index % 3) * .41, 0, -4.15 + (index % 3) * .34, -.10 - (index % 3) * .13);
+  const right = group(parent, 11.4 + (index % 4) * .31, 0, -7.03 + (index % 3) * 1.23, .12 + (index % 3) * .10);
+  left.scale.setScalar(page.first && page.chapter % 2 === 0 ? 1 : .72 + (index % 2) * .06);
+  right.scale.setScalar(page.first && page.chapter % 2 === 1 ? 1 : .74 + (index % 3) * .04);
   const leftAction = upperScenes[variation[0]](left, person);
   const rightAction = upperScenes[variation[1]](right, person);
   const side = index % 2 ? 1 : -1;
   const isSculpture = index % 3 === 1;
-  const low = group(parent, side * (isSculpture ? 13.5 : 10.95 + (index % 3) * .65), 0,
+  const low = group(parent, side * (isSculpture ? 13.9 : 11.45 + (index % 3) * .65), 0,
     isSculpture ? 2.95 : 5.80 - (index % 3) * .57, -.24 * side);
+  low.scale.setScalar(.82);
   const lowAction = isSculpture ? kineticDisplay(low, person) : waterCourt(low, person);
-  const air = index % 3 === 0 ? patrol(group(parent, -side * 9.3, 0, 5.44)) : null;
+  sideDetails(parent, -1, index);
+  sideDetails(parent, 1, index + 1);
+  const air = index % 3 === 0 ? patrol(group(parent, -side * 11.15, 0, 5.54)) : null;
   return time => {
     leftAction(time + .64 + index * 1.17);
     rightAction(time + 2.1 + index * 1.35);
