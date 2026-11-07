@@ -11,8 +11,8 @@ const text = {
     back: 'Portfolio', reset: 'Reset', pause: 'Pause', resume: 'Resume', route: 'CV in the city',
     controls: 'Controls', move: 'Drive and steer', brake: 'Brake', loading: 'Preparing the city…',
     start: 'Start driving', ready: 'Explore the city and read the stories above the streets.',
-    read: 'Read entry', heal: 'Restore letters', close: 'Close',
-    shattered: 'Letters on the road · H to restore', healed: 'Letters restored', intact: 'All letters are in place',
+    read: 'Read entry', heal: 'Restore signs', close: 'Close',
+    shattered: 'Sign down · H to restore', healed: 'Signs restored', intact: 'All signs are in place',
     noGraphics: 'WebGL is unavailable on this device. The portfolio is still available.',
     lost: 'The graphics connection was lost. Reload the page to try again.',
     launch: 'Crate blast!', recovered: 'Back on your wheels', paused: 'Drive paused',
@@ -22,8 +22,8 @@ const text = {
     back: 'Portfolio', reset: 'Vrati auto', pause: 'Pauza', resume: 'Nastavi', route: 'Životopis iznad grada',
     controls: 'Kontrole', move: 'Vozi i skreći', brake: 'Kočnica', loading: 'Pripremam grad…',
     start: 'Kreni voziti', ready: 'Istraži grad i prati priče iznad ulica.',
-    read: 'Čitaj zapis', heal: 'Obnovi slova', close: 'Zatvori',
-    shattered: 'Slova su na cesti · H za obnovu', healed: 'Slova su vraćena na mjesto', intact: 'Sva su slova na mjestu',
+    read: 'Čitaj zapis', heal: 'Obnovi table', close: 'Zatvori',
+    shattered: 'Tabla je pala · H za obnovu', healed: 'Table su vraćene na mjesto', intact: 'Sve su table na mjestu',
     noGraphics: 'WebGL nije dostupan na ovom uređaju. Portfolio je i dalje dostupan.',
     lost: 'Veza s grafikom je prekinuta. Ponovno učitaj stranicu za novi pokušaj.',
     launch: 'Eksplozija kutije!', recovered: 'Ponovno na kotačima', paused: 'Vožnja pauzirana',
@@ -208,6 +208,7 @@ function boot() {
   const focus = new THREE.Vector3();
   const focusGoal = new THREE.Vector3();
   const forward = new THREE.Vector3(0, 0, -1);
+  const routeHeading = new THREE.Vector3(0, 0, -1);
   let yaw = 0;
   let cameraYaw = 0;
   let cameraClearance = 1;
@@ -269,7 +270,8 @@ function boot() {
     const anchorZ = Math.round(visual.z * 16) / 16;
     sun.target.position.set(anchorX, 0, anchorZ);
     sun.position.set(anchorX - 35, 32, anchorZ - 30);
-    const story = stories.update(position, car.chassis.velocity, forward, camera.position.z, dt, reduced.matches);
+    routeHeading.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const story = stories.update(position, car.chassis.velocity, routeHeading, camera.position, dt, reduced.matches);
     if (story.shattered) announce(t.shattered, 5);
     if (lastChapter !== story.index) {
       lastChapter = story.index;
@@ -305,7 +307,7 @@ function boot() {
     yaw = 0;
     forward.set(0, 0, -1);
     city.sync(position);
-    stories.reposition(position);
+    stories.reset();
     city.update(time, position, !reduced.matches);
     showHud();
     draw(0, true);
@@ -386,7 +388,7 @@ function boot() {
   function showTouch() {
     touch.hidden = !started || !(coarse.matches || view.clientWidth < 640) || graphicsLost;
   }
-  function healLetters() {
+  function healSigns() {
     const restored = stories.heal(stopped || reduced.matches);
     announce(restored ? t.healed : t.intact);
     if (stopped) draw(0, true);
@@ -440,7 +442,7 @@ function boot() {
   });
   pause.addEventListener('click', () => setPaused(!stopped));
   reset.addEventListener('click', resetCar);
-  healButton.addEventListener('click', healLetters);
+  healButton.addEventListener('click', healSigns);
   readButton.addEventListener('click', readEntry);
   window.addEventListener('keydown', event => {
     if (!started || reader.open || graphicsLost || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -449,7 +451,7 @@ function boot() {
     } else if (!event.repeat && event.code === 'KeyR') {
       resetCar();
     } else if (!event.repeat && event.code === 'KeyH') {
-      healLetters();
+      healSigns();
     } else if (!stopped && controls.has(event.code) &&
       !(event.code === 'Space' && event.target.closest?.('button, a, summary'))) {
       event.preventDefault();

@@ -18,36 +18,19 @@ function makePen() {
   return pen;
 }
 
-export async function mountPortrait(host, motion, intro) {
+export function mountPortrait(host, motion, intro) {
   const fallback = host.querySelector('img');
-  let svg;
-  try {
-    const response = await fetch(host.dataset.drawing);
-    if (!response.ok) throw new Error('Portrait drawing unavailable');
-    const source = new DOMParser().parseFromString(await response.text(), 'image/svg+xml').documentElement;
-    if (source.localName !== 'svg') throw new Error('Portrait drawing must be SVG');
-    svg = svgNode('svg', { viewBox: source.getAttribute('viewBox') || '0 0 230 230', class: 'portrait-ink', role: 'img', 'aria-label': fallback.alt });
-    const drawing = svgNode('g', {
-      fill: 'none', stroke: source.getAttribute('stroke') || '#333d33',
-      'stroke-width': source.getAttribute('stroke-width') || '1.35',
-      'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-    });
-    for (const original of source.querySelectorAll('path[data-ink]')) {
-      const stroke = svgNode('path', { d: original.getAttribute('d') });
-      for (const attribute of ['stroke', 'stroke-width', 'stroke-dasharray', 'opacity']) {
-        if (original.hasAttribute(attribute)) stroke.setAttribute(attribute, original.getAttribute(attribute));
-      }
-      drawing.append(stroke);
-    }
-    if (!drawing.childElementCount) throw new Error('Portrait SVG has no ink paths');
-    svg.append(drawing);
-  } catch {
-    if (host.dataset.photo) fallback.src = host.dataset.photo;
-    return;
-  }
+  const svg = host.querySelector('template').content.querySelector('svg').cloneNode(true);
+  const paths = [...svg.querySelectorAll('path[data-ink]')];
+  if (!paths.length) return;
+  svg.classList.add('portrait-ink');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', fallback.alt);
+  const drawing = svgNode('g');
+  drawing.append(...paths);
+  svg.append(drawing);
 
   const pen = makePen();
-  const paths = [...svg.querySelectorAll('path')];
   const mask = svgNode('mask', { id: 'portrait-trace', maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: 230, height: 230 });
   const filter = svgNode('filter', { id: 'portrait-ink-edge', x: '-20%', y: '-20%', width: '140%', height: '140%' });
   filter.append(svgNode('feGaussianBlur', { stdDeviation: 5 }));
@@ -61,7 +44,7 @@ export async function mountPortrait(host, motion, intro) {
   mask.append(brushLayer, wash);
   const defs = svgNode('defs');
   defs.append(filter, mask);
-  const photo = svgNode('image', { href: host.dataset.photo, x: 2, y: 2, width: 226, height: 226, mask: 'url(#portrait-trace)' });
+  const photo = svgNode('image', { href: fallback.src, x: 2, y: 2, width: 226, height: 226, mask: 'url(#portrait-trace)' });
   svg.prepend(defs, photo);
   svg.append(pen);
   fallback.replaceWith(svg);
@@ -112,7 +95,7 @@ export async function mountPortrait(host, motion, intro) {
 
   function draw(now) {
     frame = 0;
-    if (intro.skipped || motion.matches || elapsed >= 4.05) {
+    if (intro.skipped || motion.matches || elapsed >= 3.25) {
       finish();
       observer.disconnect();
       document.removeEventListener('visibilitychange', schedule);
@@ -124,7 +107,7 @@ export async function mountPortrait(host, motion, intro) {
     }
     elapsed += previous ? Math.min(.05, (now - previous) / 1000) : 0;
     previous = now;
-    const distance = Math.min(1, Math.max(0, (elapsed - 1.12) / 2.45)) * total;
+    const distance = Math.min(1, Math.max(0, (elapsed - .93) / 1.87)) * total;
     let current = strokes.at(-1);
     for (const stroke of strokes) {
       const ink = Math.min(stroke.length, Math.max(0, distance - stroke.start));
@@ -138,12 +121,12 @@ export async function mountPortrait(host, motion, intro) {
     const offset = Math.max(0, Math.min(current.length, distance - current.start));
     const tip = current.path.getPointAtLength(offset);
     const near = current.path.getPointAtLength(Math.min(current.length, offset + 2));
-    const inkWash = Math.max(0, Math.min(1, (elapsed - 3.05) / .87));
+    const inkWash = Math.max(0, Math.min(1, (elapsed - 2.50) / .62));
     wash.setAttribute('opacity', inkWash);
     paths[0].parentElement.setAttribute('opacity', 1 - inkWash * .78);
     const angle = 32 + Math.atan2(near.y - tip.y, near.x - tip.x) * 5;
-    if (elapsed < 1.12) {
-      const t = Math.min(1, Math.max(0, (elapsed - .28) / .84));
+    if (elapsed < .93) {
+      const t = Math.min(1, Math.max(0, (elapsed - .52) / .41));
       const u = 1 - t;
       const startX = box.x + box.width * 1.58;
       const startY = box.y - box.height * .40;
@@ -151,7 +134,7 @@ export async function mountPortrait(host, motion, intro) {
       const y = u ** 3 * startY + 3 * u ** 2 * t * (box.y - box.height * .62) + 3 * u * t ** 2 * (box.y + box.height * .51) + t ** 3 * tip.y;
       pose(x, y, -83 + (angle + 83) * t + Math.sin(t * Math.PI) * 102);
     } else {
-      const exit = Math.min(1, Math.max(0, (elapsed - 3.57) / .48));
+      const exit = Math.min(1, Math.max(0, (elapsed - 2.80) / .43));
       const ease = exit * exit * (3 - 2 * exit);
       pose(tip.x + (restX - tip.x) * ease, tip.y + (restY - tip.y) * ease, angle + (27 - angle) * ease);
     }

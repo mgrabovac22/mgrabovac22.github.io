@@ -249,27 +249,34 @@ for (const link of document.querySelectorAll('.hero-actions a[href^="#"]')) {
 
 const skip = document.querySelector('#skip-intro');
 const portrait = document.querySelector('#portrait');
+const desk = document.querySelector('.desk-stage');
+const portraitDelivery = portrait.getAnimations().find(animation => animation.animationName === 'portrait-delivery');
 const intro = { skipped: levelFromHash() >= 0, drawingDone: false };
 function finishIntro() {
   if (document.activeElement === skip) document.querySelector('.hero-primary').focus({ preventScroll: true });
   intro.skipped = true;
+  desk.classList.add('intro-done');
   skip.hidden = true;
 }
 if (motion.matches || intro.skipped) finishIntro();
 else {
-  portrait.classList.add('portrait-waiting');
+  if ((portraitDelivery?.currentTime ?? 0) < 850) mountPortrait(portrait, motion, intro);
   skip.hidden = false;
-  setTimeout(finishIntro, 4800);
+  setTimeout(finishIntro, 3500);
 }
 skip.addEventListener('click', finishIntro);
 motion.addEventListener('change', () => { if (motion.matches) finishIntro(); });
 document.addEventListener('visibilitychange', () => root.classList.toggle('is-hidden', document.hidden));
-if (!intro.skipped && !motion.matches) {
-  void mountPortrait(portrait, motion, intro).finally(() => portrait.classList.remove('portrait-waiting'));
-}
-import('./laptop.js')
-  .then(({ mountLaptop }) => mountLaptop(document.querySelector('#laptop-visual'), motion, intro, locale))
-  .catch(() => {});
+desk.addEventListener('pointermove', event => {
+  if (motion.matches || event.pointerType !== 'mouse') return;
+  const bounds = desk.getBoundingClientRect();
+  desk.style.setProperty('--draft-x', `${((event.clientX - bounds.left) / bounds.width - .5) * 7}px`);
+  desk.style.setProperty('--draft-y', `${((event.clientY - bounds.top) / bounds.height - .5) * 7}px`);
+});
+desk.addEventListener('pointerleave', () => {
+  desk.style.removeProperty('--draft-x');
+  desk.style.removeProperty('--draft-y');
+});
 import('./blueprint.js')
   .then(({ mountBlueprint }) => mountBlueprint(document.querySelector('#home-blueprint'), motion))
   .catch(() => {});
