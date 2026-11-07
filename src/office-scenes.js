@@ -186,6 +186,43 @@ function facilities(parent, actor) {
   };
 }
 
+function inspectionDrone(parent) {
+  const drone = moving(group(parent, 0, 0));
+  box(drone, ink, .36, .15, .28, 0, 0, 0);
+  box(drone, teal, .22, .035, .036, 0, -.032, .143);
+  const rotors = [-1, 1].map(side => {
+    box(drone, metal, .34, .047, .073, side * .25, .026, 0);
+    const rotor = moving(group(drone, side * .37, 0));
+    rotor.position.y = .09;
+    box(rotor, ink, .32, .024, .055, 0, 0, 0);
+    box(rotor, pale, .055, .025, .31, 0, 0, 0);
+    return rotor;
+  });
+  return time => {
+    const orbit = time * .45;
+    drone.position.set(Math.sin(orbit) * 2.6, 2.04 + Math.sin(time * 1.23) * .22, Math.cos(orbit) * .84 - .7);
+    drone.rotation.set(.10 * Math.sin(orbit), Math.atan2(Math.cos(orbit) * 2.6, -Math.sin(orbit) * .84), .09 * Math.cos(orbit));
+    rotors.forEach((rotor, i) => { rotor.rotation.y = time * (i === 0 ? 17 : -19); });
+  };
+}
+
+function plotter(parent) {
+  const unit = group(parent, 2.64, -.91, -.25);
+  box(unit, ink, .67, .82, .51, 0, .42, 0);
+  box(unit, metal, .70, .19, .54, 0, .87, 0);
+  box(unit, ink, .41, .027, .055, 0, .855, .284);
+  box(unit, teal, .085, .045, .018, .24, .91, .282);
+  const sheet = moving(box(unit, paper, .31, .013, .24, 0, .846, .18));
+  const mark = box(sheet, green, .68, .13, .07, -.035, .5, -.13);
+  mark.castShadow = false;
+  return time => {
+    const phase = time % 7;
+    sheet.position.z = .16 + Math.min(1, phase / 4.2) * .31;
+    sheet.position.y = .847 - Math.max(0, phase - 5.6) * .33;
+    sheet.rotation.x = -Math.max(0, phase - 5.6) * .6;
+  };
+}
+
 const scenarios = [meeting, classroom, coffeeBreak, receiving, laboratory, facilities];
 const anchors = { about: 2, career: 0, education: 1, projects: 4, qualifications: 5, contact: 3 };
 
@@ -197,9 +234,11 @@ export function addOfficeScene(parent, page, index, person) {
   };
   const scene = scenarios[anchors[page.id] ?? (index * 5 + Math.floor(index / 3)) % scenarios.length];
   const ambient = scene(area, addActor);
+  const extra = index % 5 === 2 ? inspectionDrone(area) : index % 7 === 3 ? plotter(area) : null;
   return (time, active) => {
     const local = time + index * .81;
     ambient(local);
+    extra?.(local);
     for (const actor of actors) actor(local, active);
   };
 }

@@ -225,7 +225,7 @@ world.addEventListener('keydown', event => {
   }
 });
 
-for (const link of document.querySelectorAll('.hero-actions a')) {
+for (const link of document.querySelectorAll('.hero-actions a[href^="#"]')) {
   link.addEventListener('pointerenter', prepareWorld, { once: true });
   link.addEventListener('focus', prepareWorld, { once: true });
   link.addEventListener('click', event => {

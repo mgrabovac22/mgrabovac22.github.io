@@ -2,3 +2,4 @@
 /site-assets/*.css text eol=lf linguist-generated=true
 /site-assets/*.js text eol=lf -whitespace linguist-generated=true
 /hr.html text eol=lf linguist-generated=true
+/drive.html text eol=lf linguist-generated=true

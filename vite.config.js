@@ -19,6 +19,7 @@ export default defineConfig({
       input: {
         index: fileURLToPath(new URL('./src/index.html', import.meta.url)),
         hr: fileURLToPath(new URL('./src/hr.html', import.meta.url)),
+        drive: fileURLToPath(new URL('./src/drive.html', import.meta.url)),
       },
       output: {
         manualChunks(id) {

@@ -110,6 +110,9 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
 .hero-primary { background: var(--ink); color: #f5f6ec; min-height: 46px; padding: 0 1.04rem; gap: .85rem; font-size: .84rem; font-weight: 800; border-radius: 5px; transition: background .2s; }
 .hero-primary svg { color: var(--lime); }
 .hero-primary:hover { background: var(--moss); }
+.drive-link { color: var(--ink); background: #dce8ac; border: 1px solid #788c60; margin-left: -.65rem; }
+.drive-link svg { color: var(--moss); }
+.drive-link:hover { background: #cdda93; }
 .text-link { font-size: .83rem; font-weight: 800; min-height: 37px; border-bottom: 1px solid #8b9b81; }
 .hero-actions .text-link { min-height: 44px; padding-inline: .35rem; border: 0; border-radius: 4px; }
 .hero-actions .text-link:hover { background: #e1ebe1; }
@@ -124,6 +127,7 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
   .portrait-marker { top: .25rem; left: .35rem; right: .35rem; font-size: .41rem; }
   .laptop { inset: 0 35% 0 -3%; }
   .hero-actions { gap: .2rem .55rem; }
+  .drive-link { margin-left: 0; }
   .skip-intro { font-size: .52rem; }
 }
 @media (max-width: 590px) {
@@ -134,7 +138,7 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
 }
 @media (max-width: 460px) {
   .hero-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: .15rem .5rem; }
-  .hero-primary { grid-column: 1 / -1; width: 100%; }
+  .hero-primary { width: 100%; padding-inline: .35rem; gap: .42rem; }
   .hero-actions .text-link { width: 100%; }
   .wordmark { gap: .4rem; font-size: .75rem; }
   .wordmark img { width: 28px; height: 28px; }

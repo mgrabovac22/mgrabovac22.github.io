@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111e26">
+  <meta name="description" content="An interactive third-person drive through a procedural city by Marin Grabovac.">
+  <link rel="icon" href="./art/mark.svg" type="image/svg+xml">
+  <title>Night Shift — Marin Grabovac</title>
+  <script type="module" crossorigin src="./site-assets/drive-ZbI6eaL-.js"></script>
+  <link rel="modulepreload" crossorigin href="./site-assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" crossorigin href="./site-assets/three-DwxZdvvI.js">
+  <link rel="stylesheet" crossorigin href="./site-assets/drive-UShDBjF1.css">
+</head>
+<body>
+  <main id="game" aria-labelledby="drive-title">
+    <div id="view" aria-hidden="true"></div>
+    <header class="top">
+      <a class="back button" href="./"><span aria-hidden="true">↖</span> <span data-copy="back">Portfolio</span></a>
+      <div class="brand"><span>MG / PLAYGROUND</span><h1 id="drive-title">NIGHT SHIFT</h1></div>
+      <div class="actions">
+        <button type="button" id="reset" data-copy="reset" disabled>Reset</button>
+        <button type="button" id="pause" data-copy="pause" disabled>Pause</button>
+      </div>
+    </header>
+    <aside class="route" aria-label="Route">
+      <span class="label" data-copy="route">CITY ROUTE / LIVE</span>
+      <strong id="station-name">—</strong>
+      <span class="station-meta"><span id="distance">—</span><span id="visited">00</span> <span data-copy="visited">visited</span></span>
+    </aside>
+    <p id="notice" role="status" aria-live="polite"></p>
+    <div class="bottom">
+      <details class="controls">
+        <summary data-copy="controls">Controls</summary>
+        <div class="key-guide">
+          <p><kbd>W A S D</kbd> <kbd>↑ ← ↓ →</kbd> <span data-copy="move">Drive and steer</span></p>
+          <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span> <kbd>P</kbd> <span data-copy="pause">Pause</span></p>
+        </div>
+      </details>
+      <div class="speed" role="group" aria-label="Speed"><b id="speed">000</b><span>KM/H</span></div>
+    </div>
+    <div class="touch" hidden>
+      <div>
+        <button type="button" data-input="left" aria-label="Steer left">◀</button>
+        <button type="button" data-input="right" aria-label="Steer right">▶</button>
+      </div>
+      <div>
+        <button type="button" data-input="brake" aria-label="Brake">■</button>
+        <button type="button" data-input="reverse" aria-label="Reverse">▼</button>
+        <button type="button" data-input="forward" aria-label="Accelerate">▲</button>
+      </div>
+    </div>
+    <div class="cover" id="cover">
+      <div class="cover-inner"><span>MG / INTERACTIVE 02</span><strong>NIGHT SHIFT</strong><p id="cover-text" role="status" data-copy="loading">Preparing the city…</p><button id="start" type="button" hidden data-copy="start">Start driving</button><a class="button error-back" href="./" hidden data-copy="back">Portfolio</a></div>
+    </div>
+    <noscript><p class="noscript">Enable JavaScript to drive. <a href="./">Back to the portfolio</a></p></noscript>
+  </main>
+</body>
+</html>

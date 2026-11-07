@@ -12,6 +12,7 @@ const icons = {
   close: '<path d="m4 4 8 8m0-8-8 8"/>',
   pause: '<path d="M5.5 3.5v9m5-9v9"/>',
   play: '<path d="m5 3 7 5-7 5Z"/>',
+  wheel: '<circle cx="8" cy="8" r="5.4"/><path d="m3 7 5 1.7L13 7M8 8.7v4.7"/>',
 };
 const icon = name => `<svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35">${icons[name]}</svg>`;
 const link = (label, href, mark = 'diagonal', style = 'text-link') =>
@@ -44,6 +45,7 @@ function contentCard(page, index) {
 }
 
 export function renderSite(html, context) {
+  if (context.path.endsWith('/drive.html')) return html;
   const language = context.path.endsWith('/hr.html') ? 'hr' : 'en';
   const { profile, stops, t } = getLocale(language);
   const motionControl = `<button class="motion-control" type="button" data-motion aria-label="${t.motion}" aria-pressed="false" hidden>${icon('pause')}${icon('play')}</button>`;
@@ -101,6 +103,7 @@ export function renderSite(html, context) {
         </figure>
         <nav class="hero-actions" aria-label="${escape(t.at)}">
           ${link(t.about, '#about', 'diagonal', 'hero-primary')}
+          ${link(language === 'hr' ? 'Kroz zabavu' : 'Explore for fun', language === 'hr' ? './drive.html?lang=hr' : './drive.html', 'wheel', 'hero-primary drive-link')}
           ${stops.slice(1, -1).map(stop => link(stop.title, '#' + stop.id)).join('')}
         </nav>
       </section>
