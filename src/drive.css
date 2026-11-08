@@ -31,6 +31,13 @@ button:disabled { opacity: .6; cursor: default; }
   font-size: clamp(1rem, 2.8vw, 1.8rem); text-shadow: 0 2px 8px #050a0e;
 }
 .current-section:hover { background: #142327aa; }
+.coin-score {
+  display: flex; align-items: center; gap: .32rem; width: max-content; max-width: 100%; margin: 0 auto;
+  padding: .22rem .42rem; color: #fff1d7; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
+  font: 700 .67rem/1.15 ui-monospace, monospace; font-variant-numeric: tabular-nums;
+}
+.coin-symbol { width: .72rem; height: .72rem; flex: none; border-radius: 50%; border: 1px solid #f4da94; background: #bd8d43; box-shadow: inset 0 0 0 2px #624928; }
+.coin-score b { color: #f6d897; }
 .actions { justify-self: end; display: flex; gap: .4rem; }
 .label, .cover-inner > span, .speed span { font: 700 .66rem/1.2 ui-monospace, monospace; letter-spacing: .12em; }
 .label, .cover-inner > span { color: var(--acid); }
@@ -43,15 +50,15 @@ button:disabled { opacity: .6; cursor: default; }
 #notice { position: absolute; bottom: max(14%, calc(var(--hud-bottom) + 3.25rem)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 76vw; padding: .45rem .8rem; border-radius: 3px; color: #fff2d7; background: var(--panel); text-align: center; font-size: .85rem; font-weight: 700; }
 #game:has(.touch:not([hidden])) #notice { bottom: calc(var(--touch-bottom) + var(--touch-size) + .75rem); }
 #notice:empty { display: none; }
-.park-redirect {
+.crate-redirect {
   position: absolute; z-index: 2; bottom: max(14%, calc(var(--hud-bottom) + 3.25rem)); left: 50%; translate: -50% 0;
   display: flex; align-items: center; gap: .6rem; width: max-content; max-width: min(92vw, 28rem); padding: .38rem .45rem .38rem .8rem;
   border: 1px solid #8fb5bf; border-radius: 5px; background: #132e3a; color: #f0f6f4; font-size: .86rem; font-weight: 750;
 }
-.park-redirect button { padding-inline: .64rem; flex: none; background: #1c4a57; font-size: .75rem; }
-.park-redirect button:hover { background: #2d5963; }
-#game:has(.touch:not([hidden])) .park-redirect { bottom: calc(var(--touch-bottom) + var(--touch-size) + .75rem); }
-#game:has(.park-redirect:not([hidden])) #notice { visibility: hidden; }
+.crate-redirect button { padding-inline: .64rem; flex: none; background: #1c4a57; font-size: .75rem; }
+.crate-redirect button:hover { background: #2d5963; }
+#game:has(.touch:not([hidden])) .crate-redirect { bottom: calc(var(--touch-bottom) + var(--touch-size) + .75rem); }
+#game:has(.crate-redirect:not([hidden])) #notice { visibility: hidden; }
 .bottom { position: absolute; z-index: 2; inset: auto max(1rem, env(safe-area-inset-right)) var(--hud-bottom) max(1rem, env(safe-area-inset-left)); display: flex; align-items: end; justify-content: space-between; pointer-events: none; }
 .controls { pointer-events: auto; position: relative; }
 summary::before { content: "+"; color: var(--acid); }

@@ -271,6 +271,7 @@
         "Tauri",
         "Git"
       ],
+      "website": "https://mgrabovac22.github.io/gitswamp/",
       "en": {
         "type": "Open-source desktop application",
         "description": "A Tauri desktop application for managing Git repositories in everyday development.",
@@ -858,6 +859,12 @@
         "forward": "Accelerate",
         "reverse": "Reverse",
         "speed": "Speed",
+        "coins": "Coins",
+        "crateLink": {
+          "label": "PROFILE",
+          "countdown": "{service} opens in {seconds} s",
+          "cancel": "Keep driving"
+        },
         "title": "Night Shift",
         "description": "Drive through a city and explore my work, education and projects on overhead signs.",
         "unavailable": "Could not load the city stories. Return to the portfolio or reload the page."
@@ -940,6 +947,12 @@
         "forward": "Ubrzaj",
         "reverse": "Vozi unatrag",
         "speed": "Brzina",
+        "coins": "Novčići",
+        "crateLink": {
+          "label": "PROFIL",
+          "countdown": "{service} se otvara za {seconds} s",
+          "cancel": "Nastavi vožnju"
+        },
         "title": "Night Shift",
         "description": "Provozi se gradom i istraži moje iskustvo, obrazovanje i projekte na prometnim tablama.",
         "unavailable": "Sadržaj vožnje nije dostupan. Vrati se na portfolio ili ponovno učitaj stranicu."

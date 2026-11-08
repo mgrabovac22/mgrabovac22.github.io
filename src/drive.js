@@ -7,7 +7,8 @@ import { createCity } from './drive-city.js';
 import { createSkyStories } from './drive-story.js';
 import { loadPortfolio } from './portfolio.js';
 import { createStory } from './story.js';
-import { createLinkedInCountdown, linkedInProfile } from './drive-linkedin.js';
+import { crateProfileUrl, createCrateCountdown } from './drive-crate-links.js';
+import { crateServices } from './drive-crates.js';
 
 const language = new URLSearchParams(location.search).get('lang') === 'hr' ? 'hr' : 'en';
 const content = loadPortfolio(language).then(data => ({ data, pages: createStory(data) })).catch(() => null);
@@ -26,6 +27,7 @@ const reader = find('#story-reader');
 const entry = find('#story-entry');
 const notice = find('#notice');
 const speedValue = find('#speed');
+const coinCount = find('#coin-count');
 const stationName = find('#station-name');
 const chapter = find('#chapter');
 const chapterIndex = find('#chapter-index');
@@ -154,8 +156,13 @@ async function boot() {
   }
   const { data, pages } = portfolio;
   const t = data.t.drive;
-  const linkedIn = linkedInProfile(data.profile.linkedin);
-  const parkCopy = linkedIn ? t.linkedinPark : undefined;
+  const crateCopy = typeof t.crateLink?.countdown === 'string' ? t.crateLink : null;
+  const destinations = new Map();
+  if (crateCopy) for (const [kind, label] of Object.entries(crateServices)) {
+    const href = crateProfileUrl(data.profile[kind], kind);
+    if (href) destinations.set(kind, { href, label });
+  }
+  const parkCopy = destinations.has('linkedin') ? t.linkedinPark : undefined;
   document.title = t.title + ' — ' + data.profile.name;
   document.querySelector('meta[name=description]').content = t.description;
   for (const node of document.querySelectorAll('[data-copy]')) node.textContent = t[node.dataset.copy];
@@ -206,10 +213,12 @@ async function boot() {
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
   const car = createCar(scene, world);
-  const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy(), parkCopy);
+  const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy(), {
+    parkCopy, crateKinds: [...destinations.keys()], crateLabel: crateCopy?.label,
+  });
   const stories = createSkyStories(scene, world, pages);
   const effects = makeEffects(scene);
-  const linkedinCountdown = createLinkedInCountdown(find('#park-redirect'), linkedIn, parkCopy);
+  const crateCountdown = createCrateCountdown(find('#crate-redirect'), crateCopy);
   const keys = new Set();
   const pointers = new Map();
   const input = {};
@@ -224,6 +233,7 @@ async function boot() {
   let cameraClearance = 1;
   let time = 0;
   let noticeUntil = 0;
+  let coins = 0;
   let stopped = true;
   let started = false;
   let graphicsLost = false;
@@ -312,7 +322,7 @@ async function boot() {
     speedValue.textContent = String(Math.round(speed)).padStart(3, '0');
   }
   function resetCar() {
-    linkedinCountdown.cancel();
+    crateCountdown.cancel();
     city.resetParkCrates();
     car.setPose(initial.x, initial.y, initial.z);
     tippedFor = 0;
@@ -363,18 +373,20 @@ async function boot() {
     car.drive(input, dt);
     world.step(1 / 60, dt, 4);
     recovery(dt);
-    city.process(time, (x, z, impact, localHit, localCrate, pile) => {
-      if (!launched) launchYaw = flatYaw(car.chassis);
-      launched = true;
-      launchedAt = time;
-      launcherImpulse(car.chassis, x, z, impact, localHit, localCrate);
-      if (pile) {
-        effects.chain(x, z, pile);
-        linkedinCountdown.start();
-      } else {
-        effects.blast(x, z);
-        announce(t.launch);
+    city.process(time, ({ x, z, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
+      if (earned) {
+        coins += earned;
+        coinCount.textContent = String(coins);
       }
+      if (shortcut) {
+        if (!launched) launchYaw = flatYaw(car.chassis);
+        launched = true;
+        launchedAt = time;
+        crateCountdown.start(destinations.get(shortcut));
+      }
+      launcherImpulse(car.chassis, x, z, impact, localHit, localCrate, shortcut ? 1 : .22);
+      if (pile) effects.chain(x, z, pile);
+      else effects.blast(x, z, shortcut ? 1 : .72);
     });
     city.update(time, position, !reduced.matches);
     if (noticeUntil <= time && notice.textContent) notice.textContent = '';
@@ -499,7 +511,7 @@ async function boot() {
   renderer.domElement.addEventListener('webglcontextlost', event => {
     event.preventDefault();
     graphicsLost = true;
-    linkedinCountdown.cancel();
+    crateCountdown.cancel();
     clearInput();
     fail(t.lost);
   });

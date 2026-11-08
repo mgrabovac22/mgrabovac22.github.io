@@ -223,7 +223,7 @@ export function isTipped(body) {
   return up.y < .48;
 }
 
-export function launcherImpulse(body, x, z, impact, localHit, localCrate) {
+export function launcherImpulse(body, x, z, impact, localHit, localCrate, strength = 1) {
   // The crate center distributes the blast across the contact face, even when
   // the solver reports one corner first. The contact height comes from the hit.
   const application = new Vec3(
@@ -239,5 +239,5 @@ export function launcherImpulse(body, x, z, impact, localHit, localCrate) {
   impulse.scale(body.mass * spread * (1.15 + Math.min(25, impactSpeed) * .066), impulse);
   impulse.y = body.mass * (7.65 + Math.min(25, impactSpeed) * .079);
   body.wakeUp();
-  body.applyImpulse(impulse, lever.scale(.39));
+  body.applyImpulse(impulse.scale(strength), lever.scale(.39));
 }
