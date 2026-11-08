@@ -853,6 +853,11 @@
           "countdown": "LinkedIn opens in {seconds} s",
           "cancel": "Keep driving"
         },
+        "githubPark": {
+          "title": "GitHub Park",
+          "crates": "Hit the crates to explore my code",
+          "crate": "PROFILE CRATE"
+        },
         "recovered": "Back on your wheels",
         "left": "Steer left",
         "right": "Steer right",
@@ -940,6 +945,11 @@
           "crate": "KUTIJA ZA PROFIL",
           "countdown": "LinkedIn se otvara za {seconds} s",
           "cancel": "Nastavi vožnju"
+        },
+        "githubPark": {
+          "title": "GitHub park",
+          "crates": "Udari u kutije za otvaranje profila",
+          "crate": "KUTIJA ZA PROFIL"
         },
         "recovered": "Ponovno na kotačima",
         "left": "Skreni lijevo",

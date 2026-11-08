@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { createWalker, walkingLoop } from './drive-people.js';
 
-export const linkedinParkBlock = (column, row) => column === 0 && row === -1;
+export function parkServiceAt(column, row) {
+  if (column !== 0) return null;
+  if (row === -1) return 'linkedin';
+  if (row === -4) return 'github';
+  return null;
+}
 
 const matte = color => new THREE.MeshStandardMaterial({ color, roughness: .88 });
 const sphere = new THREE.SphereGeometry(1, 10, 8);
@@ -17,7 +22,6 @@ const soil = matte('#423f30');
 const bark = matte('#514334');
 const timber = matte('#956e4a');
 const rail = matte('#304942');
-const bluePaint = matte('#17648a');
 const flower = matte('#dbb589');
 const water = new THREE.MeshStandardMaterial({ color: '#669f9a', roughness: .26, metalness: .21 });
 const spray = new THREE.MeshBasicMaterial({ color: '#bee9e4' });
@@ -102,7 +106,7 @@ function createDog(parent, walker, index) {
   };
 }
 
-export function buildPark(parent, add, collider, sign, compact) {
+export function buildPark(parent, add, collider, signs, compact) {
   add(lawn, 22, .087, 22, 30, .024, 30);
   // Keep the apron clear from the street to the crate display.
   add(pathStone, 12.2, .107, 19.3, 12.55, .022, 8.8);
@@ -148,10 +152,11 @@ export function buildPark(parent, add, collider, sign, compact) {
     add(rail, 7.05, .66, z, .105, 1.14, 5.55);
     for (const n of [-2.6, 0, 2.6]) add(rail, 7.05, .60, z + n, .19, 1.13, .19);
   }
-  if (sign) {
+  if (signs) {
+    const { park: sign, paint } = signs;
     for (const z of [18.2, 20.4]) {
-      add(bluePaint, 6.83, .125, z, 1.45, .006, .11);
-      for (const side of [-1, 1]) add(bluePaint, 7.31, .125, z + side * .21, .58, .006, .11, -side * Math.PI / 4);
+      add(paint, 6.83, .125, z, 1.45, .006, .11);
+      for (const side of [-1, 1]) add(paint, 7.31, .125, z + side * .21, .58, .006, .11, -side * Math.PI / 4);
     }
     add(rail, 7.95, 1.79, 14.0, .12, 3.41, .12);
     add(rail, 7.95, 1.79, 11.05, .12, 3.41, .12);

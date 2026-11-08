@@ -1,3 +1,5 @@
+export const crateServices = { linkedin: 'LinkedIn', github: 'GitHub' };
+
 export function crateProfileUrl(value, kind) {
   try {
     const url = new URL(value);
