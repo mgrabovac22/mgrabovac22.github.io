@@ -72,9 +72,9 @@ export function createDriveAudio() {
 
   function engine(kind, speed = 0, power = false) {
     if (!hum) return;
-    const roots = { sport: 38, jeep: 33, monster: 26, bike: 56, tank: 29 };
+    const roots = { sport: 38, jeep: 33, monster: 26, bike: 56, tank: 29, formula: 53, buggy: 35 };
     const now = context.currentTime;
-    hum.frequency.setTargetAtTime((roots[kind] ?? 35) + Math.min(speed, 50) * (kind === 'bike' ? 3.4 : 1.9), now, .12);
+    hum.frequency.setTargetAtTime((roots[kind] ?? 35) + Math.min(speed, 50) * (kind === 'formula' || kind === 'bike' ? 3.4 : 1.9), now, .12);
     engineGain.gain.setTargetAtTime(kind ? .075 + (power ? .09 : 0) + Math.min(.06, speed * .003) : 0, now, .12);
   }
 

@@ -15,6 +15,9 @@ const brackets = new THREE.MeshStandardMaterial({ color: '#a5b4aa', roughness: .
 const enamel = new THREE.MeshBasicMaterial({ color: '#184739', fog: false, toneMapped: false });
 const border = new THREE.MeshBasicMaterial({ color: '#b8d6b7', fog: false, toneMapped: false });
 const reflectors = new THREE.MeshBasicMaterial({ color: '#f2c57d', fog: false, toneMapped: false });
+const cedar = [0x67402b, 0x70462f, 0x604332, 0x745138, 0x694931].map(color =>
+  new THREE.MeshStandardMaterial({ color, roughness: .88 }));
+const woodPost = new THREE.MeshStandardMaterial({ color: 0xa57e55, roughness: .91 });
 const palette = {
   chapter: [new THREE.Color('#f2c57d'), new THREE.Color('#af814b')],
   headline: [new THREE.Color('#f3f6e5'), new THREE.Color('#96bfab')],
@@ -137,7 +140,12 @@ function solid(parent, material, w, h, d, x, y, z) {
 }
 
 function createSign(scene, post) {
-  const parts = letterLayout(post.page, post.index);
+  const wooden = post.wooden === true;
+  const scale = wooden ? .78 : 1;
+  const boardWidth = panelWidth * scale;
+  const parts = letterLayout(post.page, post.index).map(part => ({
+    ...part, x: part.x * scale, y: part.y * scale, size: part.size * scale,
+  }));
   const geometries = parts.map(({ glyph, size, x, y }) =>
     glyph.geometry.clone().scale(size, size, size).translate(x, y, 0));
   const lettering = mergeGeometries(geometries);
@@ -146,13 +154,22 @@ function createSign(scene, post) {
   const center = lettering.boundingBox.getCenter(new THREE.Vector3());
   const height = Math.max(2.15, lettering.boundingBox.max.y - lettering.boundingBox.min.y + .78);
   const textY = .09 - center.y;
-  const panelY = elevation + height / 2;
+  const panelY = (wooden ? 1.14 : elevation) + height / 2;
   lettering.translate(0, textY, 0);
 
   const panel = new THREE.Group();
   panel.position.y = panelY;
-  solid(panel, brackets, panelWidth, height, .26, 0, 0, 0);
-  solid(panel, enamel, panelWidth - .18, height - .17, .29, 0, 0, 0);
+  if (wooden) {
+    const plank = height / cedar.length;
+    cedar.forEach((surface, index) => {
+      solid(panel, surface, boardWidth - index % 2 * .092, plank - .023, .26,
+        index % 2 * .032, (index + .5) * plank - height / 2, 0);
+    });
+    for (const side of [-1, 1]) solid(panel, woodPost, .12, height + .10, .32, side * (boardWidth / 2 - .13), 0, 0);
+  } else {
+    solid(panel, brackets, boardWidth, height, .26, 0, 0, 0);
+    solid(panel, enamel, boardWidth - .18, height - .17, .29, 0, 0, 0);
+  }
   const faces = [];
   for (const side of [0, Math.PI]) {
     const face = new THREE.Group();
@@ -160,12 +177,12 @@ function createSign(scene, post) {
     const letters = new THREE.Mesh(lettering, ink);
     letters.position.z = .17;
     face.add(letters);
-    for (const x of [-panelWidth / 2 + .19, panelWidth / 2 - .19]) {
-      solid(face, border, .028, height - .34, .03, x, 0, .16);
-      solid(face, reflectors, .15, .11, .025, x * .943, height / 2 - .28, .16);
+    for (const x of [-boardWidth / 2 + .22, boardWidth / 2 - .22]) {
+      if (!wooden) solid(face, border, .028, height - .34, .03, x, 0, .16);
+      solid(face, reflectors, wooden ? .055 : .15, wooden ? .053 : .11, .025, x * .943, height / 2 - .28, .16);
     }
     for (const y of [-height / 2 + .17, height / 2 - .17]) {
-      solid(face, border, panelWidth - .38, .026, .03, 0, y, .16);
+      solid(face, wooden ? woodPost : border, boardWidth - .43, .026, .03, 0, y, .16);
     }
     for (const x of [-.13, .13]) {
       solid(face, border, .20, .045, .028, x, -height / 2 + .31, .162).rotation.z = Math.sign(x) * .59;
@@ -176,22 +193,27 @@ function createSign(scene, post) {
 
   const sign = new THREE.Group();
   sign.position.set(post.x, 0, post.z);
-  sign.rotation.y = post.course.axis === 'x' ? Math.PI / 2 : 0;
-  const beamY = elevation + height + .43;
-  for (const x of [-6.53, 6.53]) {
-    solid(sign, steel, .23, beamY, .27, x, beamY / 2, 0);
-    solid(sign, brackets, .60, .33, .56, x, .22, 0);
-    solid(sign, reflectors, .17, .41, .028, x, 1.28, .15);
-    solid(sign, reflectors, .17, .41, .028, x, 1.28, -.15);
+  sign.rotation.y = post.heading ?? (post.course.axis === 'x' ? Math.PI / 2 : 0);
+  const beamY = panelY + height / 2 + (wooden ? -.22 : .43);
+  const span = wooden ? boardWidth * .421 : post.span ?? 6.53;
+  for (const x of [-span, span]) {
+    solid(sign, wooden ? woodPost : steel, .23, beamY, .27, x, beamY / 2, 0);
+    if (!wooden) {
+      solid(sign, brackets, .60, .33, .56, x, .22, 0);
+      solid(sign, reflectors, .17, .41, .028, x, 1.28, .15);
+      solid(sign, reflectors, .17, .41, .028, x, 1.28, -.15);
+    }
   }
-  solid(sign, steel, 13.35, .26, .36, 0, beamY, 0);
-  for (const x of [-3.65, 3.65]) solid(sign, brackets, .15, .62, .25, x, beamY - .30, 0);
+  if (!wooden) {
+    solid(sign, steel, span * 2 + .29, .26, .36, 0, beamY, 0);
+    for (const x of [-3.65, 3.65]) solid(sign, brackets, .15, .62, .25, x, beamY - .30, 0);
+  }
   sign.add(panel);
   scene.add(sign);
 
   const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), sign.rotation.y);
   const sensor = new Body({
-    mass: 0, shape: new Box(new Vec3(panelWidth / 2, height / 2, .18)),
+    mass: 0, shape: new Box(new Vec3(boardWidth / 2, height / 2, .18)),
     collisionResponse: false, collisionFilterGroup: 16, collisionFilterMask: 4,
   });
   sensor.position.set(post.x, panelY, post.z);
@@ -200,7 +222,7 @@ function createSign(scene, post) {
     if (body.collisionFilterGroup === 4 && body.velocity.lengthSquared() > 2.25) post.impact = true;
   });
 
-  return { sign, panel, faces, lettering, height, panelY, parts, textY, rotation, sensor, sensing: false };
+  return { sign, panel, faces, lettering, height, panelY, boardWidth, parts, textY, rotation, sensor, sensing: false };
 }
 
 function setSensor(world, model, enabled) {
@@ -240,7 +262,9 @@ function releaseSign(scene, post, explode, position, velocity) {
   const { model } = post;
   const { panel, panelY, height, rotation } = model;
   const home = new THREE.Vector3(post.x, panelY, post.z);
-  const crossOffset = post.course.axis === 'z' ? position.x - post.x : position.z - post.z;
+  const crossOffset = post.sample ?
+    (position.x - post.x) * post.sample.nx + (position.z - post.z) * post.sample.nz :
+    post.course.axis === 'z' ? position.x - post.x : position.z - post.z;
   const side = Math.abs(crossOffset) > .8 ? -Math.sign(crossOffset) : post.index % 2 ? 1 : -1;
   const rotate = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(rotation);
   const travel = new THREE.Vector3(velocity.x, 0, velocity.z).normalize();
@@ -248,7 +272,7 @@ function releaseSign(scene, post, explode, position, velocity) {
   if (!explode) {
     scene.add(panel);
     for (const face of model.faces) face.visible = true;
-    return [debris(panel, 38, new THREE.Vector3(panelWidth / 2, height / 2, .16), home, rotation,
+    return [debris(panel, 38, new THREE.Vector3(model.boardWidth / 2, height / 2, .16), home, rotation,
       rotate(side * 4.9, -.7, .15).addScaledVector(travel, 1.65), rotate(.36, side * .27, side * 1.45))];
   }
 
@@ -291,7 +315,7 @@ function sameCourse(a, b) {
   return a?.axis === b?.axis && a?.street === b?.street && a?.direction === b?.direction;
 }
 
-export function createSkyStories(scene, world, pages) {
+export function createSkyStories(scene, world, pages, route = null) {
   const posts = pages.map((page, index) => ({
     page, index, course: null, model: null, impact: false, state: 'intact', pieces: [], active: false, healing: 0,
     crossedAfterBreak: false,
@@ -301,6 +325,21 @@ export function createSkyStories(scene, world, pages) {
   let course = mainStreet;
   let candidate = null;
   let courseFor = 0;
+  const firstSign = 25;
+  const spacing = route ? route.length / posts.length : 0;
+
+  function placeCircuit() {
+    for (const post of posts) {
+      const meters = firstSign + post.index * spacing;
+      const sample = route.sample(meters);
+      const wooden = route.kind === 'rally';
+      const offset = wooden ? route.half + 6.8 : 0;
+      Object.assign(post, {
+        meters, sample, wooden, heading: sample.yaw, span: route.half + 1.13,
+        x: sample.x + sample.nx * offset, z: sample.z + sample.nz * offset,
+      });
+    }
+  }
 
   function place(post, street, along) {
     clearSign(scene, world, post);
@@ -321,7 +360,8 @@ export function createSkyStories(scene, world, pages) {
     place(post, course, along);
   }
 
-  place(posts[0], mainStreet, -17);
+  if (route) placeCircuit();
+  else place(posts[0], mainStreet, -17);
 
   function setPhysics(post, active) {
     if (post.active === active) return;
@@ -389,19 +429,23 @@ export function createSkyStories(scene, world, pages) {
   }
 
   function update(position, velocity, heading, viewer, dt, reduced) {
-    updateCourse(position, velocity, heading, dt);
-    let nearest = posts[next] ?? posts.at(-1);
+    const lap = route?.locate(position);
+    if (!lap) updateCourse(position, velocity, heading, dt);
+    const circuitIndex = lap ? Math.max(0, Math.ceil((lap.meters - firstSign - 6) / spacing)) % posts.length : -1;
+    let nearest = posts[lap ? circuitIndex : next] ?? posts.at(-1);
     let nearestScore = 13;
     let shattered = false;
     let passed = false;
 
     for (const post of posts) {
-      if (!post.course) break;
-      const { axis, across, direction } = post.course;
-      const lateral = Math.abs(position[across] - post[across]);
-      const ahead = (post[axis] - position[axis]) * direction;
+      if (!lap && !post.course) break;
+      const { axis, across, direction } = post.course ?? mainStreet;
+      const lateral = lap ? lap.offset : Math.abs(position[across] - post[across]);
+      const ahead = lap ?
+        ((post.meters - lap.meters + route.length * 1.5) % route.length) - route.length / 2 :
+        (post[axis] - position[axis]) * direction;
       const distance = Math.hypot(position.x - post.x, position.z - post.z);
-      if (post.index < next && distance < nearestScore) {
+      if (!lap && post.index < next && distance < nearestScore) {
         nearestScore = distance;
         nearest = post;
       }
@@ -411,15 +455,17 @@ export function createSkyStories(scene, world, pages) {
       const { sign, faces, panel } = post.model;
       sign.visible = distance < sightRange;
       if (panel.parent === sign) {
-        faces[0].visible = viewer[axis] >= post[axis];
+        faces[0].visible = lap ?
+          (viewer.x - post.x) * post.sample.tx + (viewer.z - post.z) * post.sample.tz <= 0 :
+          viewer[axis] >= post[axis];
         faces[1].visible = !faces[0].visible;
       }
       setSensor(world, post.model, post.state === 'intact' && distance < physicsRange);
 
-      const current = post.index === next && sameCourse(course, post.course);
-      const speed = velocity[axis] * direction;
+      const current = lap ? post.index === circuitIndex : post.index === next && sameCourse(course, post.course);
+      const speed = lap ? velocity.x * post.sample.tx + velocity.z * post.sample.tz : velocity[axis] * direction;
       const approaching = current && lateral < 6.15 && ahead > 2 && ahead <= THREE.MathUtils.clamp(3.5 + speed * .34, 5, 12) && speed > 2.3;
-      if (post.state === 'intact' && (post.impact || (approaching && post.index % 3 !== 0))) {
+      if (post.state === 'intact' && (post.impact || (approaching && post.index % 3 !== 0 && !post.wooden))) {
         const explode = post.index % 3 !== 2;
         setSensor(world, post.model, false);
         post.pieces = releaseSign(scene, post, explode, position, velocity);
@@ -427,7 +473,7 @@ export function createSkyStories(scene, world, pages) {
         post.state = 'broken';
         shattered = true;
       }
-      if (current && lateral < 7.15 && (ahead <= -1.25 || post.state === 'broken')) passed = true;
+      if (!lap && current && lateral < 7.15 && (ahead <= -1.25 || post.state === 'broken')) passed = true;
 
       if (post.state === 'broken') {
         // A sign can fall before the car reaches it. Arm the repair only after crossing it.
@@ -468,7 +514,7 @@ export function createSkyStories(scene, world, pages) {
     next = 0;
     course = mainStreet;
     candidate = null;
-    place(posts[0], mainStreet, -17);
+    if (!route) place(posts[0], mainStreet, -17);
   }
 
   return { update, heal, reset };

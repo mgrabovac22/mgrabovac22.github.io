@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Body, Box, RaycastVehicle, Vec3 } from 'cannon-es';
 import { createPerson } from './drive-people.js';
 import { buildUtilityBody, buildWheel } from './drive-vehicle-art.js';
+import { crateGroup } from './drive-crates.js';
 
 export const tankBay = { x: -4.04, z: -276.25, yaw: -.09 };
 export const vehicleTypes = ['sport', 'jeep', 'monster', 'bike'];
@@ -11,6 +12,8 @@ const presets = {
   monster: { mass: 2600, axle: 1.34, length: 1.56, radius: .84, rest: .55, stance: 1.46, power: 20200, stiffness: 34, max: 30, steer: .55, width: 1.0, depth: 2.10, color: 0x926244 },
   bike: { mass: 255, axle: 0, length: 1.12, radius: .36, rest: .27, stance: .67, power: 2250, stiffness: 48, max: 48, steer: .44, width: .34, depth: 1.27, color: 0x414e61 },
   tank: { mass: 3150, axle: 1.02, length: 1.35, radius: .48, rest: .40, stance: .98, power: 17500, stiffness: 45, max: 22, steer: .58, width: 1.17, depth: 1.98, color: 0x497478 },
+  formula: { mass: 770, axle: .93, length: 1.45, radius: .337, rest: .22, stance: .67, power: 8100, stiffness: 60, max: 52, steer: .55, width: .96, depth: 2.28, color: 0xc73830 },
+  buggy: { mass: 870, axle: .92, length: 1.16, radius: .46, rest: .42, stance: .98, power: 6550, stiffness: 34, max: 36, steer: .57, width: .86, depth: 1.71, color: 0xc68138 },
 };
 
 const up = new Vec3(0, 1, 0);
@@ -49,7 +52,22 @@ export function createUtilityVehicle(scene, world, kind) {
   scene.add(shadow);
   const chassis = new Body({ mass: p.mass, linearDamping: .09, angularDamping: .51, collisionFilterGroup: 4 });
   chassis.addShape(new Box(new Vec3(p.width, bike ? .25 : .32, p.depth)), new Vec3(0, .10, 0));
-  chassis.addShape(new Box(new Vec3(p.width * .8, .29, bike ? .57 : 1.02)), new Vec3(0, .62, .25));
+  chassis.addShape(new Box(new Vec3(p.width * .8, kind === 'formula' ? .17 : .29, bike ? .57 : 1.02)),
+    new Vec3(0, kind === 'formula' ? .30 : .62, .25));
+  if (kind === 'monster') {
+    // The real tire footprint can touch a crate while the chassis passes above it.
+    const inertia = chassis.inertia.clone();
+    const inverseInertia = chassis.invInertia.clone();
+    for (const z of [-p.length, p.length]) for (const side of [-1, 1]) {
+      const contact = new Box(new Vec3(.33, .36, .54));
+      contact.collisionFilterMask = crateGroup;
+      contact.collisionResponse = false;
+      chassis.addShape(contact, new Vec3(side * p.axle, -.77, z));
+    }
+    chassis.inertia.copy(inertia);
+    chassis.invInertia.copy(inverseInertia);
+    chassis.updateInertiaWorld(true);
+  }
   const rig = new RaycastVehicle({ chassisBody: chassis, indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2 });
   const wheels = [];
   for (const z of [-p.length, p.length]) {
@@ -59,11 +77,11 @@ export function createUtilityVehicle(scene, world, kind) {
         chassisConnectionPointLocal: new Vec3(side * p.axle, -.10, z),
         suspensionRestLength: p.rest, suspensionStiffness: p.stiffness, maxSuspensionForce: p.mass * 31,
         dampingRelaxation: 3.8, dampingCompression: 5.5, maxSuspensionTravel: p.rest * .77,
-        rollInfluence: .06, frictionSlip: bike ? 4.4 : 5.1,
+        rollInfluence: .06, frictionSlip: kind === 'formula' ? 6.8 : kind === 'buggy' ? 4.2 : bike ? 4.4 : 5.1,
       });
-      const width = kind === 'monster' ? .66 : bike ? .20 : kind === 'tank' ? .27 : .34;
-      const wheel = buildWheel(p.radius, width, kind === 'tank' ? 5 : bike ? 5 : 7, side, kind !== 'tank');
-      scene.add(wheel);
+      const width = kind === 'monster' ? .66 : bike ? .20 : kind === 'formula' ? (z < 0 ? .38 : .49) : .34;
+      const wheel = kind === 'tank' ? null : buildWheel(p.radius, width, bike ? 5 : 7, side, kind !== 'formula');
+      if (wheel) scene.add(wheel);
       wheels.push(wheel);
     }
   }
@@ -86,7 +104,7 @@ export function createUtilityVehicle(scene, world, kind) {
     if (value) rig.addToWorld(world);
     else rig.removeFromWorld(world);
     body.visible = shadow.visible = value;
-    for (const wheel of wheels) wheel.visible = value;
+    for (const wheel of wheels) if (wheel) wheel.visible = value;
   }
 
   function setPose(x, y, z, yaw = 0, smoothRecovery = false) {
@@ -159,12 +177,14 @@ export function createUtilityVehicle(scene, world, kind) {
     shadow.material.opacity = .29 / Math.max(1, 1 + body.position.y - p.stance);
     inverse.copy(chassis.quaternion).invert();
     for (let i = 0; i < wheels.length; i++) {
+      const wheel = wheels[i];
+      if (!wheel) continue;
       rig.updateWheelTransform(i);
       const transform = rig.wheelInfos[i].worldTransform;
-      wheels[i].position.copy(transform.position).sub(chassis.position).applyQuaternion(inverse)
+      wheel.position.copy(transform.position).sub(chassis.position).applyQuaternion(inverse)
         .applyQuaternion(body.quaternion).add(body.position);
       wheelRotation.copy(transform.quaternion).premultiply(inverse);
-      wheels[i].quaternion.multiplyQuaternions(body.quaternion, wheelRotation);
+      wheel.quaternion.multiplyQuaternions(body.quaternion, wheelRotation);
     }
   }
 

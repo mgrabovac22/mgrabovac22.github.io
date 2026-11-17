@@ -112,6 +112,9 @@ kbd { display: inline-block; padding: .15rem .3rem; border: 1px solid var(--line
 .settings-row input[type=range] { max-width: 44%; }
 .settings-row select { min-height: 44px; padding: .3rem; color: inherit; background: #213840; border: 1px solid var(--line); border-radius: 4px; }
 .settings-row output { font: .76rem ui-monospace, monospace; min-width: 2.2rem; }
+.map-options { display: flex; gap: .34rem; flex-wrap: wrap; }
+.map-options button { padding-inline: .56rem; }
+#game[data-circuit] .city-controls { display: none; }
 #aim { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; border: 1px solid #f9f5d6; border-radius: 50%; box-shadow: 0 0 0 1px #142327dd; translate: -50% -50%; pointer-events: none; }
 #tank-hud { position: absolute; z-index: 2; left: 50%; bottom: var(--hud-bottom); translate: -50% 0; padding: .48rem .6rem; border-radius: 4px; background: var(--panel); font-size: .75rem; }
 #vehicle-prompt { position: absolute; left: 50%; bottom: max(23%, 9rem); translate: -50% 0; width: max-content; max-width: 86vw; padding: .35rem .65rem; background: var(--panel); border-radius: 4px; font-size: .81rem; }

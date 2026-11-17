@@ -5,6 +5,7 @@ import { createCrowd, createWalker, ragdoll, updateWalker } from './drive-people
 import { buildPark, parkServiceAt } from './drive-park.js';
 import { createVenues } from './drive-venues.js';
 import { tankBay } from './drive-vehicle.js';
+import { breakCrate, crateCollision, createCrate, restoreCrate } from './drive-crates.js';
 
 export const blockSize = 44;
 const road = 11.6;
@@ -23,7 +24,6 @@ const assets = {
   amberLight: luminous(0xffdc98), cyan: luminous(0x91e8ff), signal: luminous(0xff7e62),
   green: luminous(0xb7dbaf), sandstone: material(0xa99d84, .6), bronze: material(0x8d7655, .47),
   marble: material(0x9ba7a1, .44), water: material(0x466f72, .23),
-  crate: material(0x604e39), crateEdge: material(0xb28d59),
 };
 
 function seeded(i, j) {
@@ -142,7 +142,7 @@ function groundTextures(anisotropy) {
 const blockKey = (i, j) => i + ':' + j;
 const blastRows = new Map([['0:-2', 'west'], ['-1:0', 'north'], ['1:-3', 'west']]);
 
-function makeBatches(parent) {
+export function makeBatches(parent) {
   const entries = new Map();
   const transform = new THREE.Object3D();
   function add(surface, x, y, z, w, h, d, rotation = 0, geometry = boxGeometry) {
@@ -175,32 +175,6 @@ function mesh(parent, surface, w, h, d, x = 0, y = 0, z = 0, geometry = boxGeome
   object.scale.set(w, h, d);
   parent.add(object);
   return object;
-}
-
-function createCrate(parent, x, z, size, { id, elevation = 0, label, shortcut = null }) {
-  const view = new THREE.Group();
-  parent.add(view);
-  view.position.set(x, elevation + size / 2 + .035, z);
-  mesh(view, assets.crate, size, size, size);
-  for (const side of [-1, 1]) {
-    mesh(view, assets.crateEdge, size * 1.035, size * .075, size * 1.035, 0, side * size * .43, 0);
-    mesh(view, assets.crateEdge, size * .105, size * .91, size * 1.036, side * size * .35);
-  }
-  if (label) {
-    for (let face = 0; face < 4; face++) {
-      const angle = face * Math.PI / 2;
-      const marking = mesh(view, label, size * .89, size * .43, 1,
-        Math.sin(angle) * size * .521, .02, Math.cos(angle) * size * .521, signPlane);
-      marking.rotation.y = angle;
-    }
-  } else {
-    const marking = mesh(view, assets.amberLight, size * .62, size * .065, .01, 0, 0, size * .51);
-    marking.rotation.z = .37;
-  }
-  const collider = new Body({ mass: 0, shape: new Box(new Vec3(size / 2 + .045, size / 2, size / 2 + .045)),
-    collisionFilterGroup: 16, collisionFilterMask: 4, collisionResponse: false });
-  collider.position.set(x, elevation + size / 2, z);
-  return { id, view, collider, x, z, shortcut, spent: false };
 }
 
 function addPile(crates, pile) {
@@ -286,14 +260,9 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
     transparent: true, depthWrite: false,
   });
   const groundLight = new THREE.PlaneGeometry().rotateX(-Math.PI / 2);
-  const listener = (kind, target) => event => {
-    const driver = event.body;
-    if (driver.collisionFilterGroup === 4 && !target.spent && !target.knocked && driver.velocity.length() >= 1.6) {
-      const contact = event.contact;
-      const offset = contact.bi === driver ? contact.ri : contact.rj;
-      const localHit = kind === 'crate' ? driver.vectorToLocalFrame(offset) : null;
-      const localCrate = kind === 'crate' ? driver.pointToLocalFrame(target.collider.position) : null;
-      queue.push({ kind, target, driver, impact: driver.velocity.clone(), localHit, localCrate });
+  const walkerCollision = target => ({ body: driver }) => {
+    if (driver.collisionFilterGroup === 4 && !target.knocked && driver.velocity.length() >= 1.6) {
+      queue.push({ kind: 'walker', target, impact: driver.velocity.clone() });
     }
   };
 
@@ -538,11 +507,11 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
       crate.z += z;
       crate.collider.position.x += x;
       crate.collider.position.z += z;
-      crate.collider.addEventListener('collide', listener('crate', crate));
+      crate.collider.addEventListener('collide', crateCollision(crate, impact => queue.push({ kind: 'crate', ...impact })));
       targets.set(crate.collider, { kind: 'crate', target: crate });
     }
     for (const walker of walkers) {
-      walker.collider.addEventListener('collide', listener('walker', walker));
+      walker.collider.addEventListener('collide', walkerCollision(walker));
       targets.set(walker.collider, { kind: 'walker', target: walker });
       walker.originX = x;
       walker.originZ = z;
@@ -678,20 +647,10 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
   }
 
   function process(time, onBlast) {
-    for (const { kind, target, driver, impact, localHit, localCrate } of queue.splice(0)) {
+    for (const collision of queue.splice(0)) {
+      const { kind, target, impact } = collision;
       if (kind === 'crate' && !target.spent) {
-        let coins = 0;
-        for (const crate of target.pile ?? [target]) {
-          if (!collectedCrates.has(crate.id)) {
-            collectedCrates.add(crate.id);
-            coins++;
-          }
-          crate.spent = true;
-          crate.view.visible = false;
-          world.removeBody(crate.collider);
-        }
-        const { x, z, pile, shortcut } = target;
-        onBlast({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins });
+        onBlast(breakCrate(world, collectedCrates, collision));
       } else if (kind === 'walker' && !target.knocked) {
         target.knocked = true;
         target.view.visible = false;
@@ -725,10 +684,7 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
   function resetParkCrates() {
     for (const block of blocks.values()) {
       for (const crate of block.parkPile ?? []) {
-        if (!crate.spent) continue;
-        crate.spent = false;
-        crate.view.visible = true;
-        if (block.active) world.addBody(crate.collider);
+        restoreCrate(world, crate, block.active);
       }
     }
   }

@@ -13,7 +13,11 @@ import { createPlayer } from './drive-player.js';
 import { createDriveAudio } from './drive-audio.js';
 import { createShotTrigger, createToolKit, tools } from './drive-tools.js';
 
-const language = new URLSearchParams(location.search).get('lang') === 'hr' ? 'hr' : 'en';
+const query = new URLSearchParams(location.search);
+const language = query.get('lang') === 'hr' ? 'hr' : 'en';
+const circuitModes = new Map([['race', 'formula'], ['rally', 'buggy']]);
+const requestedMap = query.get('map');
+const cityMode = !circuitModes.has(requestedMap);
 const content = loadPortfolio(language).then(data => ({ data, pages: createStory(data) })).catch(() => null);
 const find = selector => document.querySelector(selector);
 const game = find('#game');
@@ -38,6 +42,7 @@ const chapterIndex = find('#chapter-index');
 const settings = find('#drive-settings');
 const settingsButton = find('#settings-open');
 const vehicleSelect = find('#drive-vehicle');
+const mapSelect = find('#drive-map');
 const toolHud = find('#tool-hud');
 const toolToggle = find('#tool-toggle');
 const toolWheel = find('#tool-wheel');
@@ -63,15 +68,15 @@ const controls = new Map([
   ['KeyW', 'forward'], ['ArrowUp', 'forward'], ['KeyS', 'reverse'], ['ArrowDown', 'reverse'],
   ['KeyA', 'left'], ['ArrowLeft', 'left'], ['KeyD', 'right'], ['ArrowRight', 'right'], ['Space', 'brake'],
 ]);
-const initial = { x: 3, y: .77, z: 9 };
 const parkedInput = { forward: false, reverse: false, left: false, right: false, brake: true };
 
 function sky(scene) {
-  const gradient = new THREE.Mesh(new THREE.SphereGeometry(210, 24, 12), new THREE.ShaderMaterial({
+  const coast = requestedMap === 'rally';
+  const gradient = new THREE.Mesh(new THREE.SphereGeometry(cityMode ? 210 : 405, 24, 12), new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      horizon: { value: new THREE.Color(0xb0bbb5) }, zenith: { value: new THREE.Color(0x3c5a65) },
+      horizon: { value: new THREE.Color(coast ? 0xc9e8df : 0xb0bbb5) }, zenith: { value: new THREE.Color(coast ? 0x4488a4 : 0x3c5a65) },
       glow: { value: new THREE.Color(0xf0c08b) }, direction: { value: new THREE.Vector3(-.56, .15, -.82).normalize() },
     },
     vertexShader: 'varying vec3 v; void main(){v=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
@@ -89,6 +94,7 @@ function sky(scene) {
       }`,
   }));
   gradient.frustumCulled = false;
+  gradient.renderOrder = -1;
   scene.add(gradient);
   return gradient;
 }
@@ -202,11 +208,35 @@ async function boot() {
   for (const node of document.querySelectorAll('[data-game-copy]')) {
     node.textContent = label(node.dataset.gameCopy, node.textContent);
   }
+  const mapKind = cityMode ? 'city' : requestedMap;
+  mapSelect.value = mapKind;
+  const startKind = cityMode ? 'sport' : circuitModes.get(mapKind);
+  const coverTitle = cityMode ? t.title : label(mapKind + 'Title', mapSelect.selectedOptions[0].textContent);
+  if (!cityMode) {
+    const vehicleName = find('#fixed-drive-vehicle');
+    vehicleName.textContent = label(startKind, startKind === 'formula' ? 'Formula car' : 'Rally buggy');
+    vehicleName.hidden = false;
+    vehicleSelect.hidden = true;
+    game.setAttribute('data-circuit', mapKind);
+    find('.cover-inner strong').textContent = coverTitle;
+    find('#drive-title').textContent = coverTitle;
+    document.title = coverTitle + ' — ' + data.profile.name;
+    coverText.textContent = label('courseLoading', 'Preparing the track…');
+  }
+  find('#map-picker').addEventListener('submit', event => {
+    event.preventDefault();
+    const selected = mapSelect.value;
+    if (selected === mapKind) return;
+    const url = new URL(location.href);
+    if (circuitModes.has(selected)) url.searchParams.set('map', selected);
+    else url.searchParams.delete('map');
+    location.assign(url);
+  });
   for (const button of touchButtons) {
     const key = button.dataset.input;
     button.setAttribute('aria-label', t[key] ?? label(key, button.getAttribute('aria-label')));
   }
-  find('.current-route').setAttribute('aria-label', t.route);
+  find('.current-route').setAttribute('aria-label', cityMode ? t.route : label('courseRoute', 'Portfolio along the course'));
   find('.speed').setAttribute('aria-label', t.speed);
 
   let renderer;
@@ -223,7 +253,7 @@ async function boot() {
   renderer.shadowMap.enabled = !compact;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0xb0bbb5, .014);
+  scene.fog = new THREE.FogExp2(mapKind === 'rally' ? 0xc9e8df : 0xb0bbb5, cityMode ? .014 : mapKind === 'rally' ? .0048 : .007);
   const skybox = sky(scene);
   const environment = new RoomEnvironment();
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -231,7 +261,7 @@ async function boot() {
   scene.environmentIntensity = .87;
   environment.dispose();
   pmrem.dispose();
-  const camera = new THREE.PerspectiveCamera(55, 1, .18, 245);
+  const camera = new THREE.PerspectiveCamera(55, 1, .18, cityMode ? 245 : 440);
   const fill = new THREE.HemisphereLight(0xd9eff2, 0x817660, 1.66);
   const sun = new THREE.DirectionalLight(0xffe3b9, 2.45);
   const bounce = new THREE.DirectionalLight(0xa0c4cd, .48);
@@ -251,23 +281,25 @@ async function boot() {
   world.solver.iterations = 9;
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
-  const sport = createCar(scene, world);
+  const course = cityMode ? null : (await import('./drive-course.js')).createCourse(scene, world, mapKind);
+  const starter = cityMode ? createCar(scene, world) : createUtilityVehicle(scene, world, startKind);
+  const initial = course?.start ?? { x: 3, z: 9, yaw: 0 };
   let tank = null;
-  const fleet = new Map([['sport', sport]]);
-  const spawned = new Set([sport]);
-  const city = createCity(scene, world, compact, renderer.capabilities.getMaxAnisotropy(), profileParks);
-  const stories = createSkyStories(scene, world, pages);
+  const fleet = new Map([[startKind, starter]]);
+  const spawned = new Set([starter]);
+  const terrain = course ?? createCity(scene, world, compact, renderer.capabilities.getMaxAnisotropy(), profileParks);
+  const stories = createSkyStories(scene, world, pages, course?.route);
   const effects = makeEffects(scene);
   const crateCountdown = createCrateCountdown(find('#crate-redirect'), crateCopy);
   const audio = createDriveAudio();
-  const player = createPlayer(scene, world, audio, compact);
+  const player = cityMode ? createPlayer(scene, world, audio, compact) : null;
   const keys = new Set();
   const pointers = new Map();
   const input = {};
   const walk = { pointer: null, x: 0, y: 0 };
   const look = { pointer: null, x: 0, y: 0 };
   const trigger = createShotTrigger();
-  let car = sport;
+  let car = starter;
   let position = car.chassis.position;
   let walking = false;
   let lookYaw = 0;
@@ -275,7 +307,7 @@ async function boot() {
   let exitRequested = false;
   let aimPointer = null;
   let mouseLook = null;
-  let selectedKind = 'sport';
+  let selectedKind = startKind;
   let nearbyCar = null;
   const cameraGoal = new THREE.Vector3();
   const focus = new THREE.Vector3();
@@ -302,7 +334,7 @@ async function boot() {
     toolSlotsHost.append(button);
     return button;
   });
-  const kit = createToolKit(scene, world, city, player.held, audio, compact, index => {
+  const kit = cityMode ? createToolKit(scene, world, terrain, player.held, audio, compact, index => {
     activeTool = index;
     trigger.clear();
     player.equip(index >= 0);
@@ -310,7 +342,7 @@ async function boot() {
       button.setAttribute('aria-pressed', String(slot === index));
     }
     showTool();
-  });
+  }) : null;
   let yaw = 0;
   let cameraYaw = 0;
   let cameraClearance = 1;
@@ -362,7 +394,7 @@ async function boot() {
     if (document.pointerLockElement === renderer.domElement) document.exitPointerLock();
   }
   function updateFleet() {
-    if (!tank && Math.hypot(tankBay.x - position.x, tankBay.z - position.z) < 60) {
+    if (cityMode && !tank && Math.hypot(tankBay.x - position.x, tankBay.z - position.z) < 60) {
       tank = getVehicle('tank');
       tank.setPose(tankBay.x, tank.stance, tankBay.z, tankBay.yaw);
       spawned.add(tank);
@@ -455,7 +487,7 @@ async function boot() {
     audio.play('click');
   }
   function interact() {
-    if (stopped || !started) return;
+    if (!cityMode || stopped || !started) return;
     if (walking) {
       const target = getNearbyCar();
       if (target) enterVehicle(target);
@@ -470,17 +502,17 @@ async function boot() {
     return fleet.get(kind);
   }
   function switchVehicle(kind) {
-    if (!vehicleTypes.includes(kind)) return;
+    if (!cityMode || !vehicleTypes.includes(kind)) return;
     const replacement = getVehicle(kind);
     if (!walking && replacement === car) return;
     const previousCar = car;
-    const [x, z, road] = city.safeLanding(position.x, position.z);
+    const [x, z, road] = terrain.safeLanding(position.x, position.z);
     const driverYaw = walking ? lookYaw : flatYaw(car.chassis);
     const axis = road === 'east-west' ? Math.PI / 2 : 0;
     const heading = road ? axis + Math.round((driverYaw - axis) / Math.PI) * Math.PI : driverYaw;
     let spawnX = x, spawnZ = z;
     if (previousCar === tank && Math.hypot(x - tank.chassis.position.x, z - tank.chassis.position.z) < 5) {
-      [spawnX, spawnZ] = city.safeLanding(x - Math.sin(heading) * 5.5, z - Math.cos(heading) * 5.5);
+      [spawnX, spawnZ] = terrain.safeLanding(x - Math.sin(heading) * 5.5, z - Math.cos(heading) * 5.5);
     }
     for (const vehicle of spawned) {
       if (vehicle === replacement || vehicle === tank) continue;
@@ -491,7 +523,7 @@ async function boot() {
     replacement.setPose(spawnX, replacement.stance + .055, spawnZ, heading);
     enterVehicle(replacement);
     updateFleet();
-    city.sync(position);
+    terrain.sync(position);
     draw(0);
   }
 
@@ -587,23 +619,24 @@ async function boot() {
   }
   function resetCar() {
     crateCountdown.cancel();
-    city.resetParkCrates();
+    if (course) course.resetCrates();
+    else terrain.resetParkCrates();
     if (walking || car === tank) {
       car = getVehicle(selectedKind);
       spawned.add(car);
       enterVehicle(car);
     }
-    car.setPose(initial.x, car.stance, initial.z);
+    car.setPose(initial.x, car.stance, initial.z, initial.yaw);
     exitRequested = false;
     clearInput();
     updateFleet();
     tippedFor = 0;
     launched = false;
-    yaw = 0;
-    forward.set(0, 0, -1);
-    city.sync(position);
+    yaw = initial.yaw;
+    forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    terrain.sync(position);
     stories.reset();
-    city.update(time, position, !reduced.matches);
+    terrain.update(time, position, !reduced.matches);
     showHud();
     draw(0, true);
   }
@@ -617,25 +650,28 @@ async function boot() {
     resetStick(lookStick, look);
   }
   function recovery(dt) {
-    const altitude = position.y - car.stance;
-    if (!isTipped(car.chassis) || altitude > .93) {
-      if (launched && time - launchedAt > .35 && car.grounded && !isTipped(car.chassis)) launched = false;
+    const tipped = isTipped(car.chassis);
+    const altitude = position.y - car.stance - (course && tipped ? course.groundHeight(position) : 0);
+    const outsideCourse = course && altitude < .45 && course.offCourse();
+    const rescue = course && (position.y < -2 || outsideCourse);
+    if (!rescue && (!tipped || altitude > .93)) {
+      if (launched && time - launchedAt > .35 && car.grounded && !tipped) launched = false;
       tippedFor = 0;
       return;
     }
     const touchingDown = world.contacts.some(contact =>
       (contact.bi === car.chassis || contact.bj === car.chassis) && Math.abs(contact.ni.y) > .45);
     if (touchingDown || tippedFor) tippedFor += dt;
-    if (tippedFor >= 1 && altitude < .63 && Math.abs(car.chassis.velocity.y) < 1.8) {
-      const [x, z, road] = city.safeLanding(position.x, position.z);
+    if (rescue || (tippedFor >= 1 && altitude < .63 && Math.abs(car.chassis.velocity.y) < 1.8)) {
+      const [x, z, road, circuitYaw] = terrain.safeLanding(position.x, position.z);
       const heading = launched ? launchYaw : yaw;
       const roadAxis = road === 'east-west' ? Math.PI / 2 : 0;
-      const safeYaw = road ? roadAxis + Math.round((heading - roadAxis) / Math.PI) * Math.PI : heading;
+      const safeYaw = circuitYaw ?? (road ? roadAxis + Math.round((heading - roadAxis) / Math.PI) * Math.PI : heading);
       car.setPose(x, car.stance + .14, z, safeYaw, !reduced.matches);
       yaw = safeYaw;
       launched = false;
       tippedFor = 0;
-      announce(t.recovered);
+      announce(rescue && mapKind === 'rally' ? t.waterRecovery : t.recovered);
     }
   }
   function shoot() {
@@ -680,7 +716,7 @@ async function boot() {
     time += dt;
     const velocity = walking ? player.body.velocity : car.chassis.velocity;
     const speed = Math.hypot(velocity.x, velocity.z);
-    city.sync(position, velocity);
+    terrain.sync(position, velocity);
     updateFleet();
     for (const action of controls.values()) input[action] = false;
     input.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
@@ -700,15 +736,16 @@ async function boot() {
       lookPitch = THREE.MathUtils.clamp(lookPitch - look.y * dt * 1.65, -.82, .70);
       player.step(input, lookYaw, dt);
     }
+    course?.wade(car.chassis, dt);
     world.step(1 / 60, dt, 4);
     if (!walking) {
       recovery(dt);
       if (exitRequested && speed < 4 && position.y < car.stance + .7) exitVehicle();
     } else if (position.y < -3) player.place(position.x, 1.04, position.z, lookYaw);
-    city.update(time, position, !reduced.matches, dt, speed);
+    terrain.update(time, position, !reduced.matches, dt, speed);
     if (canFire()) trigger.update(shoot);
-    kit.update(dt);
-    city.process(time, ({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
+    kit?.update(dt);
+    terrain.process(time, ({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
       if (earned) {
         coins += earned;
         coinCount.textContent = String(coins);
@@ -756,7 +793,7 @@ async function boot() {
     const touchMode = started && !graphicsLost && (coarse.matches || view.clientWidth < 640);
     game.toggleAttribute('data-touch', touchMode);
     touch.hidden = !touchMode || walking;
-    modTouch.hidden = !touchMode;
+    modTouch.hidden = !touchMode || !cityMode;
     footTouch.hidden = !touchMode || !walking;
     if (footTouch.hidden) {
       resetStick(walkStick, walk);
@@ -1009,7 +1046,7 @@ async function boot() {
       dismissInventory();
       return;
     }
-    if (!event.repeat && event.code === 'KeyF') {
+    if (cityMode && !event.repeat && event.code === 'KeyF') {
       event.preventDefault();
       interact();
       return;
@@ -1082,7 +1119,7 @@ async function boot() {
     // Drivers without asynchronous compilation can still render the city normally.
   }
   if (graphicsLost) return;
-  coverText.textContent = t.ready;
+  coverText.textContent = cityMode ? t.ready : label(mapKind + 'Ready', 'Follow the route and read the portfolio boards.');
   start.hidden = false;
 }
 

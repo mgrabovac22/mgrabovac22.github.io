@@ -215,11 +215,10 @@ function serviceTank(body, color) {
     const x = side * 1.04;
     piece(body, steel, .38, .20, 3.47, x, .125, 0);
     piece(body, trim, .14, .13, 3.02, x + side * .037, -.23, .04);
-    for (let wheel = -1; wheel <= 1; wheel++) {
-      const z = wheel * .70;
-      beam(body, castSteel, [x + side * .02, -.42, z], [x + side * .14, -.42, z], .65);
-      beam(body, hub, [x + side * .14, -.42, z], [x + side * .155, -.42, z], .35);
-      beam(body, castSteel, [x + side * .155, -.42, z], [x + side * .175, -.42, z], .19);
+    piece(body, castSteel, .20, .43, 2.48, x + side * .045, -.40, 0);
+    piece(body, steel, .075, .16, 2.28, x + side * .15, -.30, 0);
+    for (const z of [-1.04, -.52, 0, .52, 1.04]) {
+      piece(body, hub, .035, .082, .17, x + side * .16, -.51, z);
     }
     for (let slat = 0; slat < 5; slat++) piece(body, trim, .21, .021, .047, side * .65, .455, 1.14 + slat * .103);
     piece(body, headlamp, .23, .108, .04, side * .67, .235, -1.992);
@@ -344,11 +343,65 @@ function truck(body, p, color, monster) {
   }
 }
 
+function formula(body, color) {
+  const white = paint(0xe5ded0);
+  shell(body, color, [[-2.30, .17, -.15, -.02], [-1.68, .23, -.18, .11], [-.91, .30, -.20, .21],
+    [-.56, .59, -.21, .20], [.18, .74, -.21, .25], [.79, .54, -.20, .44],
+    [1.18, .32, -.19, .34], [1.85, .24, -.16, .08]], ([, w, y, h]) => profile(w, y, h, .80));
+  piece(body, trim, .64, .13, .81, 0, .232, .03);
+  piece(body, white, .34, .29, .35, 0, .428, .27, new THREE.SphereGeometry(.5, 14, 10));
+  piece(body, lens, .295, .091, .176, 0, .454, .145);
+  molding(body, trim, [[-.30, .23, .13], [-.22, .45, -.17], [0, .47, -.30], [.22, .45, -.17], [.30, .23, .13]], .044);
+  beam(body, trim, [0, .27, -.68], [0, .47, -.30], .055);
+  piece(body, trim, 2.12, .066, .34, 0, -.13, -2.04);
+  piece(body, color, 1.93, .06, .27, 0, -.062, -2.01);
+  piece(body, trim, 1.50, .085, .31, 0, .56, 1.94);
+  piece(body, white, 1.45, .062, .26, 0, .682, 1.97);
+  piece(body, braking, .18, .088, .043, 0, -.02, 1.92);
+  for (const side of [-1, 1]) {
+    piece(body, trim, .10, .12, .40, side * 1.01, -.025, -2.03);
+    piece(body, trim, .081, .29, .51, side * .73, .56, 1.93);
+    piece(body, color, .10, .22, .14, side * .26, .40, 1.90);
+    piece(body, white, .11, .061, .75, side * .63, .18, .12);
+    for (const at of [-1.45, 1.45]) {
+      beam(body, trim, [side * .30, -.05, at - .27], [side * .86, -.09, at], .052);
+      beam(body, trim, [side * .31, -.15, at + .22], [side * .86, -.12, at], .056);
+    }
+  }
+}
+
+function buggy(body, color) {
+  shell(body, color, [[-1.73, .47, -.29, .09], [-1.28, .63, -.31, .21], [-.61, .75, -.29, .24],
+    [.52, .72, -.29, .22], [1.21, .66, -.29, .27], [1.72, .53, -.25, .22]], ([, w, y, h]) => profile(w, y, h, .86));
+  const canopy = new THREE.MeshStandardMaterial({ color: 0x30494b, roughness: .62, metalness: .16, side: THREE.DoubleSide });
+  piece(body, canopy, 1.20, .073, 1.02, 0, .93, .11);
+  piece(body, trim, 1.03, .12, .70, 0, .27, .46);
+  for (const side of [-1, 1]) {
+    const x = side * .60;
+    piece(body, trim, .35, .52, .21, side * .25, .44, .39).rotation.x = -.16;
+    molding(body, castSteel, [[x, .22, -.91], [x, .83, -.49], [x, .93, -.34],
+      [x, .93, .57], [x, .85, .67], [x, .30, 1.29]], .053);
+    beam(body, castSteel, [x, .43, -.70], [x, .42, .73], .065);
+    beam(body, castSteel, [x, .86, .48], [x, .22, .20], .071);
+    beam(body, accent, [x * .87, .39, -1.0], [x * 1.3, -.38, -1.17], .11);
+    beam(body, accent, [x * .87, .42, .88], [x * 1.3, -.38, 1.16], .11);
+    piece(body, headlamp, .20, .13, .07, side * .41, .193, -1.65);
+    piece(body, braking, .18, .12, .06, side * .38, .29, 1.66);
+    for (const z of [-1.14, 1.18]) molding(body, trim, [
+      [side * .79, .01, z - .48], [side * .88, .25, z - .28], [side * .89, .31, z],
+      [side * .88, .25, z + .28], [side * .79, .01, z + .47]], .048);
+  }
+  beam(body, castSteel, [-.70, -.01, -1.73], [.70, -.01, -1.73], .087);
+  beam(body, castSteel, [-.59, .29, 1.76], [.59, .29, 1.76], .081);
+}
+
 export function buildUtilityBody(body, kind, preset) {
   const color = paint(preset.color);
   let equipment = null;
   if (kind === 'bike') bike(body, color);
   else if (kind === 'tank') equipment = serviceTank(body, color);
+  else if (kind === 'formula') formula(body, color);
+  else if (kind === 'buggy') buggy(body, color);
   else truck(body, preset, color, kind === 'monster');
   batchVehicleParts(body);
   return equipment;

@@ -7,11 +7,12 @@
   <meta name="description" content="Drive through a city and explore my work, education and projects on overhead signs.">
   <link rel="icon" href="./art/mark.svg" type="image/svg+xml">
   <title>Night Shift — Marin Grabovac</title>
-  <script type="module" crossorigin src="./site-assets/drive-Vra-YITS.js"></script>
-  <link rel="modulepreload" crossorigin href="./site-assets/modulepreload-polyfill-P2Xu9kJm.js">
-  <link rel="modulepreload" crossorigin href="./site-assets/three-C3NfU4SQ.js">
+  <script type="module" crossorigin src="./site-assets/drive-10nZTzn5.js"></script>
+  <link rel="modulepreload" crossorigin href="./site-assets/preload-helper-DIbePYYx.js">
+  <link rel="modulepreload" crossorigin href="./site-assets/three-BdKA12O6.js">
+  <link rel="modulepreload" crossorigin href="./site-assets/drive-city-DZeANxmx.js">
   <link rel="modulepreload" crossorigin href="./site-assets/story-R7dcc0_A.js">
-  <link rel="stylesheet" crossorigin href="./site-assets/drive-DxrXgbeK.css">
+  <link rel="stylesheet" crossorigin href="./site-assets/drive-CvrC73GD.css">
 </head>
 <body>
   <main id="game" aria-labelledby="drive-title">
@@ -43,23 +44,31 @@
       </div>
       <label class="settings-row"><span data-game-copy="sound">Game sound</span><input id="drive-sound" type="checkbox" checked></label>
       <label class="settings-row"><span data-game-copy="volume">Volume</span><input id="drive-volume" type="range" min="0" max="100" value="17"><output id="drive-volume-value">17%</output></label>
+      <form id="map-picker" class="settings-row">
+        <label for="drive-map" data-game-copy="map">Map</label>
+        <div class="map-options"><select id="drive-map">
+          <option value="city" data-game-copy="cityMap">Night Shift · City</option>
+          <option value="race" data-game-copy="raceMap">Apex Circuit · Formula</option>
+          <option value="rally" data-game-copy="rallyMap">Beach Rally · Island</option>
+        </select><button type="submit" data-game-copy="changeMap">Open map</button></div>
+      </form>
       <label class="settings-row"><span data-game-copy="vehicle">Vehicle</span><select id="drive-vehicle">
         <option value="sport" data-game-copy="sport">Sports Car</option>
         <option value="jeep" data-game-copy="jeep">SUV / Jeep</option>
         <option value="monster" data-game-copy="monster">Monster Truck</option>
         <option value="bike" data-game-copy="bike">Motorbike</option>
-      </select></label>
+      </select><strong id="fixed-drive-vehicle" hidden></strong></label>
       <details class="controls">
         <summary data-copy="controls">Controls</summary>
         <div class="key-guide">
           <p><kbd>W A S D</kbd> <kbd>↑ ← ↓ →</kbd> <span data-copy="move">Drive and steer</span></p>
           <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span></p>
           <p><kbd>H</kbd> <span data-copy="heal">Restore text</span></p>
-          <p><kbd>F</kbd> <span data-game-copy="enterExit">Enter or exit vehicle</span></p>
-          <p><kbd>Shift</kbd> <span data-game-copy="sprint">Sprint</span> <kbd>Space</kbd> <span data-game-copy="jump">Jump</span></p>
-          <p><kbd>1–5</kbd> <span data-game-copy="switchTool">Select a tool (or scroll)</span></p>
-          <p data-game-copy="aimControls">Click to aim and fire. Tab opens the inventory.</p>
-          <p data-game-copy="touchControls">Drag the left stick fully to sprint. Drag the right stick to aim or tap it to fire.</p>
+          <p class="city-controls"><kbd>F</kbd> <span data-game-copy="enterExit">Enter or exit vehicle</span></p>
+          <p class="city-controls"><kbd>Shift</kbd> <span data-game-copy="sprint">Sprint</span> <kbd>Space</kbd> <span data-game-copy="jump">Jump</span></p>
+          <p class="city-controls"><kbd>1–5</kbd> <span data-game-copy="switchTool">Select a tool (or scroll)</span></p>
+          <p class="city-controls" data-game-copy="aimControls">Click to aim and fire. Tab opens the inventory.</p>
+          <p class="city-controls" data-game-copy="touchControls">Drag the left stick fully to sprint. Drag the right stick to aim or tap it to fire.</p>
         </div>
       </details>
     </dialog>
