@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { Body, Box, RaycastResult, Vec3 } from 'cannon-es';
-import { breakCrate, crateCollision, createCrate, restoreCrate } from './drive-crates.js';
+import { breakCrate, crateCollision, createCourseCrateSweep, createCrate, restoreCrate } from './drive-crates.js';
 import { makeBatches } from './drive-city.js';
 import { buildRallyObstacles } from './drive-rally-obstacles.js';
 import { buildRallyTerrain, rallyBridges, rallyJumps, waterline } from './drive-rally-terrain.js';
 import { buildRallyScenery } from './drive-rally-scenery.js';
+import { createRallyProps } from './drive-rally-props.js';
 import { buildRaceDistrict, buildRaceFence, createRaceGrid } from './drive-race.js';
+export { RallyPhysicsWorld } from './drive-rally-props.js';
 
 const layouts = {
   race: [[108, 48], [105, -31], [105, -111], [66, -152], [-21, -151], [-48, -121], [-33, -94], [-40, -75], [-60, -65],
@@ -243,6 +245,7 @@ function ocean(parent, terrain) {
 
 function buildRally(parent, world, route, add, rand, stops) {
   const terrain = buildRallyTerrain(parent, world, route);
+  const props = createRallyProps(parent, world, terrain, rand);
   const wave = ocean(parent, terrain);
   const sandTrack = grain(22, 0xb99566);
   const lanes = [-route.half, -3.3, 0, 3.3, route.half];
@@ -250,9 +253,10 @@ function buildRally(parent, world, route, add, rand, stops) {
     const p = route.checkpoints[index];
     return terrain.height(p.x + p.nx * side, p.z + p.nz * side) + .012;
   });
-  buildRallyObstacles(parent, world, route, add);
-  const surroundings = buildRallyScenery(parent, world, route, terrain, add, rand, stops, signMaterial);
-  return { terrain, wave, ...surroundings };
+  buildRallyObstacles(parent, world, route, add, props);
+  const surroundings = buildRallyScenery(parent, props, route, terrain, add, rand, stops, signMaterial);
+  props.commit();
+  return { terrain, wave, props, ...surroundings };
 }
 
 export function createCourse(scene, world, kind, stops = new Map()) {
@@ -264,9 +268,11 @@ export function createCourse(scene, world, kind, stops = new Map()) {
   const crates = [];
   const queue = [];
   const collected = new Set();
+  const crateSweep = createCourseCrateSweep();
+  let activeDriver;
   function addCrate(x, z, size) {
     const crate = createCrate(scenery, x, z, size, { id: crates.length });
-    crate.collider.addEventListener('collide', crateCollision(crate, event => queue.push(event)));
+    crate.collider.addEventListener('collide', crateCollision(crate, event => queue.push(event), 0));
     world.addBody(crate.collider);
     crates.push(crate);
   }
@@ -309,7 +315,10 @@ export function createCourse(scene, world, kind, stops = new Map()) {
     route, start, grid,
     sync(position) {
       closest = route.locate(position);
-      if (island) depth = waterline - island.terrain.height(position.x, position.z);
+      if (island) {
+        depth = waterline - island.terrain.height(position.x, position.z);
+        island.props.sync(position);
+      }
     },
     wade(body, dt) {
       if (!island || depth <= .02 || body.position.y > .88) return;
@@ -317,10 +326,11 @@ export function createCourse(scene, world, kind, stops = new Map()) {
       body.velocity.x *= drag;
       body.velocity.z *= drag;
     },
-    update(time, position, motion, _dt, speed = 0) {
+    update(time, position, motion, dt = 0, speed = 0) {
       if (island) {
         island.wave.value = motion ? time : 0;
         island.animate(motion ? time : 0);
+        island.props.update(dt, motion);
       }
       for (const [index, ripple] of ripples.entries()) {
         ripple.visible = motion && depth > .02 && position.y < .88 && speed > .55;
@@ -335,13 +345,20 @@ export function createCourse(scene, world, kind, stops = new Map()) {
       }
     },
     process(time, onBlast) {
+      for (const crate of crates) {
+        const hit = crateSweep.hit(crate);
+        if (hit) queue.push(hit);
+      }
       for (const impact of queue.splice(0)) {
-        if (impact.target.spent) continue;
+        if (impact.target.spent || impact.driver !== activeDriver) continue;
         impact.target.brokenAt = time;
         onBlast(breakCrate(world, collected, impact));
       }
     },
-    resetCrates() { for (const crate of crates) restoreCrate(world, crate); },
+    reset() {
+      for (const crate of crates) restoreCrate(world, crate);
+      island?.props.reset(start);
+    },
     safeLanding(x, z) {
       const { point, meters } = route.locate({ x, z });
       if (!island) return [point.x, point.z, null, point.yaw];
@@ -360,7 +377,11 @@ export function createCourse(scene, world, kind, stops = new Map()) {
         ? groundHit.hitPointWorld.y : 0;
     },
     takeArrival(body) { return island?.takeArrival(body); },
-    advance(dt, position) { if (grid && dt > 0) grid.advance(dt, position, closest.meters); },
+    advance(dt, car) {
+      activeDriver = car.chassis;
+      crateSweep.begin(car);
+      if (grid && dt > 0) grid.advance(dt, car.chassis.position, closest.meters);
+    },
     offCourse(position) { return island ? depth > 1.08 && position.y < .27 : closest.offset > 13.8; },
   };
 }

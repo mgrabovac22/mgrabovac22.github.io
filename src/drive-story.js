@@ -165,7 +165,6 @@ function createSign(scene, post) {
       solid(panel, surface, boardWidth - index % 2 * .092, plank - .023, .26,
         index % 2 * .032, (index + .5) * plank - height / 2, 0);
     });
-    for (const side of [-1, 1]) solid(panel, woodPost, .12, height + .10, .32, side * (boardWidth / 2 - .13), 0, 0);
   } else {
     solid(panel, brackets, boardWidth, height, .26, 0, 0, 0);
     solid(panel, enamel, boardWidth - .18, height - .17, .29, 0, 0, 0);
@@ -194,10 +193,10 @@ function createSign(scene, post) {
   const sign = new THREE.Group();
   sign.position.set(post.x, 0, post.z);
   sign.rotation.y = post.heading ?? (post.course.axis === 'x' ? Math.PI / 2 : 0);
-  const beamY = panelY + height / 2 + (wooden ? -.22 : .43);
+  const beamY = wooden ? panelY - height / 2 + .014 : panelY + height / 2 + .43;
   const span = wooden ? boardWidth * .421 : post.span ?? 6.53;
   for (const x of [-span, span]) {
-    solid(sign, wooden ? woodPost : steel, .23, beamY, .27, x, beamY / 2, 0);
+    solid(sign, wooden ? cedar[0] : steel, .23, beamY, .27, x, beamY / 2, 0);
     if (!wooden) {
       solid(sign, brackets, .60, .33, .56, x, .22, 0);
       solid(sign, reflectors, .17, .41, .028, x, 1.28, .15);

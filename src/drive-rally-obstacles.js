@@ -90,25 +90,30 @@ function postMarker(add, point, lateral, along) {
   }
 }
 
-function bridge(parent, world, add, point, lateral, width, length, height) {
+function bridge(parent, world, add, props, point, lateral, width, length, height) {
   deck(parent, world, point, lateral, width, [
     [-length - 6, -.09], [-length - 2, .27], [-length, height], [length, height], [length + 2, .27], [length + 6, -.09],
   ]);
   for (let along = -length + .4; along < length; along += 3.1) {
     trestle(add, point, lateral, width, along, height);
-    for (const side of [-1, 1]) {
-      add(support, ...place(point, lateral + side * (width / 2 + .04), height + .36, along),
-        .14, .72, .14, point.yaw);
-    }
   }
   for (const side of [-1, 1]) {
     const outside = lateral + side * (width / 2 + .04);
-    for (const railY of [.34, .68]) add(dark, ...place(point, outside, height + railY, 0),
-      .07, .085, length * 2, point.yaw);
+    const sections = Math.ceil(length * 2 / 3.25);
+    const span = length * 2 / sections;
+    for (let i = 0; i < sections; i++) {
+      const along = -length + (i + .5) * span;
+      const [x, y, z] = place(point, outside, height + .36, along);
+      props.place({ x, y, z, yaw: point.yaw, bounds: [.069, .35, span / 2 - .016], mass: 8, effect: 'timber', tip: .82 }, draw => {
+        draw(support, ...place(point, outside, y, along - span * .4), .14, .72, .14, point.yaw);
+        for (const railY of [.34, .68]) draw(dark, ...place(point, outside, height + railY, along),
+          .07, .085, span - .024, point.yaw);
+      });
+    }
   }
 }
 
-export function buildRallyObstacles(parent, world, route, add) {
+export function buildRallyObstacles(parent, world, route, add, props) {
   for (const { meters, width, height, gap } of rallyJumps) {
     const point = route.sample(meters);
     const lip = -gap / 2;
@@ -125,9 +130,9 @@ export function buildRallyObstacles(parent, world, route, add) {
       trestle(add, point, 0, width, along, height * (.94 + (along - lip) * .061));
     }
     for (const along of [land + 1, land + 4.5, land + 8]) trestle(add, point, 0, width + .45, along, .94);
-    bridge(parent, world, add, point, -8.5, 4.1, 9.1, .86);
+    bridge(parent, world, add, props, point, -8.5, 4.1, 9.1, .86);
   }
   for (const meters of rallyBridges) {
-    bridge(parent, world, add, route.sample(meters), 0, 11.6, 13, 1.12);
+    bridge(parent, world, add, props, route.sample(meters), 0, 11.6, 13, 1.12);
   }
 }

@@ -283,13 +283,15 @@ async function boot() {
   sun.shadow.bias = -.00028;
   scene.add(fill, sun, sun.target, bounce);
 
-  const world = new World({ gravity: new Vec3(0, -9.81, 0), allowSleep: true });
+  const courseModule = cityMode ? null : await import('./drive-course.js');
+  const PhysicsWorld = mapKind === 'rally' ? courseModule.RallyPhysicsWorld : World;
+  const world = new PhysicsWorld({ gravity: new Vec3(0, -9.81, 0), allowSleep: true });
   world.broadphase = new SAPBroadphase(world);
   world.broadphase.axisIndex = 0;
   world.solver.iterations = 9;
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
-  const course = cityMode ? null : (await import('./drive-course.js')).createCourse(scene, world, mapKind, islandStops);
+  const course = courseModule?.createCourse(scene, world, mapKind, islandStops);
   const raceRank = find('#race-rank');
   const islandDialog = find('#island-stop');
   find('#race-position').hidden = !course?.grid;
@@ -635,7 +637,7 @@ async function boot() {
   }
   function resetCar() {
     crateCountdown.cancel();
-    if (course) course.resetCrates();
+    if (course) course.reset();
     else terrain.resetParkCrates();
     if (walking || car === tank) {
       car = getVehicle(selectedKind);
@@ -754,7 +756,7 @@ async function boot() {
       player.step(input, lookYaw, dt);
     }
     course?.wade(car.chassis, dt);
-    course?.advance(dt, position);
+    course?.advance(dt, car);
     world.step(1 / 60, dt, 4);
     if (!walking) {
       recovery(dt);

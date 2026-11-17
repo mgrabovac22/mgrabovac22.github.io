@@ -507,6 +507,7 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
       crate.z += z;
       crate.collider.position.x += x;
       crate.collider.position.z += z;
+      crate.collider.aabbNeedsUpdate = true;
       crate.collider.addEventListener('collide', crateCollision(crate, impact => queue.push({ kind: 'crate', ...impact })));
       targets.set(crate.collider, { kind: 'crate', target: crate });
     }
