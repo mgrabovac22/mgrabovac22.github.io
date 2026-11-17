@@ -80,7 +80,7 @@ export function createUtilityVehicle(scene, world, kind) {
         rollInfluence: .06, frictionSlip: kind === 'formula' ? 6.8 : kind === 'buggy' ? 4.2 : bike ? 4.4 : 5.1,
       });
       const width = kind === 'monster' ? .66 : bike ? .20 : kind === 'formula' ? (z < 0 ? .38 : .49) : .34;
-      const wheel = kind === 'tank' ? null : buildWheel(p.radius, width, bike ? 5 : 7, side, kind !== 'formula');
+      const wheel = kind === 'tank' ? null : buildWheel(p.radius, width, bike ? 5 : 7, side, kind !== 'formula', kind === 'buggy');
       if (wheel) scene.add(wheel);
       wheels.push(wheel);
     }

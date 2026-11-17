@@ -49,6 +49,14 @@ button:disabled { opacity: .6; cursor: default; }
 #story-reader h2 { margin: .2rem 0 .5rem; line-height: 1.2; }
 #story-reader p + p { margin-top: .65rem; }
 #story-reader a { color: var(--acid); display: inline-block; margin: .35rem .8rem 0 0; }
+#island-stop { width: min(26rem, 90vw); padding: 1rem 1.25rem 1.4rem; color: #fff5e6; background: #172e30; border: 1px solid #dfc58d; border-radius: .55rem; }
+#island-stop::backdrop { background: #081918b5; }
+#island-stop form { display: flex; justify-content: flex-end; }
+#island-stop h2 { margin: .4rem 0 .5rem; }
+#island-stop p { margin: 0 0 1rem; }
+#island-stop a { display: inline-block; background: #deca95; color: #132622; }
+.race-position { width: max-content; margin: .26rem auto 0; color: #fff5dc; background: #101f25eb; padding: .25rem .48rem; border-radius: .2rem; font-size: .69rem; line-height: 1.15; }
+.race-position b { color: #f0d38f; font-variant-numeric: tabular-nums; }
 #notice { position: absolute; bottom: max(14%, calc(var(--hud-bottom) + 3.25rem)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 76vw; padding: .45rem .8rem; border-radius: 3px; color: #fff2d7; background: var(--panel); text-align: center; font-size: .85rem; font-weight: 700; }
 #game:has(.touch:not([hidden])) #notice { bottom: calc(var(--touch-bottom) + var(--touch-size) + .75rem); }
 #notice:empty { display: none; }

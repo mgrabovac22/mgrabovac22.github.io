@@ -5,7 +5,7 @@ import { Body, SAPBroadphase, Vec3, World } from 'cannon-es';
 import { createCar, flatYaw, isTipped, launcherImpulse } from './drive-car.js';
 import { createCity } from './drive-city.js';
 import { createSkyStories } from './drive-story.js';
-import { loadPortfolio } from './portfolio.js';
+import { loadPortfolio, localAsset } from './portfolio.js';
 import { createStory } from './story.js';
 import { crateProfileUrl, crateServices, createCrateCountdown } from './drive-crate-links.js';
 import { createUtilityVehicle, tankBay, vehicleTypes } from './drive-vehicle.js';
@@ -209,6 +209,14 @@ async function boot() {
     node.textContent = label(node.dataset.gameCopy, node.textContent);
   }
   const mapKind = cityMode ? 'city' : requestedMap;
+  const islandStops = new Map();
+  if (mapKind === 'rally') {
+    for (const [id, name] of Object.entries(crateServices)) {
+      const href = crateProfileUrl(data.profile[id], id);
+      if (href) islandStops.set(id, { label: name, title: label(id + 'Cove', name), href, action: data.t[id] ?? name });
+    }
+    islandStops.set('cv', { label: 'CV', title: label('cvShrine', 'CV Shrine'), href: localAsset(data.profile.cv.file), action: data.t.cv, download: true });
+  }
   mapSelect.value = mapKind;
   const startKind = cityMode ? 'sport' : circuitModes.get(mapKind);
   const coverTitle = cityMode ? t.title : label(mapKind + 'Title', mapSelect.selectedOptions[0].textContent);
@@ -281,7 +289,10 @@ async function boot() {
   world.solver.iterations = 9;
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
-  const course = cityMode ? null : (await import('./drive-course.js')).createCourse(scene, world, mapKind);
+  const course = cityMode ? null : (await import('./drive-course.js')).createCourse(scene, world, mapKind, islandStops);
+  const raceRank = find('#race-rank');
+  const islandDialog = find('#island-stop');
+  find('#race-position').hidden = !course?.grid;
   const starter = cityMode ? createCar(scene, world) : createUtilityVehicle(scene, world, startKind);
   const initial = course?.start ?? { x: 3, z: 9, yaw: 0 };
   let tank = null;
@@ -613,6 +624,11 @@ async function boot() {
     showTouch();
   }
   function showHud() {
+    if (course?.grid) {
+      const { place, count } = course.grid.rank(position);
+      const text = `${place} / ${count}`;
+      if (raceRank.textContent !== text) raceRank.textContent = text;
+    }
     const velocity = walking ? player.body.velocity : car.chassis.velocity;
     const speed = Math.hypot(velocity.x, velocity.z) * 3.6;
     speedValue.textContent = String(Math.round(speed)).padStart(3, '0');
@@ -635,6 +651,7 @@ async function boot() {
     yaw = initial.yaw;
     forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
     terrain.sync(position);
+    course?.grid?.reset();
     stories.reset();
     terrain.update(time, position, !reduced.matches);
     showHud();
@@ -652,7 +669,7 @@ async function boot() {
   function recovery(dt) {
     const tipped = isTipped(car.chassis);
     const altitude = position.y - car.stance - (course && tipped ? course.groundHeight(position) : 0);
-    const outsideCourse = course && altitude < .45 && course.offCourse();
+    const outsideCourse = course?.offCourse(position);
     const rescue = course && (position.y < -2 || outsideCourse);
     if (!rescue && (!tipped || altitude > .93)) {
       if (launched && time - launchedAt > .35 && car.grounded && !tipped) launched = false;
@@ -737,6 +754,7 @@ async function boot() {
       player.step(input, lookYaw, dt);
     }
     course?.wade(car.chassis, dt);
+    course?.advance(dt, position);
     world.step(1 / 60, dt, 4);
     if (!walking) {
       recovery(dt);
@@ -772,6 +790,11 @@ async function boot() {
     }
     effects.update(dt);
     draw(dt);
+    const arrival = course?.takeArrival(car.chassis);
+    if (arrival) {
+      openIslandStop(arrival);
+      return;
+    }
     frame = requestAnimationFrame(tick);
   }
   function wake() {
@@ -857,6 +880,24 @@ async function boot() {
     reader.showModal();
   }
   reader.addEventListener('close', () => {
+    if (!graphicsLost) setPaused(false);
+  });
+  function openIslandStop(destination) {
+    const link = find('#island-stop-link');
+    find('#island-stop-title').textContent = destination.title;
+    find('#island-stop-note').textContent = destination.download ? label('cvShrineNote', 'Download the portfolio CV as a PDF.') :
+      label('islandLinkNote', 'Open this portfolio profile in a new tab.');
+    link.href = destination.href;
+    link.textContent = destination.action;
+    link.toggleAttribute('download', destination.download === true);
+    link.target = destination.download ? '_self' : '_blank';
+    link.rel = 'noopener noreferrer';
+    audio.play('click');
+    setPaused(true);
+    islandDialog.showModal();
+  }
+  islandDialog.addEventListener('close', () => {
+    game.focus({ preventScroll: true });
     if (!graphicsLost) setPaused(false);
   });
   const soundToggle = find('#drive-sound');

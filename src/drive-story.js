@@ -15,7 +15,7 @@ const brackets = new THREE.MeshStandardMaterial({ color: '#a5b4aa', roughness: .
 const enamel = new THREE.MeshBasicMaterial({ color: '#184739', fog: false, toneMapped: false });
 const border = new THREE.MeshBasicMaterial({ color: '#b8d6b7', fog: false, toneMapped: false });
 const reflectors = new THREE.MeshBasicMaterial({ color: '#f2c57d', fog: false, toneMapped: false });
-const cedar = [0x67402b, 0x70462f, 0x604332, 0x745138, 0x694931].map(color =>
+const cedar = [0x4a2c20, 0x503123, 0x45291f, 0x513326, 0x492e21].map(color =>
   new THREE.MeshStandardMaterial({ color, roughness: .88 }));
 const woodPost = new THREE.MeshStandardMaterial({ color: 0xa57e55, roughness: .91 });
 const palette = {
@@ -141,7 +141,7 @@ function solid(parent, material, w, h, d, x, y, z) {
 
 function createSign(scene, post) {
   const wooden = post.wooden === true;
-  const scale = wooden ? .78 : 1;
+  const scale = wooden ? .91 : 1;
   const boardWidth = panelWidth * scale;
   const parts = letterLayout(post.page, post.index).map(part => ({
     ...part, x: part.x * scale, y: part.y * scale, size: part.size * scale,
@@ -154,7 +154,7 @@ function createSign(scene, post) {
   const center = lettering.boundingBox.getCenter(new THREE.Vector3());
   const height = Math.max(2.15, lettering.boundingBox.max.y - lettering.boundingBox.min.y + .78);
   const textY = .09 - center.y;
-  const panelY = (wooden ? 1.14 : elevation) + height / 2;
+  const panelY = (wooden ? 1.85 : elevation) + height / 2;
   lettering.translate(0, textY, 0);
 
   const panel = new THREE.Group();
@@ -212,13 +212,20 @@ function createSign(scene, post) {
   scene.add(sign);
 
   const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), sign.rotation.y);
-  const sensor = new Body({
+  const sensor = wooden ? new Body({ mass: 0, position: new Vec3(post.x, 0, post.z) }) : new Body({
     mass: 0, shape: new Box(new Vec3(boardWidth / 2, height / 2, .18)),
     collisionResponse: false, collisionFilterGroup: 16, collisionFilterMask: 4,
+    position: new Vec3(post.x, panelY, post.z),
   });
-  sensor.position.set(post.x, panelY, post.z);
   sensor.quaternion.copy(rotation);
-  sensor.addEventListener('collide', ({ body }) => {
+  if (wooden) {
+    sensor.addShape(new Box(new Vec3(boardWidth / 2, height / 2, .18)), new Vec3(0, panelY, 0));
+    for (const side of [-1, 1]) sensor.addShape(new Box(new Vec3(.125, beamY / 2, .14)), new Vec3(side * span, beamY / 2, 0));
+    const plinth = solid(sign, woodPost, boardWidth, .67, .54, 0, .335, 0);
+    plinth.receiveShadow = true;
+    solid(sign, cedar[0], boardWidth - .34, .17, .07, 0, .56, .28);
+    sensor.addShape(new Box(new Vec3(boardWidth / 2, .335, .27)), new Vec3(0, .335, 0));
+  } else sensor.addEventListener('collide', ({ body }) => {
     if (body.collisionFilterGroup === 4 && body.velocity.lengthSquared() > 2.25) post.impact = true;
   });
 
@@ -228,8 +235,10 @@ function createSign(scene, post) {
 function setSensor(world, model, enabled) {
   if (model.sensing === enabled) return;
   model.sensing = enabled;
-  if (enabled) world.addBody(model.sensor);
-  else world.removeBody(model.sensor);
+  if (enabled) {
+    model.sensor.aabbNeedsUpdate = true;
+    world.addBody(model.sensor);
+  } else world.removeBody(model.sensor);
 }
 
 function clearSign(scene, world, post) {
@@ -327,15 +336,16 @@ export function createSkyStories(scene, world, pages, route = null) {
   let courseFor = 0;
   const firstSign = 25;
   const spacing = route ? route.length / posts.length : 0;
+  const stations = route?.kind === 'rally' ? route.boardStations(posts.length) : null;
 
   function placeCircuit() {
     for (const post of posts) {
-      const meters = firstSign + post.index * spacing;
+      const meters = stations?.[post.index] ?? firstSign + post.index * spacing;
       const sample = route.sample(meters);
       const wooden = route.kind === 'rally';
       const offset = wooden ? route.half + 6.8 : 0;
       Object.assign(post, {
-        meters, sample, wooden, heading: sample.yaw, span: route.half + 1.13,
+        meters, sample, wooden, heading: sample.yaw + (wooden ? -.26 : 0), span: route.half + 1.13,
         x: sample.x + sample.nx * offset, z: sample.z + sample.nz * offset,
       });
     }
@@ -431,7 +441,9 @@ export function createSkyStories(scene, world, pages, route = null) {
   function update(position, velocity, heading, viewer, dt, reduced) {
     const lap = route?.locate(position);
     if (!lap) updateCourse(position, velocity, heading, dt);
-    const circuitIndex = lap ? Math.max(0, Math.ceil((lap.meters - firstSign - 6) / spacing)) % posts.length : -1;
+    const nextStation = stations?.findIndex(meters => meters >= lap.meters - 6);
+    const circuitIndex = nextStation === undefined ?
+      (lap ? Math.max(0, Math.ceil((lap.meters - firstSign - 6) / spacing)) % posts.length : -1) : Math.max(0, nextStation);
     let nearest = posts[lap ? circuitIndex : next] ?? posts.at(-1);
     let nearestScore = 13;
     let shattered = false;
@@ -456,7 +468,7 @@ export function createSkyStories(scene, world, pages, route = null) {
       sign.visible = distance < sightRange;
       if (panel.parent === sign) {
         faces[0].visible = lap ?
-          (viewer.x - post.x) * post.sample.tx + (viewer.z - post.z) * post.sample.tz <= 0 :
+          (viewer.x - post.x) * Math.sin(post.heading) + (viewer.z - post.z) * Math.cos(post.heading) >= 0 :
           viewer[axis] >= post[axis];
         faces[1].visible = !faces[0].visible;
       }

@@ -20,6 +20,7 @@
         <h1 class="sr-only" id="drive-title" data-copy="title">Night Shift</h1>
         <button type="button" class="current-section" id="read-story" aria-haspopup="dialog" aria-controls="story-reader" disabled><span id="chapter">—</span></button>
         <p class="coin-score" role="status" aria-atomic="true"><span class="coin-symbol" aria-hidden="true"></span><span data-copy="coins">Coins</span><b id="coin-count">0</b></p>
+        <p class="race-position" id="race-position" hidden><span data-game-copy="racePosition">Position</span> <b id="race-rank">5 / 5</b></p>
       </div>
       <div class="actions">
         <button type="button" id="reset" data-copy="reset" disabled>Reset</button>
@@ -30,6 +31,12 @@
     <dialog id="story-reader" aria-labelledby="entry-title">
       <form method="dialog"><button data-copy="close">Close</button></form>
       <article id="story-entry"></article>
+    </dialog>
+    <dialog id="island-stop" aria-labelledby="island-stop-title">
+      <form method="dialog"><button data-copy="close">Close</button></form>
+      <h2 id="island-stop-title"></h2>
+      <p id="island-stop-note"></p>
+      <a class="button" id="island-stop-link" href="./"></a>
     </dialog>
     <dialog id="drive-settings" aria-labelledby="settings-title">
       <div class="settings-heading">

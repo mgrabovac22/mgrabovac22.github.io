@@ -42,6 +42,13 @@ const braking = new THREE.MeshStandardMaterial({ color: 0xbc3440, emissive: 0x6e
 const accent = new THREE.MeshStandardMaterial({ color: 0xd4b06b, roughness: .37, metalness: .44 });
 const castSteel = new THREE.MeshStandardMaterial({ color: 0x606969, roughness: .76, metalness: .48, roughnessMap: brushed });
 const beltRubber = new THREE.MeshStandardMaterial({ color: 0x272b2b, roughness: .88, metalness: .10 });
+const weave = grain(32, (u, v) => 135 + 46 * Math.sin((u + v) * 25) * Math.cos((u - v) * 19));
+const carbon = new THREE.MeshStandardMaterial({ color: 0x242b2c, roughness: .37, metalness: .28, roughnessMap: weave });
+const harness = new THREE.MeshStandardMaterial({ color: 0xb0803b, roughness: .91 });
+const padding = new THREE.MeshStandardMaterial({ color: 0x3c4443, roughness: .93 });
+const helmet = new THREE.SphereGeometry(.5, 16, 12);
+const lensDot = new THREE.SphereGeometry(.5, 9, 6);
+const steeringWheel = new THREE.TorusGeometry(.116, .019, 6, 17);
 
 function paint(color) {
   return new THREE.MeshPhysicalMaterial({ color, clearcoat: .74, clearcoatRoughness: .19, metalness: .53, roughness: .29 });
@@ -68,6 +75,22 @@ function beam(parent, mat, start, end, diameter, open = false) {
 function molding(parent, material, points, radius) {
   const path = new THREE.CatmullRomCurve3(points.map(point => new THREE.Vector3(...point)));
   parent.add(new THREE.Mesh(new THREE.TubeGeometry(path, 14, radius, 6), material));
+}
+
+function spring(body, start, end) {
+  beam(body, castSteel, start, end, .135);
+  const a = new THREE.Vector3(...start), b = new THREE.Vector3(...end);
+  const direction = b.clone().sub(a);
+  const align = new THREE.Quaternion().setFromUnitVectors(yAxis, direction.clone().normalize());
+  const points = [];
+  for (let i = 0; i <= 42; i++) {
+    const progress = i / 42;
+    const phase = progress * Math.PI * 12;
+    const point = new THREE.Vector3(Math.sin(phase) * .1, direction.length() * (.13 + progress * .71), Math.cos(phase) * .1);
+    points.push(point.applyQuaternion(align).add(a));
+  }
+  const coil = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 44, .020, 5);
+  body.add(new THREE.Mesh(coil, accent));
 }
 
 // Bake only fixed pieces together. Turret, nozzle, wheels and rider retain their pivots.
@@ -345,24 +368,38 @@ function truck(body, p, color, monster) {
 
 function formula(body, color) {
   const white = paint(0xe5ded0);
-  shell(body, color, [[-2.30, .17, -.15, -.02], [-1.68, .23, -.18, .11], [-.91, .30, -.20, .21],
-    [-.56, .59, -.21, .20], [.18, .74, -.21, .25], [.79, .54, -.20, .44],
-    [1.18, .32, -.19, .34], [1.85, .24, -.16, .08]], ([, w, y, h]) => profile(w, y, h, .80));
-  piece(body, trim, .64, .13, .81, 0, .232, .03);
-  piece(body, white, .34, .29, .35, 0, .428, .27, new THREE.SphereGeometry(.5, 14, 10));
-  piece(body, lens, .295, .091, .176, 0, .454, .145);
-  molding(body, trim, [[-.30, .23, .13], [-.22, .45, -.17], [0, .47, -.30], [.22, .45, -.17], [.30, .23, .13]], .044);
-  beam(body, trim, [0, .27, -.68], [0, .47, -.30], .055);
-  piece(body, trim, 2.12, .066, .34, 0, -.13, -2.04);
-  piece(body, color, 1.93, .06, .27, 0, -.062, -2.01);
-  piece(body, trim, 1.50, .085, .31, 0, .56, 1.94);
-  piece(body, white, 1.45, .062, .26, 0, .682, 1.97);
-  piece(body, braking, .18, .088, .043, 0, -.02, 1.92);
+  shell(body, color, [[-2.29, .133, -.13, -.015], [-1.67, .204, -.17, .09], [-.91, .28, -.20, .21],
+    [-.59, .53, -.22, .215], [.18, .74, -.22, .225], [.76, .61, -.20, .43],
+    [1.26, .34, -.19, .28], [1.84, .24, -.14, .084]], ([, w, y, h]) => profile(w, y, h, .75));
+  shell(body, carbon, [[-1.04, .35, -.227, -.19], [-.63, .66, -.249, -.205], [.12, .81, -.251, -.194],
+    [.73, .70, -.247, -.188], [1.63, .44, -.189, -.108]], ([, w, y, h]) => profile(w, y, h, .93));
+  piece(body, carbon, .61, .081, .75, 0, .233, .04);
+  piece(body, white, .335, .302, .343, 0, .412, .244, helmet);
+  piece(body, lens, .311, .116, .189, 0, .452, .134, helmet);
+  molding(body, carbon, [[-.30, .23, .13], [-.24, .465, -.16], [0, .491, -.32], [.24, .465, -.16], [.30, .23, .13]], .042);
+  beam(body, carbon, [0, .25, -.70], [0, .491, -.32], .052);
+  piece(body, carbon, .243, .206, .244, 0, .480, .668);
+  piece(body, white, .321, .048, .295, 0, .586, .701);
+  piece(body, carbon, 2.10, .049, .386, 0, -.153, -2.08);
+  piece(body, color, 1.98, .051, .258, 0, -.073, -1.96).rotation.x = -.22;
+  piece(body, carbon, 1.47, .064, .35, 0, .584, 1.96);
+  piece(body, white, 1.47, .051, .205, 0, .714, 2.01).rotation.x = -.18;
+  piece(body, carbon, .59, .072, .44, 0, -.185, 1.81).rotation.x = .18;
+  beam(body, castSteel, [0, .154, 1.63], [0, .155, 1.98], .114, true);
+  piece(body, braking, .154, .063, .039, 0, -.026, 1.98);
   for (const side of [-1, 1]) {
-    piece(body, trim, .10, .12, .40, side * 1.01, -.025, -2.03);
-    piece(body, trim, .081, .29, .51, side * .73, .56, 1.93);
-    piece(body, color, .10, .22, .14, side * .26, .40, 1.90);
-    piece(body, white, .11, .061, .75, side * .63, .18, .12);
+    piece(body, carbon, .063, .181, .40, side * 1.006, -.05, -2.04).rotation.y = side * .08;
+    piece(body, color, .072, .097, .504, side * .98, -.033, -1.97);
+    piece(body, carbon, .071, .303, .46, side * .742, .574, 1.969).rotation.y = -side * .075;
+    piece(body, color, .089, .304, .134, side * .258, .411, 1.86).rotation.x = -.20;
+    piece(body, white, .115, .035, .95, side * .54, .219, .12).rotation.y = -side * .090;
+    piece(body, carbon, .188, .098, .464, side * .545, .172, -.497).rotation.y = side * .16;
+    beam(body, carbon, [side * .235, .267, -.234], [side * .44, .340, -.200], .025);
+    piece(body, color, .139, .063, .111, side * .444, .345, -.197);
+    piece(body, satin, .112, .052, .019, side * .454, .343, -.136);
+    for (let louver = 0; louver < 5; louver++) {
+      piece(body, carbon, .131, .019, .047, side * (.48 - louver * .022), .311 + .016 * louver, .493 + .074 * louver).rotation.y = side * .22;
+    }
     for (const at of [-1.45, 1.45]) {
       beam(body, trim, [side * .30, -.05, at - .27], [side * .86, -.09, at], .052);
       beam(body, trim, [side * .31, -.15, at + .22], [side * .86, -.12, at], .056);
@@ -371,28 +408,71 @@ function formula(body, color) {
 }
 
 function buggy(body, color) {
-  shell(body, color, [[-1.73, .47, -.29, .09], [-1.28, .63, -.31, .21], [-.61, .75, -.29, .24],
-    [.52, .72, -.29, .22], [1.21, .66, -.29, .27], [1.72, .53, -.25, .22]], ([, w, y, h]) => profile(w, y, h, .86));
+  shell(body, color, [[-1.72, .39, -.27, .057], [-1.42, .52, -.289, .195], [-1.02, .62, -.28, .289],
+    [-.61, .735, -.29, .215], [.53, .69, -.29, .20], [1.16, .618, -.28, .272], [1.70, .49, -.253, .14]],
+    ([, w, y, h]) => profile(w, y, h, .82));
   const canopy = new THREE.MeshStandardMaterial({ color: 0x30494b, roughness: .62, metalness: .16, side: THREE.DoubleSide });
-  piece(body, canopy, 1.20, .073, 1.02, 0, .93, .11);
-  piece(body, trim, 1.03, .12, .70, 0, .27, .46);
+  piece(body, canopy, 1.20, .049, .88, 0, .942, -.10);
+  piece(body, carbon, 1.084, .085, .98, 0, .242, .273);
+  piece(body, trim, .818, .137, .157, 0, .42, -.535);
+  piece(body, lens, .205, .061, .042, -.26, .459, -.447);
+  piece(body, carbon, 1, 1, 1, -.26, .49, -.366, steeringWheel).rotation.x = -.29;
+  piece(body, padding, .315, .363, .171, -.26, .439, .23).rotation.x = -.11;
+  piece(body, satin, .248, .254, .24, -.26, .679, .201, helmet);
+  piece(body, lens, .223, .073, .161, -.26, .680, .128, helmet);
+  for (const arm of [-1, 1]) {
+    const x = -.26 + arm * .112;
+    beam(body, padding, [x + arm * .03, .523, .207], [x + arm * .035, .433, -.154], .091);
+    beam(body, trim, [x + arm * .035, .433, -.154], [x, .50, -.364], .061);
+  }
+  piece(body, trim, .52, .147, .073, 0, .072, -1.703);
+  piece(body, castSteel, .466, .029, .04, 0, .062, -1.749);
+  piece(body, carbon, .294, .018, .505, 0, .268, -1.035).rotation.x = -.08;
+  for (let slot = 0; slot < 7; slot++) piece(body, castSteel, .224, .021, .019, 0, .289 + slot * .0037, -1.242 + .055 * slot);
+  beam(body, castSteel, [-.57, .903, -.48], [.57, .903, -.48], .084);
+  piece(body, trim, .849, .104, .115, 0, .895, -.507);
+  for (let n = -4; n <= 4; n++) piece(body, headlamp, .077, .043, .024, n * .086, .902, -.572, lensDot);
+  beam(body, satin, [-.17, .22, 1.09], [-.17, .27, 1.79], .116, true);
+  beam(body, satin, [.17, .22, 1.09], [.17, .27, 1.79], .116, true);
+  piece(body, carbon, .705, .123, .87, 0, .292, 1.151);
+  for (let fin = -3; fin <= 3; fin++) piece(body, castSteel, .034, .038, .46, fin * .082, .377, 1.092);
   for (const side of [-1, 1]) {
     const x = side * .60;
-    piece(body, trim, .35, .52, .21, side * .25, .44, .39).rotation.x = -.16;
+    piece(body, trim, .359, .53, .192, side * .258, .448, .39).rotation.x = -.18;
+    piece(body, padding, .296, .369, .06, side * .258, .481, .296).rotation.x = -.18;
+    piece(body, padding, .304, .096, .302, side * .258, .278, .22);
+    piece(body, harness, .034, .349, .019, side * .258 - .072, .478, .259).rotation.x = -.18;
+    piece(body, harness, .034, .349, .019, side * .258 + .072, .478, .259).rotation.x = -.18;
     molding(body, castSteel, [[x, .22, -.91], [x, .83, -.49], [x, .93, -.34],
       [x, .93, .57], [x, .85, .67], [x, .30, 1.29]], .053);
     beam(body, castSteel, [x, .43, -.70], [x, .42, .73], .065);
     beam(body, castSteel, [x, .86, .48], [x, .22, .20], .071);
-    beam(body, accent, [x * .87, .39, -1.0], [x * 1.3, -.38, -1.17], .11);
-    beam(body, accent, [x * .87, .42, .88], [x * 1.3, -.38, 1.16], .11);
+    for (const z of [-1.16, 1.16]) {
+      const out = [x * 1.51, -.35, z];
+      spring(body, [x * .89, .345, z * .83], out);
+      beam(body, satin, [x * .71, -.22, z + .24], out, .058);
+      beam(body, satin, [x * .71, -.23, z - .26], out, .057);
+      beam(body, castSteel, [x * .68, -.20, z], [x * 1.51, -.20, z], .088);
+    }
     piece(body, headlamp, .20, .13, .07, side * .41, .193, -1.65);
     piece(body, braking, .18, .12, .06, side * .38, .29, 1.66);
-    for (const z of [-1.14, 1.18]) molding(body, trim, [
-      [side * .79, .01, z - .48], [side * .88, .25, z - .28], [side * .89, .31, z],
-      [side * .88, .25, z + .28], [side * .79, .01, z + .47]], .048);
+    for (const z of [-1.14, 1.18]) {
+      molding(body, trim, [[side * .78, .025, z - .51], [side * .90, .284, z - .28], [side * .92, .339, z],
+        [side * .90, .285, z + .28], [side * .79, .028, z + .49]], .059);
+      piece(body, carbon, .265, .035, .46, side * .825, .302, z);
+    }
+    beam(body, carbon, [x, .559, -.699], [x * 1.26, .635, -.693], .037);
+    piece(body, castSteel, .20, .09, .12, x * 1.33, .640, -.693);
+    piece(body, lens, .169, .067, .018, x * 1.33, .641, -.622);
+    piece(body, color, .151, .285, .639, x * 1.11, .145, -.098).rotation.z = side * -.106;
+    piece(body, satin, .059, .027, .169, x * 1.247, .183, -.062);
   }
   beam(body, castSteel, [-.70, -.01, -1.73], [.70, -.01, -1.73], .087);
   beam(body, castSteel, [-.59, .29, 1.76], [.59, .29, 1.76], .081);
+  const spare = piece(body, tireRubber, .69, .197, .69, 0, .463, 1.133, cylinder);
+  spare.rotation.x = -.27;
+  piece(body, hub, .397, .205, .397, 0, .473, 1.133, cylinder).rotation.x = -.27;
+  for (const side of [-1, 1]) beam(body, harness, [side * .221, .548, .91], [-side * .213, .533, 1.33], .038);
 }
 
 export function buildUtilityBody(body, kind, preset) {
@@ -409,7 +489,7 @@ export function buildUtilityBody(body, kind, preset) {
 
 const tireGeometry = new Map();
 
-export function buildWheel(radius, width, spokes, face = 1, useTread = true) {
+export function buildWheel(radius, width, spokes, face = 1, useTread = true, offroad = false) {
   const wheel = new THREE.Group();
   const key = radius + ':' + width;
   if (!tireGeometry.has(key)) {
@@ -433,5 +513,19 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true) {
     }
   }
   batchVehicleParts(wheel);
+  if (offroad) {
+    const lugs = new THREE.InstancedMesh(rounded, tireRubber, 40);
+    const positions = new THREE.Object3D();
+    for (let i = 0; i < lugs.count; i++) {
+      const angle = i / lugs.count * Math.PI * 2;
+      const side = i % 2 ? -1 : 1;
+      positions.position.set(side * width * .26, Math.cos(angle) * radius * .98, Math.sin(angle) * radius * .98);
+      positions.rotation.set(angle, side * .26, 0);
+      positions.scale.set(width * .44, radius * .096, radius * .145);
+      positions.updateMatrix();
+      lugs.setMatrixAt(i, positions.matrix);
+    }
+    wheel.add(lugs);
+  }
   return wheel;
 }
