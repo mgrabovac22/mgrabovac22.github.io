@@ -19,15 +19,7 @@ const ring = new THREE.TorusGeometry(.5, .039, 6, 28);
 const steel = new THREE.MeshStandardMaterial({ color: 0x45616a, roughness: .48, metalness: .58 });
 const rubber = new THREE.MeshStandardMaterial({ color: 0x15252d, roughness: .82 });
 const light = new THREE.MeshStandardMaterial({ color: 0xa6b0ae, metalness: .50, roughness: .38 });
-const deck = new THREE.MeshStandardMaterial({ color: 0x324a52, roughness: .66 });
 const colors = [0xff747b, 0xffd378, 0x83f7c2, 0x79cfff, 0xce88ff];
-const pickupLocations = [
-  [[7.7, 3.75], [-7.8, -101]],
-  [[-7.9, -12], [50.7, -56]],
-  [[6.8, -36], [-50.8, -73]],
-  [[-6.85, -51], [52.1, -128]],
-  [[7.4, -69], [-7.2, -170]],
-];
 
 function piece(parent, material, width, height, depth, x, y, z, geometry = box) {
   const mesh = new THREE.Mesh(geometry, material);
@@ -72,23 +64,22 @@ function makeTool(tool) {
   return model;
 }
 
-export function createToolKit(scene, world, city, hand, audio, compact, onSelect, onPickup) {
+export function createShotTrigger() {
+  const held = new Set();
+  let pending = false;
+  return {
+    press(id) { held.add(id); pending = true; },
+    tap() { pending = true; },
+    release(id) { held.delete(id); },
+    clear() { held.clear(); pending = false; },
+    update(shoot) {
+      if ((pending || held.size) && shoot()) pending = false;
+    },
+  };
+}
+
+export function createToolKit(scene, world, city, hand, audio, compact, onSelect) {
   const models = tools.map(makeTool);
-  const owned = new Set([0]);
-  const pickups = pickupLocations.flatMap((sites, index) => sites.map(([x, z]) => {
-    const prop = new THREE.Group();
-    prop.position.set(x, .088, z);
-    const glow = new THREE.MeshBasicMaterial({ color: tools[index].color });
-    piece(prop, deck, .90, .19, .9, 0, .02, 0, tube);
-    piece(prop, deck, .59, .82, .59, 0, .48, 0, tube);
-    piece(prop, steel, .79, .13, .79, 0, .91, 0, tube);
-    piece(prop, glow, .88, .88, .85, 0, .989, 0, ring).rotation.x = -Math.PI / 2;
-    const model = models[index].clone();
-    model.scale.setScalar(1.2);
-    prop.add(model);
-    scene.add(prop);
-    return { prop, model, index };
-  }));
   const rocket = new THREE.CapsuleGeometry(.074, .31, 4, 10);
   const jet = new THREE.CapsuleGeometry(.044, .52, 3, 7).translate(0, -.26, 0);
   const projectiles = new Map(tools.map(tool => [tool.id, new THREE.MeshBasicMaterial({
@@ -123,25 +114,22 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
   const shove = new Vec3();
   const spin = new THREE.Vector3(0, 1, 0);
   const rotation = new THREE.Vector3();
-  let selected = 0;
+  let selected = -1;
   let cursor = 0;
   let delay = 0;
 
   function select(index) {
-    if (!owned.has(index)) return false;
+    if (index !== -1 && !models[index]) return false;
     selected = index;
     hand.clear();
-    hand.add(models[index]);
-    onSelect(selected, owned);
+    if (selected >= 0) hand.add(models[selected]);
+    onSelect(selected);
     return true;
   }
-  select(0);
 
   function cycle(direction) {
-    for (let hop = 1; hop <= tools.length; hop++) {
-      const index = (selected + hop * direction + tools.length) % tools.length;
-      if (select(index)) return;
-    }
+    const start = selected < 0 && direction < 0 ? 0 : selected;
+    select((start + direction + tools.length) % tools.length);
   }
 
   function emit(point, tone, count, power, life, water = false) {
@@ -197,9 +185,9 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
   }
 
   function fire(origin, direction, ignore, tank = false) {
-    if (delay > 0) return;
+    if (delay > 0 || (!tank && selected < 0)) return false;
     const round = rounds.find(entry => !entry.shot.visible);
-    if (!round) return;
+    if (!round) return false;
     const tool = tank ? tankWater : tools[selected];
     delay = tool.delay;
     round.tool = tool;
@@ -215,29 +203,11 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
     round.shot.quaternion.setFromUnitVectors(spin, rotation.copy(round.velocity).normalize());
     audio.play(tool.sound);
     emit(origin, tool.id === 'confetti' ? null : tool.color, 7, 4, .3, tool.id === 'water');
+    return true;
   }
 
-  function update(dt, time, position, walking, motion) {
+  function update(dt) {
     delay = Math.max(0, delay - dt);
-    for (const pickup of pickups) {
-      const { prop, model, index } = pickup;
-      const dx = prop.position.x - position.x;
-      const dz = prop.position.z - position.z;
-      const distance = dx * dx + dz * dz;
-      prop.visible = distance < 105 ** 2;
-      if (!prop.visible) continue;
-      model.position.y = 1.39 + (motion ? .14 * Math.sin(time * 2.1 + index) : 0);
-      model.rotation.y = motion ? time * .95 + index : index;
-      if (walking && distance < 1.31 ** 2) {
-        if (!pickup.near) {
-          owned.add(index);
-          select(index);
-          audio.play('pickup');
-          onPickup(index);
-        }
-        pickup.near = true;
-      } else pickup.near = false;
-    }
     for (const round of rounds) {
       if (!round.shot.visible) continue;
       const { shot, velocity, tool, ignore } = round;

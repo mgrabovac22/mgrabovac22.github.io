@@ -32,6 +32,12 @@ export function createPlayer(scene, world, audio, compact = false) {
   let stride = 0;
   let lastStep = 0;
   let landing = 0;
+  let equipped = false;
+  let shoulderWeight = 0;
+  let recoil = 0;
+  let paceWeight = 0;
+  let armSwing = 0;
+  let bodyBob = 0;
 
   function setActive(value) {
     if (value === active) return;
@@ -51,6 +57,7 @@ export function createPlayer(scene, world, audio, compact = false) {
     body.wakeUp();
     heading = yaw + Math.PI;
     jump = stride = lastStep = landing = 0;
+    recoil = paceWeight = armSwing = bodyBob = 0;
   }
 
   function step(input, yaw, dt) {
@@ -69,44 +76,56 @@ export function createPlayer(scene, world, audio, compact = false) {
     movement.set(Number(input.right) - Number(input.left) + (input.moveX ?? 0), 0,
       Number(input.reverse) - Number(input.forward) + (input.moveZ ?? 0));
     movement.clampLength(0, 1).applyAxisAngle(axis, yaw);
-    const speed = input.sprint ? 7.4 : 4.35;
+    const sprint = input.sprint ? 1 : input.sprintAmount ?? 0;
+    const speed = THREE.MathUtils.lerp(4.35, 7.4, sprint);
     velocity.x = THREE.MathUtils.damp(velocity.x, movement.x * speed, grounded ? 14 : 4, dt);
     velocity.z = THREE.MathUtils.damp(velocity.z, movement.z * speed, grounded ? 14 : 4, dt);
     const pace = Math.hypot(velocity.x, velocity.z);
     if (grounded && pace > .45) {
-      stride += pace * dt * 3.1;
+      stride += pace * dt * (3.4 - sprint * .57);
       const beat = Math.floor(stride / Math.PI);
       if (beat !== lastStep) audio.play('footstep');
       lastStep = beat;
     }
-    const swing = grounded ? Math.sin(stride) * Math.min(1, pace / 3) : .22;
-    const angle = yaw + Math.PI - heading;
-    heading += Math.atan2(Math.sin(angle), Math.cos(angle)) * (1 - Math.exp(-13 * dt));
+    paceWeight = THREE.MathUtils.damp(paceWeight, grounded ? Math.min(1, pace / 3) : 0, 12, dt);
+    const swing = Math.sin(stride) * paceWeight;
+    armSwing = swing * (.40 + sprint * .23);
+    const travelHeading = !equipped && pace > .55 ? Math.atan2(velocity.x, velocity.z) : yaw + Math.PI;
+    const angle = travelHeading - heading;
+    heading += Math.atan2(Math.sin(angle), Math.cos(angle)) * (1 - Math.exp(-11 * dt));
+    bodyBob = grounded ? Math.abs(swing) * (.022 + sprint * .030) : 0;
     parts[0].rotation.z = -movement.x * .036 + swing * .025;
-    parts[0].rotation.x = input.sprint && pace > 1 ? .097 : .025;
+    parts[0].rotation.x = THREE.MathUtils.damp(parts[0].rotation.x, .02 + paceWeight * (.03 + sprint * .12), 11, dt);
     for (const side of [0, 1]) {
       const sign = side ? -1 : 1;
       const leg = swing * sign;
-      parts[6 + side].rotation.x = grounded ? leg * .68 : sign * .23;
-      parts[8 + side].rotation.x = grounded ? Math.max(0, -leg) * .90 : .42 + sign * .09;
+      const thigh = grounded ? leg * (.67 + .18 * sprint) : sign * .23;
+      const knee = grounded ? Math.max(0, -leg) * (.89 + .19 * sprint) : .42 + sign * .09;
+      parts[6 + side].rotation.x = THREE.MathUtils.damp(parts[6 + side].rotation.x, thigh, 23, dt);
+      parts[8 + side].rotation.x = THREE.MathUtils.damp(parts[8 + side].rotation.x, knee, 25, dt);
     }
   }
 
-  function render(pitch) {
+  function render(pitch, dt = 0) {
     const position = body.interpolatedPosition;
-    view.position.set(position.x, position.y - .79, position.z);
+    view.position.set(position.x, position.y - .79 + bodyBob, position.z);
     view.rotation.y = heading;
-    parts[2].rotation.set(-1.11 - pitch * .54, .05, .36);
-    parts[3].rotation.set(-1.20 - pitch * .60, -.04, -.06);
-    parts[4].rotation.set(-.56 - pitch * .32, -.10, .36);
-    parts[5].rotation.set(-.48 - pitch * .33, 0, -.025);
-    parts[1].rotation.x = -pitch * .4;
+    shoulderWeight = THREE.MathUtils.damp(shoulderWeight, Number(equipped), 19, dt);
+    recoil = THREE.MathUtils.damp(recoil, 0, 17, dt);
+    const blend = (rest, aimed) => THREE.MathUtils.lerp(rest, aimed, shoulderWeight);
+    parts[2].rotation.set(blend(armSwing, -1.11 - pitch * .54), .05, blend(-.12, .36));
+    parts[3].rotation.set(blend(-armSwing, -1.20 - pitch * .60 - recoil), -.04, blend(.12, -.06));
+    parts[4].rotation.set(blend(-.17 - Math.abs(armSwing), -.56 - pitch * .32), -.10, blend(0, .36));
+    parts[5].rotation.set(blend(-.17 - Math.abs(armSwing), -.48 - pitch * .33), 0, -.025);
+    parts[1].rotation.x = blend(-.055 * paceWeight, -pitch * .4);
     target.setFromEuler(aim.set(pitch, heading + Math.PI, 0));
     held.quaternion.copy(grip.getWorldQuaternion(wrist).invert()).multiply(target);
   }
 
   return {
     body, held, place, setActive, step, render,
+    equip(value) { equipped = value; },
+    kick() { recoil = .105; },
     jump() { jump = .13; },
     muzzle(longBarrel = false) { return held.localToWorld(muzzle.set(0, .08, longBarrel ? -.73 : -.61)); },
   };

@@ -127,6 +127,8 @@ function head(skin, hair, style, detail) {
       const height = .208 - Math.abs(i) * .0032;
       pieces.push(ellipsoid(tint(hair, 1 + (i + 4) * .022), 0, 0, 0, .012, .021, .085)
         .rotateY(-.33).translate(i * .015, height, -.018));
+      if (i % 2 === 0) pieces.push(ellipsoid(tint(hair, .86), 0, 0, 0, .012, .040, .010)
+        .rotateZ(i * .052).translate(i * .014, .146, -.100 + Math.abs(i) * .004));
     }
   }
   return pieces;
@@ -157,11 +159,23 @@ function model(style, detail = false) {
           pieces.push(ellipsoid(tint(coat, 1.18), side * .094, .383, -.080, .054, .016, .021));
         }
       }
-      if (detail) pieces.push(ellipsoid(tint(coat, .91), 0, .365, -.108, .109, .079, .058));
+      if (detail) {
+        pieces.push(ellipsoid(tint(pants, .90), 0, -.080, .004, .145, .072, .094));
+        pieces.push(ellipsoid(tint(coat, .91), 0, .365, -.108, .109, .079, .058));
+        pieces.push(ellipsoid(tint(coat, .70), 0, .377, -.158, .056, .028, .008));
+        pieces.push(ellipsoid(tint(coat, 1.20), 0, .063, -.106, .051, .0045, .009));
+        pieces.push(ellipsoid(tint(coat, .69), 0, .068, .114, .008, .101, .009));
+        pieces.push(ellipsoid(0x8e9693, .006, .182, .125, .007, .018, .005));
+      }
     } else if (bone === 1) {
       pieces = head(skin, hair, style, detail);
     } else if (bone < 4) {
       pieces = [garment(coat, [[0, -.271], [.044, -.271], [.051, -.19], [.066, -.044], [.058, .018], [0, .025]], .93)];
+      if (detail) {
+        const side = bone === 2 ? -1 : 1;
+        pieces.push(ellipsoid(tint(coat, .84), side * .047, -.150, -.004, .012, .076, .040));
+        pieces.push(ellipsoid(0x8c9d8e, side * .062, -.064, .006, .008, .020, .024));
+      }
     } else if (bone < 6) {
       pieces = [
         garment(coat, [[0, -.219], [.032, -.219], [.043, -.13], [.05, -.01], [0, .02]], .88),
@@ -174,6 +188,7 @@ function model(style, detail = false) {
       }
     } else if (bone < 8) {
       pieces = [garment(pants, [[0, -.43], [.051, -.426], [.068, -.25], [.087, -.047], [.072, .04], [0, .051]], 1.06)];
+      if (detail) pieces.push(ellipsoid(tint(pants, 1.18), bone === 6 ? -.066 : .066, -.11, -.004, .011, .074, .059));
     } else {
       pieces = [
         garment(pants, [[0, -.373], [.041, -.371], [.058, -.224], [.064, -.041], [.05, .022], [0, .041]], 1.08),

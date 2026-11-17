@@ -40,6 +40,8 @@ const headlamp = new THREE.MeshStandardMaterial({ color: 0xe3eef0, emissive: 0x9
 const reverse = new THREE.MeshBasicMaterial({ color: 0xe1eddb });
 const braking = new THREE.MeshStandardMaterial({ color: 0xbc3440, emissive: 0x6e101e, emissiveIntensity: .8, roughness: .32, metalness: .14 });
 const accent = new THREE.MeshStandardMaterial({ color: 0xd4b06b, roughness: .37, metalness: .44 });
+const castSteel = new THREE.MeshStandardMaterial({ color: 0x606969, roughness: .76, metalness: .48, roughnessMap: brushed });
+const beltRubber = new THREE.MeshStandardMaterial({ color: 0x272b2b, roughness: .88, metalness: .10 });
 
 function paint(color) {
   return new THREE.MeshPhysicalMaterial({ color, clearcoat: .74, clearcoatRoughness: .19, metalness: .53, roughness: .29 });
@@ -72,7 +74,7 @@ function molding(parent, material, points, radius) {
 export function batchVehicleParts(group, castShadow = true) {
   const batches = new Map();
   for (const item of group.children) {
-    if (!item.isMesh || Array.isArray(item.material)) continue;
+    if (!item.isMesh || item.isInstancedMesh || Array.isArray(item.material)) continue;
     if (!batches.has(item.material)) batches.set(item.material, []);
     batches.get(item.material).push(item);
   }
@@ -143,6 +145,9 @@ function bike(body, color) {
   piece(body, headlamp, .29, .09, .054, 0, .43, -.858);
   piece(body, braking, .25, .057, .06, 0, .44, 1.21);
   piece(body, trim, .29, .075, .034, 0, .25, 1.29);
+  shell(body, color, [[-1.45, .099, .11, .135], [-1.32, .119, .24, .27], [-1.12, .119, .29, .33], [-.91, .099, .21, .24]],
+    ([, w, y, h]) => profile(w, y, h, .92));
+  piece(body, satin, .105, .066, .177, .016, .615, -.53);
   for (const side of [-1, 1]) {
     const x = side * .16;
     beam(body, satin, [x, -.10, -1.08], [x, .57, -.66], .077);
@@ -154,27 +159,80 @@ function bike(body, color) {
     beam(body, trim, [side * .25, .69, -.57], [side * .39, .71, -.57], .077);
     piece(body, lens, .14, .07, .083, side * .38, .84, -.61).rotation.y = side * .27;
     beam(body, satin, [side * .30, .70, -.56], [side * .38, .84, -.61], .021);
+    beam(body, satin, [side * .14, -.04, 1.09], [side * .19, .34, .61], .062);
+    beam(body, accent, [side * .15, .075, .96], [side * .18, .26, .72], .079);
+    beam(body, trim, [side * .23, -.14, .30], [side * .35, -.14, .30], .061);
     for (let fin = 0; fin < 5; fin++) piece(body, satin, .045, .016, .32, side * .24, fin * .042 - .022, .02);
   }
 }
 
+function makeTracks(body) {
+  const path = new THREE.Path();
+  path.moveTo(-1.44, .018);
+  path.lineTo(1.44, .018);
+  path.quadraticCurveTo(1.88, .018, 1.88, -.40);
+  path.quadraticCurveTo(1.88, -.83, 1.44, -.83);
+  path.lineTo(-1.44, -.83);
+  path.quadraticCurveTo(-1.88, -.83, -1.88, -.40);
+  path.quadraticCurveTo(-1.88, .018, -1.44, .018);
+  const count = 43;
+  const length = path.getLength();
+  const template = rounded.clone().scale(.39, .058, length / count * .88);
+  const pads = [-1, 1].map(side => {
+    const mesh = new THREE.InstancedMesh(template, beltRubber, count);
+    mesh.position.x = side * 1.055;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.castShadow = true;
+    body.add(mesh);
+    return mesh;
+  });
+  const pose = new THREE.Object3D();
+  const here = new THREE.Vector2();
+  const ahead = new THREE.Vector2();
+  let phase = 0;
+  function roll(distance) {
+    phase = (phase + distance / length) % 1;
+    for (let i = 0; i < count; i++) {
+      const spot = (i / count + phase + 1) % 1;
+      path.getPoint(spot, here);
+      path.getPoint((spot + .001) % 1, ahead);
+      pose.position.set(0, here.y, here.x);
+      pose.rotation.x = Math.atan2(here.y - ahead.y, ahead.x - here.x);
+      pose.updateMatrix();
+      for (const pad of pads) pad.setMatrixAt(i, pose.matrix);
+    }
+    for (const pad of pads) pad.instanceMatrix.needsUpdate = true;
+  }
+  roll(0);
+  return roll;
+}
+
 function serviceTank(body, color) {
-  const steel = paint(0x47647a);
+  const steel = paint(0x425a60);
   shell(body, color, [[-2.0, .90, -.43, .24], [-1.65, 1.11, -.41, .40], [-.62, 1.11, -.29, .53],
     [.87, 1.10, -.31, .50], [1.70, 1.08, -.34, .42], [1.98, .97, -.37, .33]], ([, w, y, h]) => profile(w, y, h, .93));
   for (const side of [-1, 1]) {
     const x = side * 1.04;
-    shell(body, trim, [[-1.86, .17, -.55, -.21], [-1.58, .22, -.79, .05], [1.56, .22, -.79, .05], [1.87, .17, -.54, -.24]],
-      ([, w, y, h]) => profile(w, y, h, .79).map(([px, py]) => [px + x, py]), 4);
-    piece(body, steel, .36, .20, 3.46, x, .118, 0);
-    for (let step = -7; step <= 7; step++) piece(body, hub, .036, .08, .169, x + side * .225, -.55, step * .22);
+    piece(body, steel, .38, .20, 3.47, x, .125, 0);
+    piece(body, trim, .14, .13, 3.02, x + side * .037, -.23, .04);
+    for (let wheel = -1; wheel <= 1; wheel++) {
+      const z = wheel * .70;
+      beam(body, castSteel, [x + side * .02, -.42, z], [x + side * .14, -.42, z], .65);
+      beam(body, hub, [x + side * .14, -.42, z], [x + side * .155, -.42, z], .35);
+      beam(body, castSteel, [x + side * .155, -.42, z], [x + side * .175, -.42, z], .19);
+    }
     for (let slat = 0; slat < 5; slat++) piece(body, trim, .21, .021, .047, side * .65, .455, 1.14 + slat * .103);
     piece(body, headlamp, .23, .108, .04, side * .67, .235, -1.992);
     piece(body, braking, .22, .084, .052, side * .78, .242, 1.988);
     piece(body, accent, .065, .036, 1.89, side * 1.17, .227, .09);
+    piece(body, castSteel, .39, .07, .45, side * .70, .442, 1.61);
+    for (const end of [-1, 1]) beam(body, castSteel,
+      [side * .69, .12, end * 1.87], [side * .69, .12, end * 2.10], .078);
     beam(body, satin, [side * .86, .30, .81], [side * .86, .30, 1.83], .037);
   }
   piece(body, satin, .29, .11, .065, 0, .065, 2.017);
+  for (let u = -4; u <= 4; u++) piece(body, trim, .10, .012, .29, u * .13, .465, 1.27);
+  const roll = makeTracks(body);
   const turret = new THREE.Group();
   turret.position.set(0, .55, .08);
   body.add(turret);
@@ -183,6 +241,12 @@ function serviceTank(body, color) {
     ([, w, y, h]) => profile(w, y, h, .85));
   piece(turret, lens, .55, .056, .36, -.16, .552, .22);
   piece(turret, hub, .29, .037, .29, .33, .549, .27, cylinder);
+  piece(turret, castSteel, .38, .048, .38, .33, .553, .27, pipe);
+  beam(turret, castSteel, [.25, .597, .26], [.40, .597, .26], .022);
+  for (const side of [-1, 1]) {
+    beam(turret, trim, [side * .37, .34, -.30], [side * .32, .21, -.59], .069);
+    molding(turret, hub, [[side * .32, .21, -.57], [side * .23, .12, -.34], [side * .17, .23, -.14]], .034);
+  }
   piece(turret, headlamp, .35, .063, .031, -.04, .40, -.642);
   beam(turret, trim, [.47, .35, .56], [.46, .98, .61], .021);
   const nozzle = new THREE.Group();
@@ -196,7 +260,7 @@ function serviceTank(body, color) {
   piece(nozzle, lens, .20, .028, .20, 0, 0, -1.741, cylinder).rotation.x = Math.PI / 2;
   batchVehicleParts(nozzle);
   batchVehicleParts(turret);
-  return { turret, nozzle };
+  return { turret, nozzle, roll };
 }
 
 function truck(body, p, color, monster) {
@@ -207,9 +271,16 @@ function truck(body, p, color, monster) {
   }));
   const sections = [
     [-p.depth, .83, .36], [-1.85, .96, .39], [-1.55, 1.015, .46], [-1.19, 1, .52], [-.92, .94, .55],
-    [-.43, .91, .55], [.48, .92, .54], [1.17, 1.0, .50], [1.55, 1.03, .48], [1.90, .98, .44], [p.depth, .90, .39],
+    [-.43, .91, .55], [.48, .92, .54], [.86, .96, .52], [1.17, 1.0, .50], [1.55, 1.03, .48],
+    [1.75, 1.00, .46], [1.90, .98, .44], [p.depth, .90, .39],
   ];
-  shell(body, color, sections, ([z, width, top]) => profile(w * width, arch(z), top, .77));
+  shell(body, color, sections, ([z, width, top]) => {
+    const contour = profile(w * width, arch(z), top, .77);
+    if (!monster) return contour;
+    const dip = .22 * THREE.MathUtils.smoothstep(z, .64, .89) * (1 - THREE.MathUtils.smoothstep(z, 1.71, 1.96));
+    return [...contour.slice(0, 5), [w * width * .63, top - dip],
+      [0, top - dip + .015], [-w * width * .63, top - dip], ...contour.slice(6)];
+  });
   const roofEnd = monster ? .71 : 1.53;
   const cabin = [
     [-1.19, .76, .49, .56], [-.86, .86, .52, .71], [-.49, .77, .53, 1.12],
@@ -243,6 +314,9 @@ function truck(body, p, color, monster) {
       piece(body, satin, .025, .022, .135, x * .94, .424, z);
     }
     piece(body, trim, .10, .091, 1.58, x * .94, -.207, .03);
+    molding(body, trim, [[x * .84, .311, -1.18], [x * .891, .368, -.71],
+      [x * .920, .396, .21], [x * .930, .367, 1.08], [x * .901, .318, 1.68]], .013);
+    if (!monster) piece(body, color, .145, .25, 1.67, x * .84, -.12, .01);
     beam(body, satin, [x * .58, 1.22, -.27], [x * .58, 1.21, roofEnd - .21], .057);
     for (const axle of [-p.length, p.length]) {
       const length = monster ? .62 : .54;
@@ -254,10 +328,13 @@ function truck(body, p, color, monster) {
       piece(body, trim, .059, .098, 1.16, x * .828, .49, 1.29);
       beam(body, hub, [x * .57, .50, .66], [x * .50, .97, .91], .084);
       beam(body, hub, [x * .50, .97, .91], [x * .62, .56, 1.52], .084);
+      for (const axle of [-p.length, p.length]) {
+        beam(body, castSteel, [x * .65, .01, axle - .06], [x * 1.18, -.51, axle + .20], .096);
+        beam(body, accent, [x * .68, -.06, axle -.025], [x * 1.13, -.44, axle + .14], .143);
+      }
     }
   }
-  if (monster) piece(body, trim, 1.47, .038, 1.21, 0, .444, 1.31);
-  else {
+  if (!monster) {
     piece(body, braking, .33, .028, .028, 0, 1.105, roofEnd + .021);
     piece(body, color, w * 1.40, .15, .072, 0, .575, roofEnd + .021);
     piece(body, trim, .45, .024, .025, .10, .679, roofEnd + .035).rotation.z = .09;

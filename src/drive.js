@@ -11,7 +11,7 @@ import { crateProfileUrl, crateServices, createCrateCountdown } from './drive-cr
 import { createUtilityVehicle, tankBay, vehicleTypes } from './drive-vehicle.js';
 import { createPlayer } from './drive-player.js';
 import { createDriveAudio } from './drive-audio.js';
-import { createToolKit, tools } from './drive-tools.js';
+import { createShotTrigger, createToolKit, tools } from './drive-tools.js';
 
 const language = new URLSearchParams(location.search).get('lang') === 'hr' ? 'hr' : 'en';
 const content = loadPortfolio(language).then(data => ({ data, pages: createStory(data) })).catch(() => null);
@@ -41,14 +41,17 @@ const vehicleSelect = find('#drive-vehicle');
 const toolHud = find('#tool-hud');
 const toolToggle = find('#tool-toggle');
 const toolWheel = find('#tool-wheel');
+const toolSlotsHost = find('#tool-slots');
+const holsterButton = find('#holster');
+const closeInventory = find('#close-inventory');
 const modTouch = find('#vehicle-touch');
-const extraControls = find('#touch-extras');
-const moreControls = find('#touch-more');
+const footTouch = find('#foot-touch');
 const walkStick = find('#walk-stick');
+const lookStick = find('#look-stick');
+const jumpButton = find('#touch-jump');
 const fireButton = find('#touch-fire');
-const sprintButton = find('#touch-sprint');
-const touchTools = find('#touch-tools');
 const aim = find('#aim');
+const tankHud = find('#tank-hud');
 const vehiclePrompt = find('#vehicle-prompt');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(any-pointer: coarse)');
@@ -169,8 +172,9 @@ function fail(message) {
   settingsButton.disabled = true;
   touch.hidden = true;
   modTouch.hidden = true;
-  walkStick.hidden = true;
+  footTouch.hidden = fireButton.hidden = true;
   aim.hidden = true;
+  tankHud.hidden = true;
   toolHud.hidden = true;
   vehiclePrompt.hidden = true;
 }
@@ -248,10 +252,9 @@ async function boot() {
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
   const sport = createCar(scene, world);
-  const tank = createUtilityVehicle(scene, world, 'tank');
-  tank.setPose(tankBay.x, tank.stance, tankBay.z, tankBay.yaw);
-  const fleet = new Map([['sport', sport], ['tank', tank]]);
-  const spawned = new Set([sport, tank]);
+  let tank = null;
+  const fleet = new Map([['sport', sport]]);
+  const spawned = new Set([sport]);
   const city = createCity(scene, world, compact, renderer.capabilities.getMaxAnisotropy(), profileParks);
   const stories = createSkyStories(scene, world, pages);
   const effects = makeEffects(scene);
@@ -261,15 +264,17 @@ async function boot() {
   const keys = new Set();
   const pointers = new Map();
   const input = {};
-  const stick = { pointer: null, x: 0, z: 0, centerX: 0, centerY: 0, radius: 1 };
+  const walk = { pointer: null, x: 0, y: 0 };
+  const look = { pointer: null, x: 0, y: 0 };
+  const trigger = createShotTrigger();
   let car = sport;
   let position = car.chassis.position;
   let walking = false;
   let lookYaw = 0;
   let lookPitch = -.05;
-  let firing = false;
   let exitRequested = false;
   let aimPointer = null;
+  let mouseLook = null;
   let selectedKind = 'sport';
   let nearbyCar = null;
   const cameraGoal = new THREE.Vector3();
@@ -282,25 +287,30 @@ async function boot() {
   const staticRayStart = new Vec3();
   const staticRayEnd = new Vec3();
   const still = new Vec3();
-  let activeTool = 0;
-  const toolSlots = tools.map(({ id }, index) => {
+  let activeTool = -1;
+  const toolSlots = tools.map(({ id, color }, index) => {
     const button = document.createElement('button');
-    const angle = index / tools.length * Math.PI * 2;
     button.type = 'button';
-    button.style.setProperty('--x', (50 + Math.sin(angle) * 30) + '%');
-    button.style.setProperty('--y', (50 - Math.cos(angle) * 33) + '%');
-    button.textContent = (index + 1) + ' · ' + label(id, id);
-    toolWheel.append(button);
+    button.style.setProperty('--tool-color', '#' + color.toString(16));
+    button.setAttribute('aria-pressed', 'false');
+    const slot = document.createElement('span');
+    slot.textContent = String(index + 1);
+    slot.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span');
+    name.textContent = label(id, id);
+    button.append(slot, name);
+    toolSlotsHost.append(button);
     return button;
   });
-  const kit = createToolKit(scene, world, city, player.held, audio, compact, (index, owned) => {
+  const kit = createToolKit(scene, world, city, player.held, audio, compact, index => {
     activeTool = index;
+    trigger.clear();
+    player.equip(index >= 0);
     for (const [slot, button] of toolSlots.entries()) {
-      button.disabled = !owned.has(slot);
       button.setAttribute('aria-pressed', String(slot === index));
     }
     showTool();
-  }, index => announce(label('pickup', '{tool} equipped').replace('{tool}', label(tools[index].id, tools[index].id))));
+  });
   let yaw = 0;
   let cameraYaw = 0;
   let cameraClearance = 1;
@@ -326,45 +336,47 @@ async function boot() {
 
   function showTool() {
     const equipped = tools[activeTool];
-    const tankMode = !walking && car === tank;
-    find('#tool-number').textContent = tankMode ? '◎' : String(activeTool + 1);
-    find('#tool-name').textContent = tankMode ? label('tank', 'Water Cannon') : label(equipped.id, equipped.id);
-    toolToggle.disabled = tankMode;
+    const armed = Boolean(walking && equipped || car === tank);
+    find('#tool-name').textContent = equipped ? label(equipped.id, equipped.id) : '';
+    holsterButton.disabled = activeTool < 0;
+    aim.hidden = !started || !armed;
+    const touchMode = game.hasAttribute('data-touch');
+    fireButton.hidden = !touchMode || !armed;
   }
   function openWheel(open, focusSlot = false) {
     if (open && !walking) return;
     toolWheel.hidden = !open;
+    game.toggleAttribute('data-inventory', open);
     toolToggle.setAttribute('aria-expanded', String(open));
     if (open) {
       releaseLook();
-      if (focusSlot) toolSlots[activeTool].focus({ preventScroll: true });
+      resetStick(walkStick, walk);
+      resetStick(lookStick, look);
+      if (focusSlot) toolSlots[Math.max(0, activeTool)].focus({ preventScroll: true });
     }
   }
   function releaseLook() {
-    firing = false;
+    trigger.clear();
     aimPointer = null;
+    mouseLook = null;
     if (document.pointerLockElement === renderer.domElement) document.exitPointerLock();
   }
   function updateFleet() {
+    if (!tank && Math.hypot(tankBay.x - position.x, tankBay.z - position.z) < 60) {
+      tank = getVehicle('tank');
+      tank.setPose(tankBay.x, tank.stance, tankBay.z, tankBay.yaw);
+      spawned.add(tank);
+    }
     for (const vehicle of fleet.values()) {
       const p = vehicle.chassis.position;
       vehicle.setActive(spawned.has(vehicle) && (vehicle === car && !walking || Math.hypot(p.x - position.x, p.z - position.z) < 52));
     }
   }
   function updateMode() {
-    const aiming = walking || car === tank;
     game.toggleAttribute('data-walking', walking);
-    aim.hidden = toolHud.hidden = !started || !aiming;
-    fireButton.hidden = !aiming;
-    sprintButton.hidden = !walking;
-    touchTools.hidden = !walking;
-    find('[data-input=brake]').textContent = walking ? '⬆' : '■';
-    find('[data-input=brake]').setAttribute('aria-label', walking ? label('jump', 'Jump') : t.brake);
-    find('[data-input=forward]').setAttribute('aria-label', walking ? label('walkForward', 'Walk forward') : t.forward);
-    find('[data-input=reverse]').setAttribute('aria-label', walking ? label('walkBack', 'Walk backwards') : t.reverse);
+    toolHud.hidden = !started || !walking;
+    tankHud.hidden = !started || walking || car !== tank;
     if (!walking) openWheel(false);
-    toggleExtras(false);
-    showTool();
     showTouch();
   }
   function getNearbyCar() {
@@ -384,7 +396,8 @@ async function boot() {
     vehiclePrompt.hidden = !nearbyCar;
     if (nearbyCar) {
       const name = label(nearbyCar.kind, nearbyCar.kind);
-      const hint = touch.hidden ? 'F · ' + label('enter', 'Enter {vehicle}') : label('enter', 'Enter {vehicle}');
+      const entry = label('enter', 'Enter {vehicle}');
+      const hint = game.hasAttribute('data-touch') ? entry : 'F · ' + entry;
       const next = hint.replace('{vehicle}', name);
       if (vehiclePrompt.textContent !== next) vehiclePrompt.textContent = next;
     }
@@ -435,6 +448,7 @@ async function boot() {
     tippedFor = 0;
     clearInput();
     releaseLook();
+    kit.select(-1);
     updateMode();
     updatePrompt();
     if (car !== tank) vehicleSelect.value = selectedKind = car.kind;
@@ -490,7 +504,7 @@ async function boot() {
       const occupied = vehicle === car && !walking;
       vehicle.render(dt, occupied && started && !reduced.matches, occupied);
     }
-    if (walking) player.render(lookPitch);
+    if (walking) player.render(lookPitch, dt);
     const aimed = walking || car === tank;
     const visual = walking ? player.body.interpolatedPosition : car.viewPosition;
     if (walking) yaw = lookYaw;
@@ -596,9 +610,11 @@ async function boot() {
   function clearInput() {
     keys.clear();
     pointers.clear();
-    firing = false;
+    trigger.clear();
     aimPointer = null;
-    centerStick();
+    mouseLook = null;
+    resetStick(walkStick, walk);
+    resetStick(lookStick, look);
   }
   function recovery(dt) {
     const altitude = position.y - car.stance;
@@ -623,7 +639,7 @@ async function boot() {
     }
   }
   function shoot() {
-    if (walking) {
+    if (walking && activeTool >= 0) {
       camera.getWorldDirection(shotDirection);
       shotPoint.copy(camera.position).addScaledVector(shotDirection, 26);
       let closest = 26;
@@ -635,11 +651,14 @@ async function boot() {
         });
       const muzzle = player.muzzle(tools[activeTool].id === 'firework');
       shotDirection.subVectors(shotPoint, muzzle).normalize();
-      kit.fire(muzzle, shotDirection, player.body);
+      const fired = kit.fire(muzzle, shotDirection, player.body);
+      if (fired) player.kick();
+      return fired;
     } else if (car === tank) {
       const { muzzle, direction } = tank.shot();
-      kit.fire(muzzle, direction, tank.chassis, true);
+      return kit.fire(muzzle, direction, tank.chassis, true);
     }
+    return false;
   }
   function tick(now) {
     frame = 0;
@@ -665,8 +684,9 @@ async function boot() {
     updateFleet();
     for (const action of controls.values()) input[action] = false;
     input.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
-    input.moveX = stick.x;
-    input.moveZ = stick.z;
+    input.moveX = walk.x;
+    input.moveZ = walk.y;
+    input.sprintAmount = THREE.MathUtils.smoothstep(Math.hypot(walk.x, walk.y), .68, .97);
     for (const code of keys) if (controls.has(code)) input[controls.get(code)] = true;
     for (const action of pointers.values()) input[action] = true;
     if (exitRequested) input.brake = true;
@@ -675,15 +695,19 @@ async function boot() {
       if (vehicle === car && !walking) vehicle.drive(input, dt);
       else vehicle.drive(parkedInput, dt);
     }
-    if (walking) player.step(input, lookYaw, dt);
+    if (walking) {
+      lookYaw -= look.x * dt * 2.65;
+      lookPitch = THREE.MathUtils.clamp(lookPitch - look.y * dt * 1.65, -.82, .70);
+      player.step(input, lookYaw, dt);
+    }
     world.step(1 / 60, dt, 4);
     if (!walking) {
       recovery(dt);
       if (exitRequested && speed < 4 && position.y < car.stance + .7) exitVehicle();
     } else if (position.y < -3) player.place(position.x, 1.04, position.z, lookYaw);
     city.update(time, position, !reduced.matches, dt, speed);
-    if (firing && toolWheel.hidden) shoot();
-    kit.update(dt, time, position, walking, !reduced.matches);
+    if (canFire()) trigger.update(shoot);
+    kit.update(dt);
     city.process(time, ({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
       if (earned) {
         coins += earned;
@@ -729,34 +753,35 @@ async function boot() {
     if (!stopped) wake();
   }
   function showTouch() {
-    touch.hidden = !started || !(coarse.matches || view.clientWidth < 640) || graphicsLost;
-    modTouch.hidden = touch.hidden;
-    walkStick.hidden = touch.hidden || !walking;
-    if (walkStick.hidden) centerStick();
-    if (touch.hidden) toggleExtras(false);
+    const touchMode = started && !graphicsLost && (coarse.matches || view.clientWidth < 640);
+    game.toggleAttribute('data-touch', touchMode);
+    touch.hidden = !touchMode || walking;
+    modTouch.hidden = !touchMode;
+    footTouch.hidden = !touchMode || !walking;
+    if (footTouch.hidden) {
+      resetStick(walkStick, walk);
+      resetStick(lookStick, look);
+    }
+    showTool();
   }
-  function toggleExtras(open) {
-    extraControls.hidden = !open;
-    moreControls.setAttribute('aria-expanded', String(open));
-    if (!open) firing = false;
-  }
-  function centerStick() {
+  function resetStick(element, stick) {
     if (stick.pointer === null) return;
     stick.pointer = null;
-    stick.x = stick.z = 0;
-    walkStick.style.removeProperty('--stick-x');
-    walkStick.style.removeProperty('--stick-y');
+    stick.x = stick.y = 0;
+    element.style.removeProperty('--stick-x');
+    element.style.removeProperty('--stick-y');
   }
-  function steerOnFoot(event) {
+  function readStick(event, element, stick) {
     const dx = (event.clientX - stick.centerX) / stick.radius;
-    const dz = (event.clientY - stick.centerY) / stick.radius;
-    const length = Math.hypot(dx, dz);
-    const amount = THREE.MathUtils.smoothstep(length, .12, 1);
+    const dy = (event.clientY - stick.centerY) / stick.radius;
+    const length = Math.hypot(dx, dy);
+    const amount = THREE.MathUtils.smoothstep(length, .14, 1);
     const scale = length > 0 ? amount / length : 0;
     stick.x = dx * scale;
-    stick.z = dz * scale;
-    walkStick.style.setProperty('--stick-x', stick.x * stick.radius + 'px');
-    walkStick.style.setProperty('--stick-y', stick.z * stick.radius + 'px');
+    stick.y = dy * scale;
+    stick.moved ||= Math.hypot(event.clientX - stick.startX, event.clientY - stick.startY) > 9;
+    element.style.setProperty('--stick-x', stick.x * stick.radius + 'px');
+    element.style.setProperty('--stick-y', stick.y * stick.radius + 'px');
   }
   function healSigns() {
     const restored = stories.heal(stopped || reduced.matches);
@@ -807,15 +832,16 @@ async function boot() {
   soundToggle.addEventListener('change', () => { syncAudio(); audio.play('click'); });
   volume.addEventListener('input', syncAudio);
   settingsButton.setAttribute('aria-label', label('settings', 'Settings'));
-  toolWheel.setAttribute('aria-label', label('wheel', 'Tool wheel'));
+  toolWheel.setAttribute('aria-label', label('inventory', 'Inventory'));
+  closeInventory.setAttribute('aria-label', label('inventoryClose', 'Close inventory'));
   find('#touch-interact').setAttribute('aria-label', label('enterExit', 'Enter or exit vehicle'));
   fireButton.setAttribute('aria-label', label('fire', 'Fire'));
-  moreControls.setAttribute('aria-label', label('moreControls', 'More controls'));
+  jumpButton.setAttribute('aria-label', label('jump', 'Jump'));
+  lookStick.setAttribute('aria-label', label('lookStick', 'Aim or tap to fire'));
   settingsButton.addEventListener('click', () => {
     audio.unlock();
     audio.play('click');
     openWheel(false);
-    toggleExtras(false);
     setPaused(true);
     settings.showModal();
   });
@@ -827,12 +853,20 @@ async function boot() {
     audio.play('click');
   });
   toolToggle.addEventListener('click', () => openWheel(toolWheel.hidden, true));
+  function dismissInventory() {
+    openWheel(false);
+    toolToggle.focus({ preventScroll: true });
+  }
+  closeInventory.addEventListener('click', dismissInventory);
+  holsterButton.addEventListener('click', () => {
+    kit.select(-1);
+    dismissInventory();
+  });
   for (const [index, button] of toolSlots.entries()) {
     button.addEventListener('click', () => {
       if (!kit.select(index)) return;
-      openWheel(false);
+      dismissInventory();
       audio.play('click');
-      toolToggle.focus({ preventScroll: true });
     });
   }
   coarse.addEventListener('change', showTouch);
@@ -853,54 +887,83 @@ async function boot() {
   healButton.addEventListener('click', () => { audio.play('click'); healSigns(); });
   readButton.addEventListener('click', () => { audio.play('click'); openWheel(false); readEntry(); });
   find('#touch-interact').addEventListener('click', interact);
-  moreControls.addEventListener('click', () => {
-    openWheel(false);
-    toggleExtras(extraControls.hidden);
-  });
-  touchTools.addEventListener('click', () => {
-    toggleExtras(false);
-    openWheel(true, true);
-  });
-  find('#touch-settings').addEventListener('click', () => settingsButton.click());
-  walkStick.addEventListener('pointerdown', event => {
-    if (!walking || stopped || stick.pointer !== null || event.button !== 0) return;
-    event.preventDefault();
-    const bounds = walkStick.getBoundingClientRect();
-    stick.pointer = event.pointerId;
-    stick.centerX = bounds.left + bounds.width / 2;
-    stick.centerY = bounds.top + bounds.height / 2;
-    stick.radius = bounds.width * .32;
-    walkStick.setPointerCapture(event.pointerId);
-    steerOnFoot(event);
-  });
-  walkStick.addEventListener('pointermove', event => { if (event.pointerId === stick.pointer) steerOnFoot(event); });
-  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-    walkStick.addEventListener(name, event => { if (event.pointerId === stick.pointer) centerStick(); });
+  jumpButton.addEventListener('click', () => { if (walking && !stopped) player.jump(); });
+  function bindStick(element, stick, onTap) {
+    element.addEventListener('pointerdown', event => {
+      if (!walking || stopped || !toolWheel.hidden || stick.pointer !== null || event.button !== 0) return;
+      event.preventDefault();
+      const bounds = element.getBoundingClientRect();
+      stick.pointer = event.pointerId;
+      stick.centerX = bounds.left + bounds.width / 2;
+      stick.centerY = bounds.top + bounds.height / 2;
+      stick.startX = event.clientX;
+      stick.startY = event.clientY;
+      stick.moved = false;
+      stick.radius = bounds.width * .32;
+      element.setPointerCapture(event.pointerId);
+      if (!onTap) readStick(event, element, stick);
+    });
+    element.addEventListener('pointermove', event => { if (event.pointerId === stick.pointer) readStick(event, element, stick); });
+    for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      element.addEventListener(name, event => {
+        if (event.pointerId !== stick.pointer) return;
+        if (name === 'pointerup' && !stick.moved) onTap?.();
+        resetStick(element, stick);
+      });
+    }
   }
-  const aimed = () => started && !stopped && !graphicsLost && (walking || car === tank) && toolWheel.hidden;
+  bindStick(walkStick, walk);
+  bindStick(lookStick, look, tapFire);
+  lookStick.addEventListener('click', event => { if (event.detail === 0) tapFire(); });
+  const canAim = () => started && !stopped && !graphicsLost && (walking || car === tank) && toolWheel.hidden;
+  const canFire = () => canAim() && (car === tank || activeTool >= 0);
+  function tapFire() {
+    if (canFire()) trigger.tap();
+  }
   function turnLook(dx, dy) {
     lookYaw -= dx * .0034;
     lookPitch = THREE.MathUtils.clamp(lookPitch - dy * .00325, -.82, .70);
   }
-  view.addEventListener('pointerdown', event => {
-    if (!aimed() || event.button !== 0) return;
-    aimPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
-    view.setPointerCapture(event.pointerId);
+  const mouse = Symbol('mouse');
+  window.addEventListener('mousedown', event => {
+    if (!canAim() || event.button !== 0) return;
+    const locked = document.pointerLockElement === renderer.domElement;
+    if (!locked && !view.contains(event.target)) return;
+    event.preventDefault();
     game.focus({ preventScroll: true });
-    if (event.pointerType !== 'mouse') return;
-    firing = true;
-    if (document.pointerLockElement === renderer.domElement) return;
+    if (canFire()) trigger.press(mouse);
+    if (locked) return;
+    mouseLook = { x: event.clientX, y: event.clientY };
     try {
       const lock = renderer.domElement.requestPointerLock?.();
       lock?.catch(() => {});
     } catch {
       // Drag aiming still works when pointer lock is not available.
     }
+  }, { capture: true });
+  window.addEventListener('mouseup', event => {
+    if (event.button !== 0) return;
+    trigger.release(mouse);
+    mouseLook = null;
+  }, { capture: true });
+  document.addEventListener('mousemove', event => {
+    if (!canAim()) return;
+    if (document.pointerLockElement === renderer.domElement) turnLook(event.movementX, event.movementY);
+    else if (mouseLook) {
+      turnLook(event.clientX - mouseLook.x, event.clientY - mouseLook.y);
+      mouseLook.x = event.clientX;
+      mouseLook.y = event.clientY;
+    }
+  });
+  view.addEventListener('pointerdown', event => {
+    if (!canAim() || event.pointerType === 'mouse') return;
+    event.preventDefault();
+    if (walking || aimPointer) return;
+    aimPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    view.setPointerCapture(event.pointerId);
   });
   document.addEventListener('pointermove', event => {
-    if (!aimed()) return;
-    if (document.pointerLockElement === renderer.domElement) turnLook(event.movementX, event.movementY);
-    else if (aimPointer?.id === event.pointerId) {
+    if (canAim() && aimPointer?.id === event.pointerId) {
       turnLook(event.clientX - aimPointer.x, event.clientY - aimPointer.y);
       aimPointer.x = event.clientX;
       aimPointer.y = event.clientY;
@@ -908,11 +971,15 @@ async function boot() {
   });
   function stopPointer(event) {
     if (aimPointer?.id === event.pointerId) aimPointer = null;
-    if (event.pointerType === 'mouse') firing = false;
   }
   document.addEventListener('pointerup', stopPointer);
   document.addEventListener('pointercancel', stopPointer);
-  document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) firing = false; });
+  document.addEventListener('pointerlockchange', () => {
+    if (!document.pointerLockElement) {
+      trigger.release(mouse);
+      mouseLook = null;
+    }
+  });
   let lastScroll = -Infinity;
   game.addEventListener('wheel', event => {
     if (!walking || stopped || !event.deltaY || event.target.closest('dialog')) return;
@@ -922,16 +989,15 @@ async function boot() {
     kit.cycle(Math.sign(event.deltaY));
   }, { passive: false });
   fireButton.addEventListener('pointerdown', event => {
-    if (!aimed() || event.button !== 0) return;
+    if (!canFire() || event.button !== 0) return;
     event.preventDefault();
     fireButton.setPointerCapture(event.pointerId);
-    firing = true;
-    shoot();
+    trigger.press(event.pointerId);
   });
-  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) {
-    fireButton.addEventListener(name, () => { firing = false; });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    fireButton.addEventListener(name, event => trigger.release(event.pointerId));
   }
-  fireButton.addEventListener('click', event => { if (event.detail === 0 && aimed()) shoot(); });
+  fireButton.addEventListener('click', event => { if (event.detail === 0) tapFire(); });
   window.addEventListener('keydown', event => {
     if (!started || stopped || graphicsLost || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.code === 'Tab' && walking && !event.shiftKey && toolWheel.hidden && document.activeElement === game) {
@@ -940,8 +1006,7 @@ async function boot() {
       return;
     }
     if (event.code === 'Escape' && !toolWheel.hidden) {
-      openWheel(false);
-      toolToggle.focus({ preventScroll: true });
+      dismissInventory();
       return;
     }
     if (!event.repeat && event.code === 'KeyF') {
@@ -985,7 +1050,6 @@ async function boot() {
       if (stopped || event.button !== 0) return;
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
-      if (walking && button.dataset.input === 'brake') player.jump();
       pointers.set(event.pointerId, button.dataset.input);
     });
     for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
@@ -994,7 +1058,6 @@ async function boot() {
     button.addEventListener('keydown', event => {
       if (stopped || (event.code !== 'Space' && event.code !== 'Enter')) return;
       event.preventDefault();
-      if (walking && button.dataset.input === 'brake' && !event.repeat) player.jump();
       pointers.set(keyboard, button.dataset.input);
     });
     button.addEventListener('keyup', event => {

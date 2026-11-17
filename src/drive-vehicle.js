@@ -3,7 +3,7 @@ import { Body, Box, RaycastVehicle, Vec3 } from 'cannon-es';
 import { createPerson } from './drive-people.js';
 import { buildUtilityBody, buildWheel } from './drive-vehicle-art.js';
 
-export const tankBay = { x: -4.04, z: -12.25, yaw: -.09 };
+export const tankBay = { x: -4.04, z: -276.25, yaw: -.09 };
 export const vehicleTypes = ['sport', 'jeep', 'monster', 'bike'];
 
 const presets = {
@@ -24,7 +24,7 @@ export function createUtilityVehicle(scene, world, kind) {
   const equipment = buildUtilityBody(body, kind, p);
   let rider;
   if (bike) {
-    const { view, parts } = createPerson(body, 4);
+    const { view, parts } = createPerson(body, 5, true);
     rider = view;
     rider.scale.setScalar(.84);
     rider.rotation.y = Math.PI;
@@ -141,6 +141,11 @@ export function createUtilityVehicle(scene, world, kind) {
     if (!active) return;
     body.position.copy(chassis.interpolatedPosition);
     body.quaternion.copy(chassis.interpolatedQuaternion);
+    if (equipment && dt > 0) {
+      chassis.quaternion.vmult(forward, facing);
+      const distance = -chassis.velocity.dot(facing) * dt;
+      if (Math.abs(distance) > .0007) equipment.roll(distance);
+    }
     if (recovery) {
       recovery.elapsed += dt;
       const progress = THREE.MathUtils.smoothstep(recovery.elapsed, 0, .67);

@@ -44,30 +44,6 @@
         <option value="monster" data-game-copy="monster">Monster Truck</option>
         <option value="bike" data-game-copy="bike">Motorbike</option>
       </select></label>
-    </dialog>
-    <div id="aim" aria-hidden="true" hidden></div>
-    <p id="vehicle-prompt" hidden aria-live="polite"></p>
-    <div class="tool-hud" id="tool-hud" hidden>
-      <button type="button" aria-expanded="false" aria-controls="tool-wheel" id="tool-toggle"><span id="tool-number" aria-hidden="true"></span><span id="tool-name">Water Gun</span></button>
-      <div id="tool-wheel" class="tool-wheel" role="group" aria-label="Tool wheel" hidden></div>
-    </div>
-    <div class="vehicle-touch" id="vehicle-touch" hidden>
-      <button type="button" id="touch-interact" aria-label="Enter or exit vehicle">↔</button>
-      <button type="button" id="touch-more" aria-controls="touch-extras" aria-expanded="false" aria-label="More controls">⋯</button>
-      <div id="touch-extras" class="touch-extras" hidden>
-        <button type="button" id="touch-fire" data-game-copy="fire" hidden>Fire</button>
-        <button type="button" id="touch-sprint" data-input="sprint" data-game-copy="sprint" hidden>Sprint</button>
-        <button type="button" id="touch-tools" data-game-copy="wheel" hidden>Tool wheel</button>
-        <button type="button" id="touch-settings" data-game-copy="settings">Settings</button>
-      </div>
-    </div>
-    <div id="walk-stick" class="walk-stick" aria-hidden="true" hidden><span></span></div>
-    <p id="notice" role="status" aria-live="polite"></p>
-    <div class="crate-redirect" id="crate-redirect" hidden>
-      <p role="status" aria-live="polite"></p>
-      <button type="button"></button>
-    </div>
-    <div class="bottom">
       <details class="controls">
         <summary data-copy="controls">Controls</summary>
         <div class="key-guide">
@@ -76,10 +52,40 @@
           <p><kbd>H</kbd> <span data-copy="heal">Restore text</span></p>
           <p><kbd>F</kbd> <span data-game-copy="enterExit">Enter or exit vehicle</span></p>
           <p><kbd>Shift</kbd> <span data-game-copy="sprint">Sprint</span> <kbd>Space</kbd> <span data-game-copy="jump">Jump</span></p>
-          <p><kbd>1–5</kbd> <span data-game-copy="switchTool">Switch tools (or scroll)</span></p>
-          <p><span data-game-copy="aimControls">Click to aim and fire. Tab opens the tool wheel.</span></p>
+          <p><kbd>1–5</kbd> <span data-game-copy="switchTool">Select a tool (or scroll)</span></p>
+          <p data-game-copy="aimControls">Click to aim and fire. Tab opens the inventory.</p>
+          <p data-game-copy="touchControls">Drag the left stick fully to sprint. Drag the right stick to aim or tap it to fire.</p>
         </div>
       </details>
+    </dialog>
+    <div id="aim" aria-hidden="true" hidden></div>
+    <p id="tank-hud" data-game-copy="tank" hidden>Water Cannon Tank</p>
+    <p id="vehicle-prompt" hidden aria-live="polite"></p>
+    <div class="tool-hud" id="tool-hud" hidden>
+      <button type="button" aria-expanded="false" aria-controls="tool-wheel" id="tool-toggle"><span data-game-copy="inventory">Inventory</span><span id="tool-name"></span></button>
+      <div id="tool-wheel" class="tool-wheel" role="group" aria-label="Inventory" hidden>
+        <div class="tool-wheel-heading">
+          <span data-game-copy="inventory">Inventory</span>
+          <div><button type="button" id="holster" data-game-copy="holster">Put away</button><button type="button" id="close-inventory" aria-label="Close inventory">×</button></div>
+        </div>
+        <div id="tool-slots"></div>
+      </div>
+    </div>
+    <div class="vehicle-touch" id="vehicle-touch" hidden>
+      <button type="button" id="touch-interact" aria-label="Enter or exit vehicle">↔</button>
+    </div>
+    <div id="foot-touch" class="foot-touch" hidden>
+      <button type="button" id="touch-jump" aria-label="Jump">↑</button>
+      <div id="walk-stick" class="touch-stick" aria-hidden="true"><span></span></div>
+      <button type="button" id="look-stick" class="touch-stick" aria-label="Aim or tap to fire"><span aria-hidden="true"></span></button>
+    </div>
+    <button type="button" id="touch-fire" class="touch-fire" aria-label="Fire" hidden>◎</button>
+    <p id="notice" role="status" aria-live="polite"></p>
+    <div class="crate-redirect" id="crate-redirect" hidden>
+      <p role="status" aria-live="polite"></p>
+      <button type="button"></button>
+    </div>
+    <div class="bottom">
       <div class="speed" role="group" aria-label="Speed"><b id="speed">000</b><span>KM/H</span></div>
     </div>
     <div class="touch" hidden>
