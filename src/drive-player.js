@@ -6,21 +6,26 @@ const up = new Vec3(0, 1, 0);
 const axis = new THREE.Vector3(0, 1, 0);
 export const playerCollisionGroup = 64;
 
-export function createPlayer(scene, world, audio) {
-  const { view, parts } = createPerson(scene, 4);
+export function createPlayer(scene, world, audio, compact = false) {
+  const { view, parts } = createPerson(scene, 5, true);
   const shoes = new Material('player shoes');
   world.addContactMaterial(new ContactMaterial(shoes, world.defaultMaterial, { friction: 0, restitution: 0 }));
   const body = new Body({
-    mass: 76, material: shoes, fixedRotation: true, linearDamping: .03, collisionFilterGroup: playerCollisionGroup, collisionFilterMask: 5,
+    mass: 76, material: shoes, fixedRotation: true, allowSleep: false, linearDamping: .03,
+    collisionFilterGroup: playerCollisionGroup, collisionFilterMask: 5,
   });
   for (const y of [-.51, -.16, .20, .54]) body.addShape(new Sphere(.27), new Vec3(0, y, 0));
   const held = new THREE.Group();
-  held.position.set(.24, 1.21, .32);
-  held.rotation.y = Math.PI;
-  view.add(held);
+  held.position.set(.016, -.242, .031);
+  held.scale.setScalar(compact ? .64 : .76);
+  const grip = parts[5];
+  grip.add(held);
   const bottom = new Vec3();
   const movement = new THREE.Vector3();
   const muzzle = new THREE.Vector3();
+  const target = new THREE.Quaternion();
+  const wrist = new THREE.Quaternion();
+  const aim = new THREE.Euler(0, 0, 0, 'YXZ');
   let active = false;
   let heading = Math.PI;
   let jump = 0;
@@ -61,8 +66,9 @@ export function createPlayer(scene, world, audio) {
       velocity.y = 5.7;
       jump = landing = 0;
     }
-    movement.set(Number(input.right) - Number(input.left), 0, Number(input.reverse) - Number(input.forward));
-    if (movement.lengthSq() > 0) movement.normalize().applyAxisAngle(axis, yaw);
+    movement.set(Number(input.right) - Number(input.left) + (input.moveX ?? 0), 0,
+      Number(input.reverse) - Number(input.forward) + (input.moveZ ?? 0));
+    movement.clampLength(0, 1).applyAxisAngle(axis, yaw);
     const speed = input.sprint ? 7.4 : 4.35;
     velocity.x = THREE.MathUtils.damp(velocity.x, movement.x * speed, grounded ? 14 : 4, dt);
     velocity.z = THREE.MathUtils.damp(velocity.z, movement.z * speed, grounded ? 14 : 4, dt);
@@ -76,14 +82,13 @@ export function createPlayer(scene, world, audio) {
     const swing = grounded ? Math.sin(stride) * Math.min(1, pace / 3) : .22;
     const angle = yaw + Math.PI - heading;
     heading += Math.atan2(Math.sin(angle), Math.cos(angle)) * (1 - Math.exp(-13 * dt));
-    parts[0].rotation.z = -movement.x * .045;
-    parts[2].rotation.x = swing * .36;
-    parts[3].rotation.x = -1.04;
-    parts[5].rotation.x = -.72;
+    parts[0].rotation.z = -movement.x * .036 + swing * .025;
+    parts[0].rotation.x = input.sprint && pace > 1 ? .097 : .025;
     for (const side of [0, 1]) {
-      const leg = swing * (side ? -1 : 1);
-      parts[6 + side].rotation.x = leg * .63;
-      parts[8 + side].rotation.x = Math.max(0, -leg) * .84;
+      const sign = side ? -1 : 1;
+      const leg = swing * sign;
+      parts[6 + side].rotation.x = grounded ? leg * .68 : sign * .23;
+      parts[8 + side].rotation.x = grounded ? Math.max(0, -leg) * .90 : .42 + sign * .09;
     }
   }
 
@@ -91,8 +96,13 @@ export function createPlayer(scene, world, audio) {
     const position = body.interpolatedPosition;
     view.position.set(position.x, position.y - .79, position.z);
     view.rotation.y = heading;
-    held.rotation.x = pitch;
+    parts[2].rotation.set(-1.11 - pitch * .54, .05, .36);
+    parts[3].rotation.set(-1.20 - pitch * .60, -.04, -.06);
+    parts[4].rotation.set(-.56 - pitch * .32, -.10, .36);
+    parts[5].rotation.set(-.48 - pitch * .33, 0, -.025);
     parts[1].rotation.x = -pitch * .4;
+    target.setFromEuler(aim.set(pitch, heading + Math.PI, 0));
+    held.quaternion.copy(grip.getWorldQuaternion(wrist).invert()).multiply(target);
   }
 
   return {

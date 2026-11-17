@@ -18,7 +18,7 @@ const sphere = new THREE.SphereGeometry(.5, 12, 9);
 const ring = new THREE.TorusGeometry(.5, .039, 6, 28);
 const steel = new THREE.MeshStandardMaterial({ color: 0x45616a, roughness: .48, metalness: .58 });
 const rubber = new THREE.MeshStandardMaterial({ color: 0x15252d, roughness: .82 });
-const light = new THREE.MeshBasicMaterial({ color: 0xe3faf5 });
+const light = new THREE.MeshStandardMaterial({ color: 0xa6b0ae, metalness: .50, roughness: .38 });
 const deck = new THREE.MeshStandardMaterial({ color: 0x324a52, roughness: .66 });
 const colors = [0xff747b, 0xffd378, 0x83f7c2, 0x79cfff, 0xce88ff];
 const pickupLocations = [
@@ -39,23 +39,26 @@ function piece(parent, material, width, height, depth, x, y, z, geometry = box) 
 
 function makeTool(tool) {
   const model = new THREE.Group();
-  const tint = new THREE.MeshStandardMaterial({ color: tool.color, roughness: .4, metalness: .21 });
-  const glow = new THREE.MeshBasicMaterial({ color: tool.color });
-  piece(model, rubber, .16, .21, .16, 0, -.11, .04).rotation.x = -.36;
-  piece(model, steel, .25, .25, .46, 0, .045, -.12);
-  piece(model, tint, .27, .179, .34, 0, .105, -.015);
+  const tint = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(tool.color).lerp(new THREE.Color(0x35404a), .43), roughness: .36, metalness: .37,
+  });
+  const glow = new THREE.MeshStandardMaterial({ color: tool.color, emissive: tool.color, emissiveIntensity: .15, roughness: .36 });
+  piece(model, rubber, .118, .193, .141, 0, -.10, .03).rotation.x = -.36;
+  piece(model, steel, .19, .19, .41, 0, .051, -.112);
+  piece(model, tint, .213, .115, .30, 0, .105, -.032);
   const length = tool.id === 'firework' ? .73 : .48;
-  piece(model, steel, .19, length, .19, 0, .08, -.31, tube).rotation.x = Math.PI / 2;
-  piece(model, tint, .25, .105, .25, 0, .08, -.30 - length / 2, tube).rotation.x = Math.PI / 2;
-  piece(model, rubber, .15, .03, .15, 0, .08, -.36 - length / 2, tube).rotation.x = Math.PI / 2;
+  piece(model, steel, .135, length, .135, 0, .08, -.31, tube).rotation.x = Math.PI / 2;
+  piece(model, tint, .184, .105, .184, 0, .08, -.30 - length / 2, tube).rotation.x = Math.PI / 2;
+  piece(model, rubber, .113, .03, .113, 0, .08, -.36 - length / 2, tube).rotation.x = Math.PI / 2;
   for (const side of [-1, 1]) {
-    piece(model, steel, .039, .16, .33, side * .123, .06, -.18);
-    for (let i = 0; i < 4; i++) piece(model, glow, .023, .075, .023, side * .145, .104, -.10 - i * .055);
+    piece(model, steel, .022, .124, .33, side * .094, .06, -.18);
+    for (let i = 0; i < 4; i++) piece(model, glow, .016, .055, .023, side * .106, .094, -.10 - i * .055);
+    piece(model, light, .018, .023, .032, side * .108, .106, .076, tube).rotation.z = Math.PI / 2;
   }
   if (tool.id === 'water' || tool.id === 'bubble') {
     for (const side of [-1, 1]) {
-      piece(model, tint, .17, .34, .17, side * .18, .10, .15, tube).rotation.x = Math.PI / 2;
-      piece(model, light, .17, .048, .17, side * .18, .10, .322, tube).rotation.x = Math.PI / 2;
+      piece(model, tint, .111, .25, .111, side * .125, .10, .132, tube).rotation.x = Math.PI / 2;
+      piece(model, light, .105, .039, .105, side * .125, .10, .252, tube).rotation.x = Math.PI / 2;
     }
     if (tool.id === 'bubble') piece(model, glow, .37, .37, .15, 0, .08, -.53, ring);
   } else if (tool.id === 'firework') {
@@ -87,10 +90,14 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
     return { prop, model, index };
   }));
   const rocket = new THREE.CapsuleGeometry(.074, .31, 4, 10);
-  const jet = new THREE.CapsuleGeometry(.033, .54, 3, 8);
+  const jet = new THREE.CapsuleGeometry(.044, .52, 3, 7).translate(0, -.26, 0);
   const projectiles = new Map(tools.map(tool => [tool.id, new THREE.MeshBasicMaterial({
     color: tool.color, transparent: tool.id === 'bubble', opacity: tool.id === 'bubble' ? .64 : 1,
   })]));
+  projectiles.set('water', new THREE.MeshStandardMaterial({
+    color: 0x7abdd1, emissive: 0x21708d, emissiveIntensity: .36, roughness: .18, metalness: .23,
+    transparent: true, opacity: .84, depthWrite: false,
+  }));
   const rounds = Array.from({ length: 22 }, () => {
     const shot = new THREE.Mesh(sphere, projectiles.get('water'));
     shot.visible = false;
@@ -99,12 +106,14 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
   });
   const capacity = compact ? 330 : 620;
   const sparks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), capacity);
+  const droplets = new THREE.InstancedMesh(new THREE.SphereGeometry(.56, 6, 4), projectiles.get('water'), capacity);
   sparks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  sparks.frustumCulled = false;
-  sparks.count = 0;
-  scene.add(sparks);
+  droplets.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  sparks.frustumCulled = droplets.frustumCulled = false;
+  sparks.count = droplets.count = 0;
+  scene.add(sparks, droplets);
   const particles = Array.from({ length: capacity }, () => ({
-    origin: new THREE.Vector3(), velocity: new THREE.Vector3(), ttl: 0, duration: 0, size: 0, angle: 0, color: 0,
+    origin: new THREE.Vector3(), velocity: new THREE.Vector3(), ttl: 0, duration: 0, size: 0, angle: 0, color: 0, water: false,
   }));
   const dummy = new THREE.Object3D();
   const tint = new THREE.Color();
@@ -135,7 +144,7 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
     }
   }
 
-  function emit(point, tone, count, power, life) {
+  function emit(point, tone, count, power, life, water = false) {
     for (let i = 0; i < count; i++) {
       const particle = particles[cursor++ % capacity];
       particle.origin.copy(point);
@@ -145,6 +154,7 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
       particle.size = .032 + Math.random() * .090;
       particle.angle = Math.random() * 6.28;
       particle.color = tone ?? colors[i % colors.length];
+      particle.water = water;
     }
   }
 
@@ -164,8 +174,9 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
     const point = shot.position;
     const fireworks = tool.id === 'firework';
     const confetti = tool.id === 'confetti';
-    emit(point, fireworks || confetti ? null : tool.color, fireworks ? 100 : confetti ? 64 : 27,
-      fireworks ? 23 : tool.id === 'pulse' ? 14 : 8, fireworks ? 1.22 : .60);
+    const water = tool.id === 'water';
+    emit(point, fireworks || confetti ? null : tool.color, fireworks ? 100 : confetti ? 64 : water ? (compact ? 19 : 28) : 27,
+      fireworks ? 23 : tool.id === 'pulse' ? 14 : 8, fireworks ? 1.22 : water ? .46 : .60, water);
     if (fireworks) audio.play('pop');
     if (tool.id === 'water') audio.play('splash');
     if (tool.radius) {
@@ -203,7 +214,7 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
     round.shot.scale.setScalar(tool.id === 'bubble' ? .37 : tool.id === 'water' ? (tank ? 2.1 : 1.35) : tool.id === 'firework' ? 1 : .18);
     round.shot.quaternion.setFromUnitVectors(spin, rotation.copy(round.velocity).normalize());
     audio.play(tool.sound);
-    emit(origin, tool.id === 'confetti' ? null : tool.color, 7, 4, .3);
+    emit(origin, tool.id === 'confetti' ? null : tool.color, 7, 4, .3, tool.id === 'water');
   }
 
   function update(dt, time, position, walking, motion) {
@@ -235,6 +246,11 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
       round.age += dt;
       velocity.y -= tool.fall * dt;
       shot.quaternion.setFromUnitVectors(spin, rotation.copy(velocity).normalize());
+      if (tool.id === 'water') {
+        const length = Math.min(round.age * tool.speed, tool.delay * tool.speed * .89);
+        const width = tool === tankWater ? 1.22 : .75;
+        shot.scale.set(width, Math.max(.25, length / .61), width);
+      }
       previous.copy(point);
       point.addScaledVector(velocity, dt);
       next.copy(point);
@@ -247,22 +263,39 @@ export function createToolKit(scene, world, city, hand, audio, compact, onSelect
         point.copy(hit.hitPointWorld);
       });
       if (body || round.age >= tool.life || point.y < .11) finish(round, body);
-      else if (Math.floor(age * 49) !== Math.floor(round.age * 49)) emit(point, tool.color, tool.id === 'water' ? 4 : 2, 2.5, .23);
+      else if (Math.floor(age * 38) !== Math.floor(round.age * 38)) {
+        emit(point, tool.color, 2, 2.5, .23, tool.id === 'water');
+      }
     }
     let count = 0;
+    let waterCount = 0;
     for (const particle of particles) {
       if (particle.ttl <= 0) continue;
       particle.ttl -= dt;
       particle.velocity.y -= dt * 9;
       particle.origin.addScaledVector(particle.velocity, dt);
       dummy.position.copy(particle.origin);
-      dummy.scale.setScalar(particle.size * Math.max(.1, particle.ttl / particle.duration));
+      const size = particle.size * Math.max(.1, particle.ttl / particle.duration);
+      if (particle.water) {
+        dummy.scale.set(size * .66, size * 1.9, size * .66);
+        dummy.quaternion.setFromUnitVectors(spin, rotation.copy(particle.velocity).normalize());
+        dummy.updateMatrix();
+        droplets.setMatrixAt(waterCount++, dummy.matrix);
+        continue;
+      }
+      dummy.scale.setScalar(size);
       dummy.quaternion.setFromAxisAngle(spin, particle.angle + particle.ttl * 9);
       dummy.updateMatrix();
       sparks.setMatrixAt(count, dummy.matrix);
       sparks.setColorAt(count++, tint.setHex(particle.color));
     }
     sparks.count = count;
+    droplets.count = waterCount;
+    if (waterCount) {
+      droplets.instanceMatrix.clearUpdateRanges();
+      droplets.instanceMatrix.addUpdateRange(0, waterCount * 16);
+      droplets.instanceMatrix.needsUpdate = true;
+    }
     if (count) {
       sparks.instanceMatrix.needsUpdate = true;
       sparks.instanceColor.needsUpdate = true;

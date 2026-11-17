@@ -1,9 +1,7 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Body, Box, RaycastVehicle, Vec3 } from 'cannon-es';
 import { createBodywork } from './drive-body.js';
-
-const material = (color, metalness = 0, roughness = .55) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
+import { batchVehicleParts, buildWheel } from './drive-vehicle-art.js';
 
 function createExhaust(scene) {
   const size = 32;
@@ -74,10 +72,7 @@ function createExhaust(scene) {
 
 export function createCar(scene, world) {
   const { body, tail } = createBodywork();
-  const rubber = material(0x131a20, .02, .82);
-  const trim = material(0x212c37, .27, .43);
-  const rim = material(0x788c9c, .68, .35);
-  const brakeDisc = material(0xd6aa67, .42, .38);
+  batchVehicleParts(body);
   body.traverse(mesh => { if (mesh.isMesh) mesh.castShadow = true; });
   scene.add(body);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 30), new THREE.MeshBasicMaterial({
@@ -103,32 +98,7 @@ export function createCar(scene, world) {
         dampingRelaxation: 3.5, dampingCompression: 5.2, maxSuspensionTravel: .26,
         rollInfluence: .04, frictionSlip: 4.1, customSlidingRotationalSpeed: -24, useCustomSlidingRotationalSpeed: true,
       });
-      const wheel = new THREE.Group();
-      const tire = new THREE.Mesh(new THREE.LatheGeometry([
-        new THREE.Vector2(.25, -.17), new THREE.Vector2(.365, -.17), new THREE.Vector2(.392, -.13),
-        new THREE.Vector2(.399, -.08), new THREE.Vector2(.399, .08), new THREE.Vector2(.392, .13),
-        new THREE.Vector2(.365, .17), new THREE.Vector2(.25, .17),
-      ], 36), rubber);
-      tire.rotation.z = Math.PI / 2;
-      tire.castShadow = true;
-      wheel.add(tire);
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(.274, .274, .035, 16), trim);
-      hub.rotation.z = Math.PI / 2;
-      hub.position.x = side * .151;
-      wheel.add(hub);
-      const center = new THREE.Mesh(new THREE.CylinderGeometry(.082, .082, .05, 12), brakeDisc);
-      center.rotation.z = Math.PI / 2;
-      center.position.x = side * .177;
-      wheel.add(center);
-      for (let spoke = 0; spoke < 7; spoke++) {
-        const branch = new THREE.Group();
-        branch.rotation.x = spoke * Math.PI * 2 / 7;
-        const arm = new THREE.Mesh(new RoundedBoxGeometry(.031, .178, .046, 2, .011), rim);
-        arm.position.set(side * .178, .164, .014);
-        arm.rotation.x = -.11;
-        branch.add(arm);
-        wheel.add(branch);
-      }
+      const wheel = buildWheel(.399, .34, 7, side);
       wheels.push(wheel);
       scene.add(wheel);
     }

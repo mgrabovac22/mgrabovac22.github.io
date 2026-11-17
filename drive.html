@@ -7,11 +7,11 @@
   <meta name="description" content="Drive through a city and explore my work, education and projects on overhead signs.">
   <link rel="icon" href="./art/mark.svg" type="image/svg+xml">
   <title>Night Shift — Marin Grabovac</title>
-  <script type="module" crossorigin src="./site-assets/drive-DfCkr6wN.js"></script>
+  <script type="module" crossorigin src="./site-assets/drive-DkXGkioI.js"></script>
   <link rel="modulepreload" crossorigin href="./site-assets/modulepreload-polyfill-P2Xu9kJm.js">
-  <link rel="modulepreload" crossorigin href="./site-assets/three-BFasCs8O.js">
+  <link rel="modulepreload" crossorigin href="./site-assets/three-CffM293v.js">
   <link rel="modulepreload" crossorigin href="./site-assets/story-R7dcc0_A.js">
-  <link rel="stylesheet" crossorigin href="./site-assets/drive-CCQsF1Il.css">
+  <link rel="stylesheet" crossorigin href="./site-assets/drive-N6UOoNO4.css">
 </head>
 <body>
   <main id="game" aria-labelledby="drive-title">
@@ -58,9 +58,15 @@
     </div>
     <div class="vehicle-touch" id="vehicle-touch" hidden>
       <button type="button" id="touch-interact" aria-label="Enter or exit vehicle">↔</button>
-      <button type="button" id="touch-fire" aria-label="Fire" hidden>◎</button>
-      <button type="button" id="touch-sprint" data-input="sprint" aria-label="Sprint" hidden>⇧</button>
+      <button type="button" id="touch-more" aria-controls="touch-extras" aria-expanded="false" aria-label="More controls">⋯</button>
+      <div id="touch-extras" class="touch-extras" hidden>
+        <button type="button" id="touch-fire" data-game-copy="fire" hidden>Fire</button>
+        <button type="button" id="touch-sprint" data-input="sprint" data-game-copy="sprint" hidden>Sprint</button>
+        <button type="button" id="touch-tools" data-game-copy="wheel" hidden>Tool wheel</button>
+        <button type="button" id="touch-settings" data-game-copy="settings">Settings</button>
+      </div>
     </div>
+    <div id="walk-stick" class="walk-stick" aria-hidden="true" hidden><span></span></div>
     <p id="notice" role="status" aria-live="polite"></p>
     <div class="crate-redirect" id="crate-redirect" hidden>
       <p role="status" aria-live="polite"></p>

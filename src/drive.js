@@ -42,8 +42,12 @@ const toolHud = find('#tool-hud');
 const toolToggle = find('#tool-toggle');
 const toolWheel = find('#tool-wheel');
 const modTouch = find('#vehicle-touch');
+const extraControls = find('#touch-extras');
+const moreControls = find('#touch-more');
+const walkStick = find('#walk-stick');
 const fireButton = find('#touch-fire');
 const sprintButton = find('#touch-sprint');
+const touchTools = find('#touch-tools');
 const aim = find('#aim');
 const vehiclePrompt = find('#vehicle-prompt');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -165,6 +169,7 @@ function fail(message) {
   settingsButton.disabled = true;
   touch.hidden = true;
   modTouch.hidden = true;
+  walkStick.hidden = true;
   aim.hidden = true;
   toolHud.hidden = true;
   vehiclePrompt.hidden = true;
@@ -252,10 +257,11 @@ async function boot() {
   const effects = makeEffects(scene);
   const crateCountdown = createCrateCountdown(find('#crate-redirect'), crateCopy);
   const audio = createDriveAudio();
-  const player = createPlayer(scene, world, audio);
+  const player = createPlayer(scene, world, audio, compact);
   const keys = new Set();
   const pointers = new Map();
   const input = {};
+  const stick = { pointer: null, x: 0, z: 0, centerX: 0, centerY: 0, radius: 1 };
   let car = sport;
   let position = car.chassis.position;
   let walking = false;
@@ -351,11 +357,13 @@ async function boot() {
     aim.hidden = toolHud.hidden = !started || !aiming;
     fireButton.hidden = !aiming;
     sprintButton.hidden = !walking;
+    touchTools.hidden = !walking;
     find('[data-input=brake]').textContent = walking ? '⬆' : '■';
     find('[data-input=brake]').setAttribute('aria-label', walking ? label('jump', 'Jump') : t.brake);
     find('[data-input=forward]').setAttribute('aria-label', walking ? label('walkForward', 'Walk forward') : t.forward);
     find('[data-input=reverse]').setAttribute('aria-label', walking ? label('walkBack', 'Walk backwards') : t.reverse);
     if (!walking) openWheel(false);
+    toggleExtras(false);
     showTool();
     showTouch();
   }
@@ -494,8 +502,8 @@ async function boot() {
     forward.set(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
     const narrow = camera.aspect < .9;
     const airborne = Math.max(0, visual.y - car.stance);
-    const backDistance = walking ? (narrow ? 3.7 : 3.45) : (narrow ? 8.75 : 7.65);
-    const height = walking ? 1.38 : (narrow ? 3.25 : 3.05) + airborne * .52;
+    const backDistance = walking ? (narrow ? 3.7 : 3.45) : car === tank ? (narrow ? 8.8 : 8.1) : (narrow ? 8.75 : 7.65);
+    const height = walking ? 1.38 : (car === tank ? 3.30 : narrow ? 3.25 : 3.05) + airborne * .52;
     const shoulder = walking ? .63 : 0;
     const eye = new Vec3(visual.x, visual.y + .75, visual.z);
     const offsetY = aimed ? -Math.sin(lookPitch) * backDistance * .72 : 0;
@@ -513,7 +521,7 @@ async function boot() {
     if (snap || reduced.matches) camera.position.copy(cameraGoal);
     else camera.position.lerp(cameraGoal, 1 - Math.exp(-9.4 * dt));
     if (aimed) {
-      focusGoal.set(cameraGoal.x + forward.x * 18, cameraGoal.y + Math.tan(lookPitch - (walking ? .045 : .08)) * 18,
+      focusGoal.set(cameraGoal.x + forward.x * 18, cameraGoal.y + Math.tan(lookPitch - (walking ? .045 : .14)) * 18,
         cameraGoal.z + forward.z * 18);
     } else focusGoal.set(visual.x + forward.x * 7.3, Math.max(1.18, visual.y + .15), visual.z + forward.z * 7.3);
     if (narrow && !aimed) {
@@ -590,6 +598,7 @@ async function boot() {
     pointers.clear();
     firing = false;
     aimPointer = null;
+    centerStick();
   }
   function recovery(dt) {
     const altitude = position.y - car.stance;
@@ -656,6 +665,8 @@ async function boot() {
     updateFleet();
     for (const action of controls.values()) input[action] = false;
     input.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    input.moveX = stick.x;
+    input.moveZ = stick.z;
     for (const code of keys) if (controls.has(code)) input[controls.get(code)] = true;
     for (const action of pointers.values()) input[action] = true;
     if (exitRequested) input.brake = true;
@@ -720,6 +731,32 @@ async function boot() {
   function showTouch() {
     touch.hidden = !started || !(coarse.matches || view.clientWidth < 640) || graphicsLost;
     modTouch.hidden = touch.hidden;
+    walkStick.hidden = touch.hidden || !walking;
+    if (walkStick.hidden) centerStick();
+    if (touch.hidden) toggleExtras(false);
+  }
+  function toggleExtras(open) {
+    extraControls.hidden = !open;
+    moreControls.setAttribute('aria-expanded', String(open));
+    if (!open) firing = false;
+  }
+  function centerStick() {
+    if (stick.pointer === null) return;
+    stick.pointer = null;
+    stick.x = stick.z = 0;
+    walkStick.style.removeProperty('--stick-x');
+    walkStick.style.removeProperty('--stick-y');
+  }
+  function steerOnFoot(event) {
+    const dx = (event.clientX - stick.centerX) / stick.radius;
+    const dz = (event.clientY - stick.centerY) / stick.radius;
+    const length = Math.hypot(dx, dz);
+    const amount = THREE.MathUtils.smoothstep(length, .12, 1);
+    const scale = length > 0 ? amount / length : 0;
+    stick.x = dx * scale;
+    stick.z = dz * scale;
+    walkStick.style.setProperty('--stick-x', stick.x * stick.radius + 'px');
+    walkStick.style.setProperty('--stick-y', stick.z * stick.radius + 'px');
   }
   function healSigns() {
     const restored = stories.heal(stopped || reduced.matches);
@@ -773,10 +810,12 @@ async function boot() {
   toolWheel.setAttribute('aria-label', label('wheel', 'Tool wheel'));
   find('#touch-interact').setAttribute('aria-label', label('enterExit', 'Enter or exit vehicle'));
   fireButton.setAttribute('aria-label', label('fire', 'Fire'));
+  moreControls.setAttribute('aria-label', label('moreControls', 'More controls'));
   settingsButton.addEventListener('click', () => {
     audio.unlock();
     audio.play('click');
     openWheel(false);
+    toggleExtras(false);
     setPaused(true);
     settings.showModal();
   });
@@ -814,6 +853,30 @@ async function boot() {
   healButton.addEventListener('click', () => { audio.play('click'); healSigns(); });
   readButton.addEventListener('click', () => { audio.play('click'); openWheel(false); readEntry(); });
   find('#touch-interact').addEventListener('click', interact);
+  moreControls.addEventListener('click', () => {
+    openWheel(false);
+    toggleExtras(extraControls.hidden);
+  });
+  touchTools.addEventListener('click', () => {
+    toggleExtras(false);
+    openWheel(true, true);
+  });
+  find('#touch-settings').addEventListener('click', () => settingsButton.click());
+  walkStick.addEventListener('pointerdown', event => {
+    if (!walking || stopped || stick.pointer !== null || event.button !== 0) return;
+    event.preventDefault();
+    const bounds = walkStick.getBoundingClientRect();
+    stick.pointer = event.pointerId;
+    stick.centerX = bounds.left + bounds.width / 2;
+    stick.centerY = bounds.top + bounds.height / 2;
+    stick.radius = bounds.width * .32;
+    walkStick.setPointerCapture(event.pointerId);
+    steerOnFoot(event);
+  });
+  walkStick.addEventListener('pointermove', event => { if (event.pointerId === stick.pointer) steerOnFoot(event); });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    walkStick.addEventListener(name, event => { if (event.pointerId === stick.pointer) centerStick(); });
+  }
   const aimed = () => started && !stopped && !graphicsLost && (walking || car === tank) && toolWheel.hidden;
   function turnLook(dx, dy) {
     lookYaw -= dx * .0034;

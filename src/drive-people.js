@@ -3,13 +3,29 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Body, Box, PointToPointConstraint, Vec3 } from 'cannon-es';
 
 const surface = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .86 });
-const unit = new THREE.SphereGeometry(1, 12, 9);
+const unit = new THREE.SphereGeometry(1, 14, 10);
+const weave = new Uint8Array(32 * 32 * 4);
+for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+  const shade = 142 + ((x + y) % 4 < 2 ? 24 : -24) + (y % 4 < 2 ? 11 : -11);
+  weave.set([shade, shade, shade, 255], (y * 32 + x) * 4);
+}
+const fabric = new THREE.DataTexture(weave, 32, 32);
+fabric.wrapS = fabric.wrapT = THREE.RepeatWrapping;
+fabric.repeat.set(5, 6);
+fabric.magFilter = THREE.LinearFilter;
+fabric.minFilter = THREE.LinearMipmapLinearFilter;
+fabric.generateMipmaps = true;
+fabric.needsUpdate = true;
+const jacketSurface = new THREE.MeshStandardMaterial({
+  vertexColors: true, roughness: .87, bumpMap: fabric, bumpScale: .003,
+});
 const styles = [
   [0x384a54, 0x262d33, 0xba9075, 0x352d29, 0xd7dce0],
   [0x887b68, 0x34414a, 0xa57a5d, 0x2b2423, 0xf2e9d6],
   [0x465952, 0x41454b, 0xdaa48a, 0x684b33, 0xe6e8e2],
   [0x343d4e, 0x2e3138, 0x815a42, 0x241f1e, 0xe0d7c2],
   [0x596370, 0x5a5147, 0xd0a38a, 0x47403c, 0xead2ac],
+  [0x344550, 0x2e333a, 0xc4937b, 0x2d2725, 0xb7c7bc],
 ];
 const skeleton = [
   [-1, 0, 1.025, 0, .35, .47, .219, .21],
@@ -32,6 +48,10 @@ function colored(geometry, color) {
   return geometry;
 }
 
+function tint(color, amount) {
+  return new THREE.Color(color).multiplyScalar(amount);
+}
+
 function ellipsoid(color, x, y, z, w, h, d) {
   return colored(unit.clone().scale(w, h, d).translate(x, y, z), color);
 }
@@ -41,53 +61,137 @@ function garment(color, profile, depth) {
   return colored(shape.scale(1, 1, depth), color);
 }
 
-const models = styles.map(([coat, pants, skin, hair, shirt], style) => skeleton.map((_, bone) => {
-  let pieces;
-  if (bone === 0) {
-    pieces = [
-      garment(coat, [[0, -.06], [.145, -.06], [.165, .02], [.151, .18], [.181, .342], [.158, .419], [.075, .445], [0, .445]], .69),
-      ellipsoid(shirt, 0, .316, .102, .062, .125, .027),
-      ellipsoid(skin, 0, .468, 0, .054, .067, .053),
-      ellipsoid(0x262c32, 0, .29, .127, .019, .084, .008),
-    ];
-    for (const side of [-1, 1]) {
-      pieces.push(ellipsoid(coat, side * .064, .329, .113, .035, .10, .016));
-      pieces.push(ellipsoid(shirt, side * .084, .303, .113, .008, .053, .012));
+function face(skin, detail) {
+  const around = detail ? 30 : 18;
+  const rings = [
+    [0, .032, .029, .017], [.020, .047, .052, .030], [.047, .066, .068, .010],
+    [.080, .078, .083, -.005], [.113, .086, .085, -.006], [.145, .085, .089, -.013],
+    [.174, .079, .084, -.022], [.201, .062, .065, -.029], [.222, .027, .036, -.029], [.229, .001, .001, -.030],
+  ];
+  const vertices = [], indices = [], uvs = [];
+  rings.forEach(([y, width, depth, mid], row) => {
+    for (let j = 0; j <= around; j++) {
+      const angle = j / around * Math.PI * 2 - Math.PI;
+      const cosine = Math.cos(angle);
+      // Broad cheekbones, flatter planes beside the nose, and a rounded cranium.
+      const forward = cosine >= 0 ? cosine ** .70 : cosine;
+      vertices.push(Math.sin(angle) * width, y, mid + forward * depth);
+      uvs.push(j / around, y / .23);
+      if (row && j) {
+        const p = row * (around + 1) + j;
+        indices.push(p - around - 2, p - around - 1, p, p - around - 2, p, p - 1);
+      }
     }
-  } else if (bone === 1) {
-    pieces = [
-      ellipsoid(skin, 0, .101, 0, .091, .122, .094),
-      ellipsoid(skin, 0, .059, .028, .071, .072, .070),
-      ellipsoid(hair, style === 1 ? -.018 : 0, .157, -.025, .097, .077, .092),
-      ellipsoid(hair, -.054, .139, -.051, .048, style === 2 ? .111 : .066, .053),
-      ellipsoid(skin, 0, .091, .091, .021, .029, .028),
-      ellipsoid(0x754b42, 0, .048, .092, .027, .007, .008),
-    ];
-    for (const side of [-1, 1]) {
-      pieces.push(ellipsoid(skin, side * .086, .095, -.003, .018, .032, .021));
-      pieces.push(ellipsoid(0x352f30, side * .036, .117, .086, .016, .006, .006));
-    }
-  } else if (bone < 4) {
-    pieces = [garment(coat, [[0, -.271], [.044, -.271], [.051, -.19], [.066, -.044], [.058, .018], [0, .025]], .93)];
-  } else if (bone < 6) {
-    pieces = [
-      garment(coat, [[0, -.219], [.032, -.219], [.043, -.13], [.05, -.01], [0, .02]], .88),
-      ellipsoid(shirt, 0, -.208, 0, .035, .023, .035),
-      ellipsoid(skin, 0, -.255, .014, .034, .058, .034),
-    ];
-  } else if (bone < 8) {
-    pieces = [garment(pants, [[0, -.43], [.051, -.426], [.068, -.25], [.087, -.047], [.072, .04], [0, .051]], 1.06)];
-  } else {
-    pieces = [
-      garment(pants, [[0, -.373], [.041, -.371], [.058, -.224], [.064, -.041], [.05, .022], [0, .041]], 1.08),
-      ellipsoid(0x24262a, 0, -.383, .048, .055, .043, .107),
-      ellipsoid(0x586063, 0, -.413, .057, .052, .013, .103),
-    ];
+  });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  colored(geometry, skin);
+  const colors = geometry.attributes.color;
+  for (let i = 0; i < colors.count; i++) {
+    const y = vertices[i * 3 + 1], z = vertices[i * 3 + 2];
+    const light = .84 + y * .66 + Math.max(0, z) * .56;
+    const warmth = y < .095 && z > .03 ? .035 : 0;
+    colors.setXYZ(i, colors.getX(i) * light * (1 + warmth), colors.getY(i) * light, colors.getZ(i) * light * (1 - warmth));
   }
-  const combined = mergeGeometries(pieces);
-  pieces.forEach(piece => piece.dispose());
-  return combined;
-}));
+  return geometry;
+}
+
+function head(skin, hair, style, detail) {
+  const hairline = style === 2 ? .171 : style === 1 ? .174 : .183;
+  const pieces = [
+    face(skin, detail),
+    ellipsoid(hair, style % 2 ? -.006 : .009, hairline, -.032, .087, .056, .088),
+    ellipsoid(tint(hair, .81), 0, .121, -.071, .074, style === 2 ? .094 : .061, .035),
+    ellipsoid(tint(skin, 1.06), 0, .091, .079, .014, .027, .023),
+    ellipsoid(tint(skin, .96), 0, .074, .095, .019, .010, .014),
+    ellipsoid(tint(skin, .62), 0, .044, .064, .023, .004, .010),
+    ellipsoid(tint(skin, 1.03), 0, .039, .065, .021, .004, .006),
+  ];
+  for (const side of [-1, 1]) {
+    pieces.push(ellipsoid(skin, side * .082, .097, -.006, .016, .026, .020));
+    pieces.push(ellipsoid(tint(skin, .72), side * .091, .098, .003, .008, .014, .009));
+    pieces.push(ellipsoid(tint(hair, .91), side * .074, hairline - .015, -.008, .015, .032, .047));
+    pieces.push(ellipsoid(tint(skin, .76), side * .036, .116, .072, .020, .008, .009));
+    pieces.push(ellipsoid(0xdad3c5, side * .036, .115, .075, .013, .004, .008));
+    pieces.push(ellipsoid(0x3b3734, side * .034, .115, .082, .0045, .0042, .0027));
+    const brow = ellipsoid(tint(hair, 1.14), 0, 0, 0, .018, .0037, .0044)
+      .rotateZ(side * -.16).translate(side * .036, .135, .074);
+    pieces.push(brow);
+    if (style === 3 || detail) pieces.push(ellipsoid(tint(skin, .71), side * .034, .035, .047, .017, .022, .016));
+  }
+  if (detail) {
+    for (let i = -4; i <= 4; i++) {
+      const height = .208 - Math.abs(i) * .0032;
+      pieces.push(ellipsoid(tint(hair, 1 + (i + 4) * .022), 0, 0, 0, .012, .021, .085)
+        .rotateY(-.33).translate(i * .015, height, -.018));
+    }
+  }
+  return pieces;
+}
+
+const models = new Map();
+function model(style, detail = false) {
+  const key = style * 2 + Number(detail);
+  if (models.has(key)) return models.get(key);
+  const [coat, pants, skin, hair, shirt] = styles[style];
+  const piecesByBone = skeleton.map((_, bone) => {
+    let pieces;
+    if (bone === 0) {
+      pieces = [
+        garment(coat, [[0, -.084], [.13, -.084], [.156, -.044], [.16, .025], [.144, .126], [.157, .24], [.177, .337], [.165, .387], [.132, .418], [.071, .445], [0, .445]], .73),
+        garment(tint(coat, .79), [[0, -.081], [.131, -.081], [.15, -.060], [.151, -.043], [.139, -.036], [0, -.036]], .74),
+        ellipsoid(shirt, 0, .316, .102, .062, .125, .027),
+        ellipsoid(skin, 0, .468, 0, .054, .067, .053),
+        ellipsoid(0x262c32, 0, .29, .127, .019, .084, .008),
+      ];
+      for (const side of [-1, 1]) {
+        pieces.push(ellipsoid(coat, side * .064, .329, .113, .035, .10, .016));
+        pieces.push(ellipsoid(shirt, side * .084, .303, .113, .008, .053, .012));
+        pieces.push(ellipsoid(tint(coat, 1.21), 0, 0, 0, .006, .099, .015)
+          .rotateZ(side * -.24).translate(side * .097, .125, .099));
+        if (detail) {
+          pieces.push(ellipsoid(tint(coat, .82), side * .123, .278, -.090, .022, .121, .023));
+          pieces.push(ellipsoid(tint(coat, 1.18), side * .094, .383, -.080, .054, .016, .021));
+        }
+      }
+      if (detail) pieces.push(ellipsoid(tint(coat, .91), 0, .365, -.108, .109, .079, .058));
+    } else if (bone === 1) {
+      pieces = head(skin, hair, style, detail);
+    } else if (bone < 4) {
+      pieces = [garment(coat, [[0, -.271], [.044, -.271], [.051, -.19], [.066, -.044], [.058, .018], [0, .025]], .93)];
+    } else if (bone < 6) {
+      pieces = [
+        garment(coat, [[0, -.219], [.032, -.219], [.043, -.13], [.05, -.01], [0, .02]], .88),
+        ellipsoid(shirt, 0, -.208, 0, .035, .023, .035),
+        ellipsoid(skin, 0, -.255, .014, .034, .058, .034),
+      ];
+      if (detail) {
+        pieces.push(ellipsoid(skin, bone === 5 ? -.021 : .021, -.248, .038, .016, .029, .021));
+        pieces.push(ellipsoid(tint(coat, .73), 0, -.200, 0, .046, .025, .043));
+      }
+    } else if (bone < 8) {
+      pieces = [garment(pants, [[0, -.43], [.051, -.426], [.068, -.25], [.087, -.047], [.072, .04], [0, .051]], 1.06)];
+    } else {
+      pieces = [
+        garment(pants, [[0, -.373], [.041, -.371], [.058, -.224], [.064, -.041], [.05, .022], [0, .041]], 1.08),
+        ellipsoid(0x252b2d, 0, -.358, .035, .059, .063, .110),
+        ellipsoid(0x302f2c, 0, -.387, .088, .055, .030, .066),
+        ellipsoid(0x60656a, 0, -.414, .061, .057, .013, .108),
+      ];
+      if (detail) for (let lace = 0; lace < 3; lace++) {
+        pieces.push(ellipsoid(0x9b9380, 0, -.338 - lace * .012, .086 + lace * .013, .029, .004, .009));
+      }
+    }
+    const combined = mergeGeometries(pieces);
+    pieces.forEach(piece => piece.dispose());
+    return combined;
+  });
+  models.set(key, piecesByBone);
+  return piecesByBone;
+}
 
 // One continuous pavement circuit, including curved corners.
 export function walkingLoop(left, top, right, bottom, radius) {
@@ -105,11 +209,13 @@ export function walkingLoop(left, top, right, bottom, radius) {
 }
 const circuits = [7.25, 7.88].map((inset, index) => walkingLoop(inset, inset, 44 - inset, 44 - inset, index ? 1.75 : 1.56));
 
-export function createPerson(parent, style) {
+export function createPerson(parent, style, detail = false) {
   const view = new THREE.Group();
   const parts = [];
+  const shapes = model(style, detail);
   skeleton.forEach(([joint, x, y, z], i) => {
-    const part = new THREE.Mesh(models[style][i], surface);
+    const part = new THREE.Mesh(shapes[i], detail && i !== 1 ? jacketSurface : surface);
+    part.castShadow = detail;
     part.position.set(x, y, z);
     (joint < 0 ? view : parts[joint]).add(part);
     parts.push(part);
@@ -120,13 +226,54 @@ export function createPerson(parent, style) {
 
 export function createWalker(parent, style, phase, direction, path = circuits[style % circuits.length]) {
   const { view, parts } = createPerson(parent, style);
+  for (const part of parts) part.visible = false;
   const collider = new Body({ type: Body.KINEMATIC, shape: new Box(new Vec3(.245, .84, .21)),
     collisionFilterGroup: 8, collisionFilterMask: 4, collisionResponse: false });
   const pace = (.0105 + style * .00034) * circuits[style % circuits.length].getLength() / path.getLength();
   return { view, parts, collider, path, pace, phase, direction, style, knocked: false };
 }
 
+export function createCrowd(scene) {
+  const capacity = 64;
+  const batches = new Map();
+
+  return {
+    begin() {
+      for (const batch of batches.values()) batch.count = 0;
+    },
+    add(walker) {
+      if (!batches.has(walker.style)) {
+        const meshes = walker.parts.map(({ geometry }) => {
+          const mesh = new THREE.InstancedMesh(geometry, surface, capacity);
+          mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          mesh.frustumCulled = false;
+          scene.add(mesh);
+          return mesh;
+        });
+        batches.set(walker.style, { meshes, count: 0 });
+      }
+      const { meshes, count } = batches.get(walker.style);
+      if (count >= capacity) return;
+      walker.view.updateWorldMatrix(true, true);
+      for (let i = 0; i < meshes.length; i++) meshes[i].setMatrixAt(count, walker.parts[i].matrixWorld);
+      batches.get(walker.style).count++;
+    },
+    end() {
+      for (const { meshes, count } of batches.values()) for (const mesh of meshes) {
+        mesh.count = count;
+        if (count) {
+          mesh.instanceMatrix.clearUpdateRanges();
+          mesh.instanceMatrix.addUpdateRange(0, count * 16);
+          mesh.instanceMatrix.needsUpdate = true;
+        }
+      }
+    },
+  };
+}
+
 const personUp = new Vec3(0, 1, 0);
+const pointOnPath = new THREE.Vector2();
+const aheadOnPath = new THREE.Vector2();
 
 export function updateWalker(walker, time, originX, originZ, animated, startled = false) {
   const { view, parts, path, pace, phase, direction, style, collider } = walker;
@@ -154,10 +301,10 @@ export function updateWalker(walker, time, originX, originZ, animated, startled 
   }
   const progress = (phase + time * pace * direction) % 1;
   const f = (progress + 1) % 1;
-  const point = path.getPoint(f);
-  const next = path.getPoint((f + .0008) % 1);
+  const point = path.getPoint(f, pointOnPath);
+  const next = path.getPoint((f + .0008) % 1, aheadOnPath);
   const heading = Math.atan2((next.x - point.x) * direction, (next.y - point.y) * direction);
-  const beat = animated ? time * (7.3 + style * .17) + phase * 53 : 0;
+  const beat = animated ? time * (7.3 + style * .17) * (walker.jogging ? 1.28 : 1) + phase * 53 : 0;
   const stride = animated ? Math.sin(beat) : 0;
   walker.caution = THREE.MathUtils.lerp(walker.caution ?? 0, startled ? .59 : 0, .10);
   const px = point.x + Math.cos(heading) * walker.caution;

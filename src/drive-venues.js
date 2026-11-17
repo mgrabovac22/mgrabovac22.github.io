@@ -84,11 +84,11 @@ export function createVenues() {
   }
 
   function markTank(add, x, z) {
-    for (const side of [-1, 1]) {
-      add(glow, x, .115, z + side * 1.58, 5.0, .018, .062);
-      add(blue, x + 2.4, 1.42, z + side * 1.38, .084, 2.64, .084);
-    }
-    add(signs[2], x + 2.42, 2.51, z, 2.62, .56, 1, -Math.PI / 2, plane);
+    add(dark, x, -.004, z, 2.67, .014, 6.15);
+    add(glow, x - 1.30, .011, z, .055, .012, 5.9);
+    for (const end of [-1, 1]) add(glow, x - .65, .012, z + end * 2.94, 1.34, .014, .058);
+    add(blue, x - 2.16, 1.32, z - 1.55, .093, 2.50, .093);
+    add(signs[2], x - 2.16, 2.36, z - 1.49, 2.23, .49, 1, 0, plane);
   }
 
   return { build, markTank };

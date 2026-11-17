@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Body, Box, Vec3 } from 'cannon-es';
-import { createWalker, ragdoll, updateWalker } from './drive-people.js';
+import { createCrowd, createWalker, ragdoll, updateWalker } from './drive-people.js';
 import { buildPark, parkServiceAt } from './drive-park.js';
 import { createVenues } from './drive-venues.js';
 import { tankBay } from './drive-vehicle.js';
@@ -75,6 +75,13 @@ function facade(style, anisotropy) {
           ctx.fillStyle = '#c5d0cd39';
           for (let line = 0; line < 5; line++) ctx.fillRect(x + trim, y + 4 + line * 3, width - trim * 2 - 6, 1);
         }
+        if (light < .15 || (light > .50 && light < .67)) {
+          ctx.fillStyle = light < .15 ? '#473d3d53' : '#263e4280';
+          ctx.fillRect(x + trim + 2, y + height * .61, width * .34 - trim, height * .15);
+          ctx.fillRect(x + width * .60, y + height * .49, width * .13, height * .27);
+        }
+        ctx.fillStyle = light < .15 ? '#f5dfb345' : '#a3c9d34d';
+        ctx.fillRect(x + trim + 1, y + 3, width - trim * 2 - 8, 1);
         ctx.fillStyle = '#263338';
         ctx.fillRect(x + width * .49, y + 2, 1.5, height - 7);
       }
@@ -90,13 +97,20 @@ function groundTextures(anisotropy) {
   assets.asphalt.map = textureCanvas(512, 512, ctx => {
     ctx.fillStyle = '#929894';
     ctx.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 11500; i++) {
-      ctx.fillStyle = i % 3 ? '#47534d24' : '#f6e9d32c';
-      ctx.fillRect(random() * 512, random() * 512, .8 + random() * 2.8, .9 + random() * 2.4);
+    for (let i = 0; i < 5650; i++) {
+      ctx.fillStyle = i % 3 ? '#444f493a' : '#fff3de37';
+      ctx.fillRect(random() * 512, random() * 512, .6 + random() * 3.8, .7 + random() * 2.7);
+    }
+    for (let i = 0; i < 135; i++) {
+      const x = random() * 512, y = random() * 512;
+      ctx.fillStyle = i % 2 ? '#3c433a20' : '#ece0d416';
+      ctx.fillRect(x, y, 3 + random() * 6, 1 + random() * 3);
     }
   }, anisotropy);
   assets.asphalt.map.wrapS = assets.asphalt.map.wrapT = THREE.RepeatWrapping;
   assets.asphalt.map.repeat.set(5, 5);
+  assets.asphalt.bumpMap = assets.asphalt.map;
+  assets.asphalt.bumpScale = .016;
   assets.slab.map = textureCanvas(512, 512, ctx => {
     ctx.scale(2, 2);
     ctx.fillStyle = '#aaa9a0';
@@ -111,11 +125,18 @@ function groundTextures(anisotropy) {
         stone.addColorStop(1, 'rgb(' + tone + ' ' + (tone - 2) + ' ' + (tone - 8) + ')');
         ctx.fillStyle = stone;
         ctx.fillRect(x, y, 31.3, 31.3);
+        ctx.fillStyle = '#ded9c63d';
+        ctx.fillRect(x, y + .4, 31.1, .7);
+        ctx.fillStyle = '#666b6048';
+        ctx.fillRect(x, y + 30.5, 31.1, .8);
+        ctx.fillRect(x + 30.5, y + .7, .75, 30.1);
       }
     }
   }, anisotropy);
   assets.slab.map.wrapS = assets.slab.map.wrapT = THREE.RepeatWrapping;
   assets.slab.map.repeat.set(3, 3);
+  assets.slab.bumpMap = assets.slab.map;
+  assets.slab.bumpScale = .026;
 }
 
 const blockKey = (i, j) => i + ':' + j;
@@ -230,6 +251,7 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
   const blocks = new Map();
   const targets = new WeakMap();
   const collectedCrates = new Set();
+  const crowd = createCrowd(scene);
   const venues = createVenues();
   const anisotropy = Math.min(maxAnisotropy, isCompact ? 8 : 12);
   const parkSigns = new Map();
@@ -336,7 +358,9 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
       }
     }
     const park = parkKind ? buildPark(parent, add, collider, signs, isCompact) : null;
-    if (parkKind === 'linkedin') venues.markTank(add, tankBay.x - x, tankBay.z - z);
+    if (i === Math.floor(tankBay.x / blockSize) && j === Math.floor(tankBay.z / blockSize)) {
+      venues.markTank(add, tankBay.x - x, tankBay.z - z);
+    }
     const buildingLots = park ? [] : [[15, 15], [29, 15], [15, 29], [29, 29]];
     let hasVenue = false;
     for (const [bx, bz] of buildingLots) {
@@ -476,6 +500,14 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
     if (!isCompact && random() > .46) {
       const walker = createWalker(parent, Math.floor(random() * 5), random(), 1);
       walker.pace *= 1.47;
+      walker.jogging = true;
+      walkers.push(walker);
+    }
+    const locals = seeded(i + 91, j - 54);
+    for (let k = 0; k < (park || isCompact ? 1 : 2); k++) {
+      const walker = createWalker(parent, Math.floor(locals() * 5), .08 + (k + locals() * .65) * .36, k ? 1 : -1);
+      const height = .93 + locals() * .12;
+      walker.view.scale.setScalar(height);
       walkers.push(walker);
     }
     if (park) walkers.push(...park.walkers);
@@ -583,6 +615,7 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
   function update(time, position, motion = true, dt = 0, speed = 0) {
     signalGreen.color.setHex(time % 12 < 7 ? 0xb5d4a3 : 0x424c3c);
     signalRed.color.setHex(time % 12 < 7 ? 0x654346 : 0xf68167);
+    crowd.begin();
     for (const block of blocks.values()) {
       const local = Math.hypot(position.x - (block.i + .5) * blockSize, position.z - (block.j + .5) * blockSize);
       for (const walker of block.walkers) {
@@ -590,7 +623,11 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
         walker.view.visible = local < 88;
         if (block.active || walker.view.visible) {
           const nearby = Math.hypot(walker.collider.position.x - position.x, walker.collider.position.z - position.z);
-          updateWalker(walker, time, walker.originX, walker.originZ, motion && local < 64, speed > 4 && nearby < 6);
+          if (nearby < 24 || time >= (walker.poseAt ?? 0)) {
+            updateWalker(walker, time, walker.originX, walker.originZ, motion && local < 64, speed > 4 && nearby < 6);
+            walker.poseAt = time + (nearby < 46 ? .04 : .075);
+          }
+          if (walker.view.visible && (nearby < 72 || !time)) crowd.add(walker);
         }
       }
       for (const crate of block.crates) {
@@ -620,6 +657,7 @@ export function createCity(scene, world, isCompact, maxAnisotropy, profileParks)
       body.rotation.set(.1 * Math.cos(phase), Math.atan2(Math.cos(phase) * 2.6, -Math.sin(phase) * 3.8), -.12 * Math.sin(phase));
       rotors.forEach((rotor, i) => { rotor.rotation.y = time * (i ? -20 : 20); });
     }
+    crowd.end();
   }
 
   function safeLanding(x, z) {

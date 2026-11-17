@@ -121,8 +121,24 @@ kbd { display: inline-block; padding: .15rem .3rem; border: 1px solid var(--line
 .tool-wheel button[aria-pressed=true] { color: #101d26; background: var(--acid); }
 .vehicle-touch { position: absolute; z-index: 2; right: max(.65rem, env(safe-area-inset-right)); bottom: calc(var(--touch-bottom) + var(--touch-size) + .55rem); display: flex; gap: .35rem; }
 .vehicle-touch button { width: var(--touch-size); height: var(--touch-size); padding: 0; font-size: 1.2rem; touch-action: none; }
-#game[data-walking] .touch > div + div { display: grid; grid-template-columns: repeat(2, auto); }
-#game[data-walking] [data-input=forward] { grid-row: 1; grid-column: 2; }
+.touch-extras {
+  position: absolute; right: 0; bottom: calc(100% + .36rem); display: grid; gap: .18rem;
+  min-width: 8.5rem; width: max-content; max-width: 12rem; padding: .24rem; border: 1px solid var(--line);
+  border-radius: 6px; color: #fff5e7; background: var(--panel);
+}
+.touch-extras button { width: 100%; height: auto; padding: .28rem .58rem; justify-content: start; font-size: .77rem; }
+.walk-stick {
+  --stick-x: 0px; --stick-y: 0px;
+  display: grid; place-items: center; position: absolute; z-index: 2;
+  left: max(.7rem, env(safe-area-inset-left)); bottom: calc(var(--touch-bottom) + var(--touch-size) + .51rem);
+  width: clamp(68px, 22vw, 88px); aspect-ratio: 1; border: 1px solid #dcc69a8f; border-radius: 50%;
+  background: #15272ab5; touch-action: none; user-select: none;
+}
+.walk-stick span {
+  width: 41%; aspect-ratio: 1; border-radius: 50%; border: 1px solid #ddcba5;
+  background: #c9b58266; transform: translate(var(--stick-x), var(--stick-y)); pointer-events: none;
+}
+#game:has(#touch-extras:not([hidden])) #vehicle-prompt { visibility: hidden; }
 @media (max-width: 590px) {
   .top .actions { display: grid; grid-template-columns: 1fr auto; }
   .actions #heal { grid-column: 1 / -1; grid-row: 2; }
@@ -131,4 +147,7 @@ kbd { display: inline-block; padding: .15rem .3rem; border: 1px solid var(--line
   #vehicle-prompt { bottom: max(31%, 11rem); }
   .tool-hud button { font-size: .70rem; }
   #tool-toggle { max-width: max(7rem, calc(100vw - 12.8rem)); }
+}
+@media (max-height: 480px) {
+  .touch-extras { bottom: 0; right: calc(100% + .4rem); grid-template-columns: repeat(2, max-content); min-width: 0; }
 }
