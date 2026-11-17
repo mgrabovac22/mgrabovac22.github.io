@@ -59,7 +59,8 @@ export function renderSite(html, context, source) {
     <meta property="og:description" content="${description}">
     <meta property="og:url" content="${escape(canonical)}">
     <meta property="og:image" content="${escape(profile.url)}art/social.png">
-    <meta name="twitter:card" content="summary_large_image">`;
+    <meta name="twitter:card" content="summary_large_image">
+    <script>document.documentElement.classList.add('intro-loading');setTimeout(() => document.documentElement.classList.remove('intro-loading'), 9000);</script>`;
   const portraitInk = readFileSync(new URL('../public/art/portrait.svg', import.meta.url), 'utf8');
   const snapshot = JSON.stringify(data).replaceAll('<', '\\u003c');
   const content = `
@@ -77,6 +78,7 @@ export function renderSite(html, context, source) {
         <h1 id="hero-title" class="sr-only">${name}</h1>
         <p class="sr-only" id="hero-summary">${profileSummary(data)}</p>
         <figure class="desk-stage">
+          <p class="home-preloader" role="status"><span aria-hidden="true"></span><span id="home-loading-label">${escape(t.homeLoading ?? 'Preparing the studio…')}</span></p>
           <div class="desk-sweep" aria-hidden="true"></div>
           <svg class="drafting" viewBox="0 0 1240 570" preserveAspectRatio="none" fill="none" aria-hidden="true">
             <path d="M44 80V54h25m1103 0h24v26M44 490v27h25m1103 0h24v-27M79 465h1080M828 75v436"/>

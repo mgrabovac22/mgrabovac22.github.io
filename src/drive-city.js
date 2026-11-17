@@ -3,6 +3,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { Body, Box, Vec3 } from 'cannon-es';
 import { createWalker, ragdoll, updateWalker } from './drive-people.js';
 import { buildPark, parkServiceAt } from './drive-park.js';
+import { createVenues } from './drive-venues.js';
+import { tankBay } from './drive-vehicle.js';
 
 export const blockSize = 44;
 const road = 11.6;
@@ -224,9 +226,11 @@ function makeParkSigns(kind, copy, anisotropy) {
   };
 }
 
-export function createCity(scene, world, car, isCompact, maxAnisotropy, profileParks) {
+export function createCity(scene, world, isCompact, maxAnisotropy, profileParks) {
   const blocks = new Map();
+  const targets = new WeakMap();
   const collectedCrates = new Set();
+  const venues = createVenues();
   const anisotropy = Math.min(maxAnisotropy, isCompact ? 8 : 12);
   const parkSigns = new Map();
   for (const [kind, copy] of profileParks) parkSigns.set(kind, makeParkSigns(kind, copy, anisotropy));
@@ -261,14 +265,31 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
   });
   const groundLight = new THREE.PlaneGeometry().rotateX(-Math.PI / 2);
   const listener = (kind, target) => event => {
-    if (event.body === car && !target.spent && !target.knocked && car.velocity.length() >= 1.6) {
+    const driver = event.body;
+    if (driver.collisionFilterGroup === 4 && !target.spent && !target.knocked && driver.velocity.length() >= 1.6) {
       const contact = event.contact;
-      const offset = contact.bi === car ? contact.ri : contact.rj;
-      const localHit = kind === 'crate' ? car.vectorToLocalFrame(offset) : null;
-      const localCrate = kind === 'crate' ? car.pointToLocalFrame(target.collider.position) : null;
-      queue.push({ kind, target, impact: car.velocity.clone(), localHit, localCrate });
+      const offset = contact.bi === driver ? contact.ri : contact.rj;
+      const localHit = kind === 'crate' ? driver.vectorToLocalFrame(offset) : null;
+      const localCrate = kind === 'crate' ? driver.pointToLocalFrame(target.collider.position) : null;
+      queue.push({ kind, target, driver, impact: driver.velocity.clone(), localHit, localCrate });
     }
   };
+
+  function hitTarget(body, direction, strength) {
+    const hit = targets.get(body);
+    if (!hit) return false;
+    const { kind, target } = hit;
+    if (kind === 'walker' && !target.knocked && strength > 1.5) {
+      const push = new Vec3(direction.x, Math.max(.26, direction.y), direction.z).scale(strength * 1.65);
+      queue.push({ kind, target, impact: push });
+    }
+    if (kind === 'crate' && !target.spent && !target.pile) {
+      target.slide ??= new Vec3();
+      target.slide.x = THREE.MathUtils.clamp(target.slide.x + direction.x * strength * .52, -8, 8);
+      target.slide.z = THREE.MathUtils.clamp(target.slide.z + direction.z * strength * .52, -8, 8);
+    }
+    return true;
+  }
 
   function build(i, j) {
     const parent = new THREE.Group();
@@ -286,7 +307,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
     const parkKind = parkServiceAt(i, j);
     const signs = parkSigns.get(parkKind);
     function collider(cx, cz, width, height, depth, y = height / 2) {
-      const body = new Body({ mass: 0, shape: new Box(new Vec3(width / 2, height / 2, depth / 2)) });
+      const body = new Body({ mass: 0, material: world.defaultMaterial, shape: new Box(new Vec3(width / 2, height / 2, depth / 2)) });
       body.position.set(x + cx, y, z + cz);
       colliders.push(body);
     }
@@ -315,9 +336,16 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
       }
     }
     const park = parkKind ? buildPark(parent, add, collider, signs, isCompact) : null;
+    if (parkKind === 'linkedin') venues.markTank(add, tankBay.x - x, tankBay.z - z);
     const buildingLots = park ? [] : [[15, 15], [29, 15], [15, 29], [29, 29]];
+    let hasVenue = false;
     for (const [bx, bz] of buildingLots) {
       if (random() < .19) {
+        if (!hasVenue && (i + 2 * j) % 3 === 0) {
+          hasVenue = true;
+          walkers.push(...venues.build(parent, add, bx, bz, (i + j) % 2 === 0, !isCompact));
+          continue;
+        }
         add(assets.marble, bx, .105, bz, 9.6, .043, 9.6);
         add(assets.dirt, bx, .131, bz, 9.05, .026, 9.05);
         add(assets.marble, bx, .27, bz, 2.66, .36, 2.66, 0, columnGeometry);
@@ -364,6 +392,11 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
       for (const side of [-1, 1]) {
         add(assets.trim, bx + side * w * .43, height / 2 + .17, bz - d / 2, .16, height, .25);
         add(assets.trim, bx - w / 2, height / 2 + .17, bz + side * d * .43, .25, height, .16);
+      }
+      for (const level of [.35, .69]) {
+        add(assets.trim, bx, height * level, bz, w + .31, .11, d + .30);
+        add(assets.glass, bx - w * .29, height * level + .38, bz - d / 2 - .09, w * .17, .48, .24);
+        add(assets.glass, bx + w * .29, height * level + .38, bz - d / 2 - .09, w * .17, .48, .24);
       }
       if (height > 22) {
         add(assets.silver, bx + 1.5, height + 1.82, bz - 2, .11, 2.7, .11);
@@ -440,7 +473,11 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
     walkers.push(createWalker(parent, (i === 0 && j === 0) ? 0 : Math.floor(random() * 5),
       (i === 0 && j === 0) ? .216 : random(), 1));
     walkers.push(createWalker(parent, Math.floor(random() * 5), .29 + random() * .55, -1));
-    if (!isCompact && random() > .46) walkers.push(createWalker(parent, Math.floor(random() * 5), random(), 1));
+    if (!isCompact && random() > .46) {
+      const walker = createWalker(parent, Math.floor(random() * 5), random(), 1);
+      walker.pace *= 1.47;
+      walkers.push(walker);
+    }
     if (park) walkers.push(...park.walkers);
     let courier = null;
     if ((Math.abs(i) + Math.abs(j)) % 3 === 1) {
@@ -470,9 +507,11 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
       crate.collider.position.x += x;
       crate.collider.position.z += z;
       crate.collider.addEventListener('collide', listener('crate', crate));
+      targets.set(crate.collider, { kind: 'crate', target: crate });
     }
     for (const walker of walkers) {
       walker.collider.addEventListener('collide', listener('walker', walker));
+      targets.set(walker.collider, { kind: 'walker', target: walker });
       walker.originX = x;
       walker.originZ = z;
     }
@@ -541,7 +580,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
     }
   }
 
-  function update(time, position, motion = true) {
+  function update(time, position, motion = true, dt = 0, speed = 0) {
     signalGreen.color.setHex(time % 12 < 7 ? 0xb5d4a3 : 0x424c3c);
     signalRed.color.setHex(time % 12 < 7 ? 0x654346 : 0xf68167);
     for (const block of blocks.values()) {
@@ -549,7 +588,29 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
       for (const walker of block.walkers) {
         if (walker.knocked) continue;
         walker.view.visible = local < 88;
-        if (block.active || walker.view.visible) updateWalker(walker, time, walker.originX, walker.originZ, motion && local < 64);
+        if (block.active || walker.view.visible) {
+          const nearby = Math.hypot(walker.collider.position.x - position.x, walker.collider.position.z - position.z);
+          updateWalker(walker, time, walker.originX, walker.originZ, motion && local < 64, speed > 4 && nearby < 6);
+        }
+      }
+      for (const crate of block.crates) {
+        if (crate.spent || !crate.slide || crate.slide.lengthSquared() < .02) continue;
+        const dx = crate.slide.x * dt, dz = crate.slide.z * dt;
+        let blocked = false;
+        world.raycastAll(crate.collider.position, new Vec3(crate.x + dx * 2, crate.collider.position.y, crate.z + dz * 2),
+          { collisionFilterMask: 1, skipBackfaces: true }, hit => { if (hit.body.position.y > .18) blocked = true; });
+        if (blocked) {
+          crate.slide.setZero();
+          continue;
+        }
+        crate.x += dx;
+        crate.z += dz;
+        crate.collider.position.x = crate.x;
+        crate.collider.position.z = crate.z;
+        crate.collider.aabbNeedsUpdate = true;
+        crate.view.position.x += dx;
+        crate.view.position.z += dz;
+        crate.slide.scale(Math.exp(-4.1 * dt), crate.slide);
       }
       block.park?.update(time, motion && local < 64);
       if (!block.courier) continue;
@@ -579,7 +640,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
   }
 
   function process(time, onBlast) {
-    for (const { kind, target, impact, localHit, localCrate } of queue.splice(0)) {
+    for (const { kind, target, driver, impact, localHit, localCrate } of queue.splice(0)) {
       if (kind === 'crate' && !target.spent) {
         let coins = 0;
         for (const crate of target.pile ?? [target]) {
@@ -592,7 +653,7 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
           world.removeBody(crate.collider);
         }
         const { x, z, pile, shortcut } = target;
-        onBlast({ x, z, impact, localHit, localCrate, pile, shortcut, coins });
+        onBlast({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins });
       } else if (kind === 'walker' && !target.knocked) {
         target.knocked = true;
         target.view.visible = false;
@@ -634,5 +695,5 @@ export function createCity(scene, world, car, isCompact, maxAnisotropy, profileP
     }
   }
 
-  return { sync, update, process, safeLanding, resetParkCrates };
+  return { sync, update, process, safeLanding, resetParkCrates, hitTarget };
 }

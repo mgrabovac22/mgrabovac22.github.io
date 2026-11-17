@@ -151,16 +151,28 @@ a svg, button svg { width: 1.05em; height: 1.05em; flex: none; }
 .portrait svg.portrait-ink, .portrait-fallback { display: block; width: 100%; height: 100%; object-fit: contain; overflow: visible; }
 .portrait-photo { filter: url(#portrait-sharpen) grayscale(1) sepia(.38) hue-rotate(133deg) saturate(1.35) contrast(1.13) brightness(1.025); }
 .portrait svg [data-pen] { filter: drop-shadow(2px 3px 2px #2228); pointer-events: none; }
+.home-preloader { display: none; }
+.intro-loading .desk-stage > :not(.home-preloader, .skip-intro) { opacity: 0; }
+.intro-loading .home-preloader {
+  display: flex; position: absolute; left: 50%; top: 50%; translate: -50% -50%; align-items: center;
+  gap: .66rem; margin: 0; padding: .64rem .9rem; white-space: nowrap; border-radius: 5px;
+  border: 1px solid #60796b50; color: #284a42; background: #f4f5ecef; font-size: .81rem; font-weight: 700;
+}
+.home-preloader > span:first-child {
+  width: .91rem; height: .91rem; border: 2px solid #a8b9a8; border-top-color: #326754; border-radius: 50%;
+}
 @media (prefers-reduced-motion: no-preference) {
-  .desk-stage:not(.intro-done) .laptop { animation: laptop-delivery .92s cubic-bezier(.21, .69, .23, 1) both; }
-  .desk-stage:not(.intro-done) .laptop-lid { animation: lid-opening .72s .86s cubic-bezier(.2, .6, .28, 1) both; }
-  .desk-stage:not(.intro-done) .portrait { animation: portrait-delivery .67s .16s cubic-bezier(.22, .69, .23, 1) both; }
-  .desk-stage:not(.intro-done) .portrait-fallback { animation: photo-appear .25s .76s both; }
-  .desk-stage:not(.intro-done) .delivery-hand { display: block; }
+  .home-preloader > span:first-child { animation: home-loading-spin .85s linear infinite; }
+  .desk-stage.intro-playing:not(.intro-done) .laptop { animation: laptop-delivery .92s cubic-bezier(.21, .69, .23, 1) both; }
+  .desk-stage.intro-playing:not(.intro-done) .laptop-lid { animation: lid-opening .72s .86s cubic-bezier(.2, .6, .28, 1) both; }
+  .desk-stage.intro-playing:not(.intro-done) .portrait { animation: portrait-delivery .67s .16s cubic-bezier(.22, .69, .23, 1) both; }
+  .desk-stage.intro-playing:not(.intro-done) .portrait-fallback { animation: photo-appear .25s .76s both; }
+  .desk-stage.intro-playing:not(.intro-done) .delivery-hand { display: block; }
   .laptop-hand { animation: laptop-hand-exit 1.27s cubic-bezier(.43, .13, .51, .98) both; }
   .portrait-hand { animation: portrait-hand-exit 1.31s cubic-bezier(.43, .13, .51, .98) both; }
   .screen-light { animation: screen-pulse 2.6s ease-in-out infinite alternate; }
 }
+@keyframes home-loading-spin { to { transform: rotate(1turn); } }
 @keyframes laptop-delivery { 0%, 14% { translate: -88% 10%; } 68% { translate: 1% -1.6%; } 100% { translate: 0 0; } }
 @keyframes lid-opening { 0% { transform: translateZ(6px) rotateX(0deg); } 85% { transform: translateZ(6px) rotateX(114deg); } 100% { transform: translateZ(6px) rotateX(111deg); } }
 @keyframes portrait-delivery { 0% { translate: 145% -5%; rotate: 12deg; } 82% { translate: -1.5% .3%; rotate: -1deg; } 100% { translate: 0 0; rotate: 0deg; } }

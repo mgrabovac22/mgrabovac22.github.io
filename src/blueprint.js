@@ -1,8 +1,8 @@
 import { stageLoop } from './stage-loop.js';
 
-export function mountBlueprint(canvas, motion) {
+export function mountBlueprint(canvas, motion, ready) {
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) { ready?.(); return; }
   const shell = canvas.parentElement;
   let width = 0;
   let height = 0;
@@ -165,6 +165,8 @@ export function mountBlueprint(canvas, motion) {
         ctx.stroke();
       }
     }
+    ready?.();
+    ready = null;
   }, (w, h) => {
     width = w;
     height = h;

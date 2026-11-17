@@ -13,6 +13,11 @@ const homeShell = document.querySelector('.home-shell');
 const world = document.querySelector('#world');
 world.removeAttribute('open');
 root.classList.add('js-ready');
+const blueprintReady = new Promise(resolve => {
+  import('./blueprint.js')
+    .then(({ mountBlueprint }) => mountBlueprint(document.querySelector('#home-blueprint'), motion, resolve))
+    .catch(resolve);
+});
 
 const snapshot = JSON.parse(document.querySelector('#portfolio-snapshot').textContent);
 const loaded = await loadPortfolio(root.lang).then(data => ({ data, pages: createStory(data) })).catch(() => null);
@@ -45,6 +50,7 @@ function refreshPortfolio() {
   setAttribute('.chapter-menu', 'aria-label', sectionMenuLabel);
   setText('.skip-link', t.skip);
   setText('#skip-intro', t.skipIntro);
+  if (t.homeLoading) setText('#home-loading-label', t.homeLoading);
   setText('#read-mode', t.read);
   setText('#world-title', t.world);
   setText('.scroll-hint', t.scroll);
@@ -348,11 +354,13 @@ const skip = document.querySelector('#skip-intro');
 const portrait = document.querySelector('#portrait');
 const desk = document.querySelector('.desk-stage');
 const studio = document.querySelector('.studio-dispatch');
-const portraitDelivery = portrait.getAnimations().find(animation => animation.animationName === 'portrait-delivery');
 const intro = { skipped: levelFromHash() >= 0, drawingDone: false };
+let portraitAnimation;
 function finishIntro() {
   if (document.activeElement === skip) document.querySelector('.hero-primary').focus({ preventScroll: true });
   intro.skipped = true;
+  portraitAnimation?.finish();
+  root.classList.remove('intro-loading');
   desk.classList.add('intro-done');
   studio.classList.remove('studio-playing');
   studio.classList.add('studio-complete');
@@ -366,8 +374,23 @@ function startStudioIntro() {
 if (motion.matches || intro.skipped) finishIntro();
 else {
   skip.hidden = false;
-  const animatedPortrait = (portraitDelivery?.currentTime ?? 0) < 850 && mountPortrait(portrait, motion, intro, startStudioIntro);
-  if (!animatedPortrait) {
+  void prepareIntro();
+}
+async function prepareIntro() {
+  const images = [...desk.querySelectorAll('img')];
+  const resources = Promise.allSettled([document.fonts.ready, blueprintReady, ...images.map(image => image.decode?.())]);
+  let timeout;
+  await Promise.race([resources, new Promise(resolve => { timeout = setTimeout(resolve, 2900); })]);
+  clearTimeout(timeout);
+  if (intro.skipped || motion.matches) return;
+  const photo = portrait.querySelector('img');
+  if (photo.complete && photo.naturalWidth) portraitAnimation = mountPortrait(portrait, motion, intro, startStudioIntro);
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  if (intro.skipped || motion.matches) return;
+  desk.classList.add('intro-playing');
+  root.classList.remove('intro-loading');
+  if (portraitAnimation) portraitAnimation.start();
+  else {
     const lidOpening = desk.querySelector('.laptop-lid').getAnimations().find(animation => animation.animationName === 'lid-opening');
     if (lidOpening) void lidOpening.finished.then(startStudioIntro, () => {});
     else startStudioIntro();
@@ -389,16 +412,11 @@ desk.addEventListener('pointerleave', () => {
   desk.style.removeProperty('--draft-x');
   desk.style.removeProperty('--draft-y');
 });
-import('./blueprint.js')
-  .then(({ mountBlueprint }) => mountBlueprint(document.querySelector('#home-blueprint'), motion))
-  .catch(() => {});
 if (!navigator.connection?.saveData && navigator.hardwareConcurrency > 4) {
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      if (document.hidden) return;
-      if ('requestIdleCallback' in window) requestIdleCallback(prepareWorld, { timeout: 1800 });
-      else void prepareWorld();
-    }, 1900);
-  }, { once: true });
+  setTimeout(() => {
+    if (document.hidden) return;
+    if ('requestIdleCallback' in window) requestIdleCallback(prepareWorld, { timeout: 1800 });
+    else void prepareWorld();
+  }, 5700);
 }
 followLocation();

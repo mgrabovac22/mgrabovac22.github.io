@@ -9,7 +9,7 @@ body, h1, p { margin: 0; }
   position: relative; height: 100vh; height: 100dvh; min-height: 230px; overflow: hidden; isolation: isolate; background: #253d4e;
 }
 #view, #view canvas, .cover { position: absolute; inset: 0; width: 100%; height: 100%; }
-#view { z-index: -2; }
+#view { z-index: -2; touch-action: none; }
 #game::after { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(#07111990, transparent 25%, transparent 73%, #0a131c87); pointer-events: none; }
 button, .button, summary { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: inherit; padding: .45rem .85rem; font: 700 .84rem/1.15 system-ui, sans-serif; cursor: pointer; text-decoration: none; }
 button:hover, .button:hover, summary:hover { background: #2b4550; }
@@ -95,4 +95,40 @@ kbd { display: inline-block; padding: .15rem .3rem; border: 1px solid var(--line
   .top { top: .5rem; }
   .cover-inner strong { font-size: clamp(1.55rem, 7vh, 3rem); }
   .cover-inner { padding: .65rem 1rem; }
+}
+.settings-button { padding-inline: .55rem; font-size: 1.18rem; }
+#drive-settings {
+  width: min(25rem, 92vw); max-height: 84dvh; color: inherit; background: #142327;
+  border: 1px solid var(--line); border-radius: 7px; padding: 1rem 1.2rem;
+}
+#drive-settings::backdrop { background: #07131bbd; }
+.settings-heading { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin-bottom: .55rem; }
+.settings-heading h2 { font-size: 1.2rem; margin: 0; }
+.settings-row { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .55rem; padding: .63rem 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.settings-row :is(input, select) { accent-color: var(--acid); font: inherit; }
+.settings-row input[type=checkbox] { width: 1.3rem; height: 1.3rem; }
+.settings-row input[type=range] { max-width: 44%; }
+.settings-row select { min-height: 44px; padding: .3rem; color: inherit; background: #213840; border: 1px solid var(--line); border-radius: 4px; }
+.settings-row output { font: .76rem ui-monospace, monospace; min-width: 2.2rem; }
+#aim { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; border: 1px solid #f9f5d6; border-radius: 50%; box-shadow: 0 0 0 1px #142327dd; translate: -50% -50%; pointer-events: none; }
+#vehicle-prompt { position: absolute; left: 50%; bottom: max(23%, 9rem); translate: -50% 0; width: max-content; max-width: 86vw; padding: .35rem .65rem; background: var(--panel); border-radius: 4px; font-size: .81rem; }
+.tool-hud { position: absolute; z-index: 2; left: 50%; bottom: var(--hud-bottom); translate: -50% 0; }
+.tool-hud button { padding: .38rem .6rem; }
+#tool-number { color: var(--acid); font: 700 .75rem ui-monospace, monospace; }
+#tool-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-wheel { position: absolute; width: min(22rem, 95vw); height: min(15rem, 44dvh); left: 50%; bottom: calc(100% + .5rem); translate: -50% 0; border: 1px solid var(--line); border-radius: 50%; background: #13262ef5; box-shadow: 0 6px 36px #0b151bcc; }
+.tool-wheel button { position: absolute; left: var(--x); top: var(--y); translate: -50% -50%; max-width: 39%; font-size: .72rem; }
+.tool-wheel button[aria-pressed=true] { color: #101d26; background: var(--acid); }
+.vehicle-touch { position: absolute; z-index: 2; right: max(.65rem, env(safe-area-inset-right)); bottom: calc(var(--touch-bottom) + var(--touch-size) + .55rem); display: flex; gap: .35rem; }
+.vehicle-touch button { width: var(--touch-size); height: var(--touch-size); padding: 0; font-size: 1.2rem; touch-action: none; }
+#game[data-walking] .touch > div + div { display: grid; grid-template-columns: repeat(2, auto); }
+#game[data-walking] [data-input=forward] { grid-row: 1; grid-column: 2; }
+@media (max-width: 590px) {
+  .top .actions { display: grid; grid-template-columns: 1fr auto; }
+  .actions #heal { grid-column: 1 / -1; grid-row: 2; }
+  .settings-button { min-width: 44px; }
+  .top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.32fr); }
+  #vehicle-prompt { bottom: max(31%, 11rem); }
+  .tool-hud button { font-size: .70rem; }
+  #tool-toggle { max-width: max(7rem, calc(100vw - 12.8rem)); }
 }

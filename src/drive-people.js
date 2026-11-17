@@ -105,7 +105,7 @@ export function walkingLoop(left, top, right, bottom, radius) {
 }
 const circuits = [7.25, 7.88].map((inset, index) => walkingLoop(inset, inset, 44 - inset, 44 - inset, index ? 1.75 : 1.56));
 
-export function createWalker(parent, style, phase, direction, path = circuits[style % circuits.length]) {
+export function createPerson(parent, style) {
   const view = new THREE.Group();
   const parts = [];
   skeleton.forEach(([joint, x, y, z], i) => {
@@ -115,14 +115,43 @@ export function createWalker(parent, style, phase, direction, path = circuits[st
     parts.push(part);
   });
   parent.add(view);
+  return { view, parts };
+}
+
+export function createWalker(parent, style, phase, direction, path = circuits[style % circuits.length]) {
+  const { view, parts } = createPerson(parent, style);
   const collider = new Body({ type: Body.KINEMATIC, shape: new Box(new Vec3(.245, .84, .21)),
     collisionFilterGroup: 8, collisionFilterMask: 4, collisionResponse: false });
   const pace = (.0105 + style * .00034) * circuits[style % circuits.length].getLength() / path.getLength();
   return { view, parts, collider, path, pace, phase, direction, style, knocked: false };
 }
 
-export function updateWalker(walker, time, originX, originZ, animated) {
+const personUp = new Vec3(0, 1, 0);
+
+export function updateWalker(walker, time, originX, originZ, animated, startled = false) {
   const { view, parts, path, pace, phase, direction, style, collider } = walker;
+  const activity = walker.activity;
+  if (activity) {
+    const gesture = animated ? Math.sin(time * 2.7 + phase * 14) : 0;
+    const seated = activity.type === 'sit';
+    const performing = activity.type === 'perform';
+    view.position.set(activity.x, seated ? -.34 : .081 + (performing ? Math.abs(gesture) * .10 : 0), activity.z);
+    view.rotation.y = activity.yaw;
+    parts[0].rotation.x = seated ? .16 : -.055 * gesture;
+    parts[1].rotation.y = activity.type === 'browse' ? gesture * .47 : gesture * .22;
+    parts[1].rotation.x = startled ? -.21 : gesture * .11;
+    for (const side of [0, 1]) {
+      parts[2 + side].rotation.x = seated ? -.72 : performing ? -.78 + gesture * (side ? -.77 : .77) : -.12 + gesture * (side ? .44 : .20);
+      parts[2 + side].rotation.z = (startled ? .74 : performing ? .30 : 0) * (side ? 1 : -1);
+      parts[4 + side].rotation.x = -.48 - gesture * .22;
+      parts[6 + side].rotation.x = seated ? -1.57 : 0;
+      parts[8 + side].rotation.x = seated ? 1.58 : 0;
+    }
+    collider.position.set(originX + activity.x, seated ? .69 : .93, originZ + activity.z);
+    collider.quaternion.setFromAxisAngle(personUp, activity.yaw);
+    collider.aabbNeedsUpdate = true;
+    return;
+  }
   const progress = (phase + time * pace * direction) % 1;
   const f = (progress + 1) % 1;
   const point = path.getPoint(f);
@@ -130,10 +159,13 @@ export function updateWalker(walker, time, originX, originZ, animated) {
   const heading = Math.atan2((next.x - point.x) * direction, (next.y - point.y) * direction);
   const beat = animated ? time * (7.3 + style * .17) + phase * 53 : 0;
   const stride = animated ? Math.sin(beat) : 0;
-  view.position.set(point.x, .075 + Math.abs(stride) * .028, point.y);
+  walker.caution = THREE.MathUtils.lerp(walker.caution ?? 0, startled ? .59 : 0, .10);
+  const px = point.x + Math.cos(heading) * walker.caution;
+  const pz = point.y - Math.sin(heading) * walker.caution;
+  view.position.set(px, .075 + Math.abs(stride) * .028, pz);
   view.rotation.y = heading;
   parts[0].rotation.z = stride * .035;
-  parts[1].rotation.y = animated ? Math.sin(time * .65 + phase * 18) * .11 : 0;
+  parts[1].rotation.y = animated ? Math.sin(time * .65 + phase * 18) * .11 + walker.caution : 0;
   for (let side = 0; side < 2; side++) {
     const swing = stride * (side ? -1 : 1);
     parts[2 + side].rotation.x = swing * .34;
@@ -141,8 +173,8 @@ export function updateWalker(walker, time, originX, originZ, animated) {
     parts[6 + side].rotation.x = -swing * .44;
     parts[8 + side].rotation.x = Math.max(swing, 0) * .65;
   }
-  collider.position.set(originX + point.x, .93, originZ + point.y);
-  collider.quaternion.setFromAxisAngle(new Vec3(0, 1, 0), heading);
+  collider.position.set(originX + px, .93, originZ + pz);
+  collider.quaternion.setFromAxisAngle(personUp, heading);
   collider.aabbNeedsUpdate = true;
 }
 

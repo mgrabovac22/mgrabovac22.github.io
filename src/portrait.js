@@ -60,17 +60,16 @@ export function mountPortrait(host, motion, intro, onComplete) {
   const restY = box.y + box.height * .94;
   const pose = (x, y, angle) => pen.setAttribute('transform', `translate(${x} ${y}) rotate(${angle}) scale(${box.width / 230})`);
   function finish() {
+    if (intro.drawingDone) return;
+    observer.disconnect();
+    document.removeEventListener('visibilitychange', schedule);
+    cancelAnimationFrame(frame);
     drawing.setAttribute('opacity', '0');
     photo.removeAttribute('mask');
     pose(restX, restY, 27);
     intro.drawingDone = true;
     onComplete();
   }
-  if (intro.skipped || motion.matches) {
-    finish();
-    return true;
-  }
-
   strokes.forEach(({ path, brush, length }) => {
     for (const line of [path, brush]) {
       line.setAttribute('stroke-dasharray', `${length} ${length}`);
@@ -86,15 +85,11 @@ export function mountPortrait(host, motion, intro, onComplete) {
     if (!document.hidden && visible && !intro.drawingDone && !frame) frame = requestAnimationFrame(draw);
   }
   const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; schedule(); });
-  observer.observe(host);
-  document.addEventListener('visibilitychange', schedule);
 
   function draw(now) {
     frame = 0;
     if (intro.skipped || motion.matches || elapsed >= 3.25) {
       finish();
-      observer.disconnect();
-      document.removeEventListener('visibilitychange', schedule);
       return;
     }
     if (document.hidden || !visible) {
@@ -136,6 +131,12 @@ export function mountPortrait(host, motion, intro, onComplete) {
     }
     schedule();
   }
-  schedule();
-  return true;
+  return {
+    start() {
+      observer.observe(host);
+      document.addEventListener('visibilitychange', schedule);
+      schedule();
+    },
+    finish,
+  };
 }

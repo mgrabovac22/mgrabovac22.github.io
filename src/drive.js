@@ -8,10 +8,15 @@ import { createSkyStories } from './drive-story.js';
 import { loadPortfolio } from './portfolio.js';
 import { createStory } from './story.js';
 import { crateProfileUrl, crateServices, createCrateCountdown } from './drive-crate-links.js';
+import { createUtilityVehicle, tankBay, vehicleTypes } from './drive-vehicle.js';
+import { createPlayer } from './drive-player.js';
+import { createDriveAudio } from './drive-audio.js';
+import { createToolKit, tools } from './drive-tools.js';
 
 const language = new URLSearchParams(location.search).get('lang') === 'hr' ? 'hr' : 'en';
 const content = loadPortfolio(language).then(data => ({ data, pages: createStory(data) })).catch(() => null);
 const find = selector => document.querySelector(selector);
+const game = find('#game');
 const touchButtons = [...document.querySelectorAll('[data-input]')];
 const touch = find('.touch');
 const view = find('#view');
@@ -30,6 +35,17 @@ const coinCount = find('#coin-count');
 const stationName = find('#station-name');
 const chapter = find('#chapter');
 const chapterIndex = find('#chapter-index');
+const settings = find('#drive-settings');
+const settingsButton = find('#settings-open');
+const vehicleSelect = find('#drive-vehicle');
+const toolHud = find('#tool-hud');
+const toolToggle = find('#tool-toggle');
+const toolWheel = find('#tool-wheel');
+const modTouch = find('#vehicle-touch');
+const fireButton = find('#touch-fire');
+const sprintButton = find('#touch-sprint');
+const aim = find('#aim');
+const vehiclePrompt = find('#vehicle-prompt');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const coarse = matchMedia('(any-pointer: coarse)');
 const compact = coarse.matches || innerWidth < 700;
@@ -41,6 +57,7 @@ const controls = new Map([
   ['KeyA', 'left'], ['ArrowLeft', 'left'], ['KeyD', 'right'], ['ArrowRight', 'right'], ['Space', 'brake'],
 ]);
 const initial = { x: 3, y: .77, z: 9 };
+const parkedInput = { forward: false, reverse: false, left: false, right: false, brake: true };
 
 function sky(scene) {
   const gradient = new THREE.Mesh(new THREE.SphereGeometry(210, 24, 12), new THREE.ShaderMaterial({
@@ -145,7 +162,12 @@ function fail(message) {
   reset.disabled = true;
   healButton.disabled = true;
   readButton.disabled = true;
+  settingsButton.disabled = true;
   touch.hidden = true;
+  modTouch.hidden = true;
+  aim.hidden = true;
+  toolHud.hidden = true;
+  vehiclePrompt.hidden = true;
 }
 
 async function boot() {
@@ -156,6 +178,8 @@ async function boot() {
   }
   const { data, pages } = portfolio;
   const t = data.t.drive;
+  const copy = t.sandbox ?? {};
+  const label = (key, fallback) => copy[key] ?? fallback;
   const crateCopy = typeof t.crateLink?.countdown === 'string' ? t.crateLink : null;
   const profileParks = new Map();
   if (crateCopy) for (const [kind, label] of Object.entries(crateServices)) {
@@ -166,7 +190,13 @@ async function boot() {
   document.title = t.title + ' — ' + data.profile.name;
   document.querySelector('meta[name=description]').content = t.description;
   for (const node of document.querySelectorAll('[data-copy]')) node.textContent = t[node.dataset.copy];
-  for (const button of touchButtons) button.setAttribute('aria-label', t[button.dataset.input]);
+  for (const node of document.querySelectorAll('[data-game-copy]')) {
+    node.textContent = label(node.dataset.gameCopy, node.textContent);
+  }
+  for (const button of touchButtons) {
+    const key = button.dataset.input;
+    button.setAttribute('aria-label', t[key] ?? label(key, button.getAttribute('aria-label')));
+  }
   find('.current-route').setAttribute('aria-label', t.route);
   find('.speed').setAttribute('aria-label', t.speed);
 
@@ -212,20 +242,59 @@ async function boot() {
   world.solver.iterations = 9;
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
-  const car = createCar(scene, world);
-  const city = createCity(scene, world, car.chassis, compact, renderer.capabilities.getMaxAnisotropy(), profileParks);
+  const sport = createCar(scene, world);
+  const tank = createUtilityVehicle(scene, world, 'tank');
+  tank.setPose(tankBay.x, tank.stance, tankBay.z, tankBay.yaw);
+  const fleet = new Map([['sport', sport], ['tank', tank]]);
+  const spawned = new Set([sport, tank]);
+  const city = createCity(scene, world, compact, renderer.capabilities.getMaxAnisotropy(), profileParks);
   const stories = createSkyStories(scene, world, pages);
   const effects = makeEffects(scene);
   const crateCountdown = createCrateCountdown(find('#crate-redirect'), crateCopy);
+  const audio = createDriveAudio();
+  const player = createPlayer(scene, world, audio);
   const keys = new Set();
   const pointers = new Map();
   const input = {};
-  const position = car.chassis.position;
+  let car = sport;
+  let position = car.chassis.position;
+  let walking = false;
+  let lookYaw = 0;
+  let lookPitch = -.05;
+  let firing = false;
+  let exitRequested = false;
+  let aimPointer = null;
+  let selectedKind = 'sport';
+  let nearbyCar = null;
   const cameraGoal = new THREE.Vector3();
   const focus = new THREE.Vector3();
   const focusGoal = new THREE.Vector3();
   const forward = new THREE.Vector3(0, 0, -1);
   const routeHeading = new THREE.Vector3(0, 0, -1);
+  const shotDirection = new THREE.Vector3();
+  const shotPoint = new THREE.Vector3();
+  const staticRayStart = new Vec3();
+  const staticRayEnd = new Vec3();
+  const still = new Vec3();
+  let activeTool = 0;
+  const toolSlots = tools.map(({ id }, index) => {
+    const button = document.createElement('button');
+    const angle = index / tools.length * Math.PI * 2;
+    button.type = 'button';
+    button.style.setProperty('--x', (50 + Math.sin(angle) * 30) + '%');
+    button.style.setProperty('--y', (50 - Math.cos(angle) * 33) + '%');
+    button.textContent = (index + 1) + ' · ' + label(id, id);
+    toolWheel.append(button);
+    return button;
+  });
+  const kit = createToolKit(scene, world, city, player.held, audio, compact, (index, owned) => {
+    activeTool = index;
+    for (const [slot, button] of toolSlots.entries()) {
+      button.disabled = !owned.has(slot);
+      button.setAttribute('aria-pressed', String(slot === index));
+    }
+    showTool();
+  }, index => announce(label('pickup', '{tool} equipped').replace('{tool}', label(tools[index].id, tools[index].id))));
   let yaw = 0;
   let cameraYaw = 0;
   let cameraClearance = 1;
@@ -244,24 +313,194 @@ async function boot() {
   let hudAt = 0;
   let previous = 0;
   let frame = 0;
+  let resolution = 1;
+  let baseRatio = 1;
+  let elapsedFrameTime = 0;
+  let frameSamples = 0;
+
+  function showTool() {
+    const equipped = tools[activeTool];
+    const tankMode = !walking && car === tank;
+    find('#tool-number').textContent = tankMode ? '◎' : String(activeTool + 1);
+    find('#tool-name').textContent = tankMode ? label('tank', 'Water Cannon') : label(equipped.id, equipped.id);
+    toolToggle.disabled = tankMode;
+  }
+  function openWheel(open, focusSlot = false) {
+    if (open && !walking) return;
+    toolWheel.hidden = !open;
+    toolToggle.setAttribute('aria-expanded', String(open));
+    if (open) {
+      releaseLook();
+      if (focusSlot) toolSlots[activeTool].focus({ preventScroll: true });
+    }
+  }
+  function releaseLook() {
+    firing = false;
+    aimPointer = null;
+    if (document.pointerLockElement === renderer.domElement) document.exitPointerLock();
+  }
+  function updateFleet() {
+    for (const vehicle of fleet.values()) {
+      const p = vehicle.chassis.position;
+      vehicle.setActive(spawned.has(vehicle) && (vehicle === car && !walking || Math.hypot(p.x - position.x, p.z - position.z) < 52));
+    }
+  }
+  function updateMode() {
+    const aiming = walking || car === tank;
+    game.toggleAttribute('data-walking', walking);
+    aim.hidden = toolHud.hidden = !started || !aiming;
+    fireButton.hidden = !aiming;
+    sprintButton.hidden = !walking;
+    find('[data-input=brake]').textContent = walking ? '⬆' : '■';
+    find('[data-input=brake]').setAttribute('aria-label', walking ? label('jump', 'Jump') : t.brake);
+    find('[data-input=forward]').setAttribute('aria-label', walking ? label('walkForward', 'Walk forward') : t.forward);
+    find('[data-input=reverse]').setAttribute('aria-label', walking ? label('walkBack', 'Walk backwards') : t.reverse);
+    if (!walking) openWheel(false);
+    showTool();
+    showTouch();
+  }
+  function getNearbyCar() {
+    let closest = null;
+    let best = Infinity;
+    for (const vehicle of spawned) {
+      const p = vehicle.chassis.position;
+      const distance = Math.hypot(p.x - position.x, p.y - position.y, p.z - position.z);
+      if (distance > (vehicle === tank ? 3.65 : 3.05) || distance > best || isTipped(vehicle.chassis)) continue;
+      closest = vehicle;
+      best = distance;
+    }
+    return closest;
+  }
+  function updatePrompt() {
+    nearbyCar = walking ? getNearbyCar() : null;
+    vehiclePrompt.hidden = !nearbyCar;
+    if (nearbyCar) {
+      const name = label(nearbyCar.kind, nearbyCar.kind);
+      const hint = touch.hidden ? 'F · ' + label('enter', 'Enter {vehicle}') : label('enter', 'Enter {vehicle}');
+      const next = hint.replace('{vehicle}', name);
+      if (vehiclePrompt.textContent !== next) vehiclePrompt.textContent = next;
+    }
+  }
+  function exitVehicle() {
+    const { chassis } = car;
+    const center = chassis.position;
+    const heading = flatYaw(chassis);
+    const offset = car.width + .72;
+    staticRayStart.set(center.x, center.y + .21, center.z);
+    for (const side of [-1, 1, -2, 2]) {
+      const lateral = Math.abs(side) === 1;
+      const dx = (lateral ? Math.cos(heading) : Math.sin(heading)) * Math.sign(side);
+      const dz = (lateral ? -Math.sin(heading) : Math.cos(heading)) * Math.sign(side);
+      const distance = lateral ? offset : 2.92;
+      const x = center.x + dx * distance;
+      const z = center.z + dz * distance;
+      staticRayEnd.set(x + dx * .27, staticRayStart.y, z + dz * .27);
+      let blocked = false;
+      world.raycastAll(staticRayStart, staticRayEnd, { skipBackfaces: true, collisionFilterMask: 5 }, hit => {
+        if (hit.body !== chassis) blocked = true;
+      });
+      if (blocked) continue;
+      walking = true;
+      exitRequested = false;
+      lookYaw = heading;
+      lookPitch = -.03;
+      player.place(x, .91, z, heading);
+      player.setActive(true);
+      position = player.body.position;
+      clearInput();
+      updateMode();
+      audio.play('click');
+      return;
+    }
+    exitRequested = false;
+    announce(label('blocked', 'Move the vehicle to make room to exit.'));
+  }
+  function enterVehicle(vehicle) {
+    walking = false;
+    exitRequested = false;
+    player.setActive(false);
+    car = vehicle;
+    position = car.chassis.position;
+    lookYaw = flatYaw(car.chassis);
+    lookPitch = -.04;
+    launched = false;
+    tippedFor = 0;
+    clearInput();
+    releaseLook();
+    updateMode();
+    updatePrompt();
+    if (car !== tank) vehicleSelect.value = selectedKind = car.kind;
+    audio.play('click');
+  }
+  function interact() {
+    if (stopped || !started) return;
+    if (walking) {
+      const target = getNearbyCar();
+      if (target) enterVehicle(target);
+      else announce(label('noVehicle', 'Move closer to a vehicle.'));
+    } else if (Math.hypot(car.chassis.velocity.x, car.chassis.velocity.z) > 4 || position.y > car.stance + .7) {
+      exitRequested = true;
+      announce(label('stopping', 'Stopping to exit…'));
+    } else exitVehicle();
+  }
+  function getVehicle(kind) {
+    if (!fleet.has(kind)) fleet.set(kind, createUtilityVehicle(scene, world, kind));
+    return fleet.get(kind);
+  }
+  function switchVehicle(kind) {
+    if (!vehicleTypes.includes(kind)) return;
+    const replacement = getVehicle(kind);
+    if (!walking && replacement === car) return;
+    const previousCar = car;
+    const [x, z, road] = city.safeLanding(position.x, position.z);
+    const driverYaw = walking ? lookYaw : flatYaw(car.chassis);
+    const axis = road === 'east-west' ? Math.PI / 2 : 0;
+    const heading = road ? axis + Math.round((driverYaw - axis) / Math.PI) * Math.PI : driverYaw;
+    let spawnX = x, spawnZ = z;
+    if (previousCar === tank && Math.hypot(x - tank.chassis.position.x, z - tank.chassis.position.z) < 5) {
+      [spawnX, spawnZ] = city.safeLanding(x - Math.sin(heading) * 5.5, z - Math.cos(heading) * 5.5);
+    }
+    for (const vehicle of spawned) {
+      if (vehicle === replacement || vehicle === tank) continue;
+      vehicle.setActive(false);
+      spawned.delete(vehicle);
+    }
+    spawned.add(replacement);
+    replacement.setPose(spawnX, replacement.stance + .055, spawnZ, heading);
+    enterVehicle(replacement);
+    updateFleet();
+    city.sync(position);
+    draw(0);
+  }
 
   function announce(message, duration = 2.8) {
     notice.textContent = message;
     noticeUntil = time + duration;
   }
   function draw(dt, snap = false) {
-    car.render(dt, started && !reduced.matches);
-    const visual = car.viewPosition;
-    if (!launched && !isTipped(car.chassis)) yaw = flatYaw(car.chassis);
-    const angularError = Math.atan2(Math.sin(yaw - cameraYaw), Math.cos(yaw - cameraYaw));
-    cameraYaw = snap || reduced.matches ? yaw : cameraYaw + angularError * (1 - Math.exp(-5.4 * dt));
+    for (const vehicle of spawned) {
+      const occupied = vehicle === car && !walking;
+      vehicle.render(dt, occupied && started && !reduced.matches, occupied);
+    }
+    if (walking) player.render(lookPitch);
+    const aimed = walking || car === tank;
+    const visual = walking ? player.body.interpolatedPosition : car.viewPosition;
+    if (walking) yaw = lookYaw;
+    else if (!launched && !isTipped(car.chassis)) yaw = flatYaw(car.chassis);
+    if (car === tank && !walking) tank.aim(lookYaw - yaw, lookPitch);
+    const heading = aimed ? lookYaw : yaw;
+    const angularError = Math.atan2(Math.sin(heading - cameraYaw), Math.cos(heading - cameraYaw));
+    cameraYaw = snap || reduced.matches ? heading : cameraYaw + angularError * (1 - Math.exp(-(aimed ? 21 : 5.4) * dt));
     forward.set(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
     const narrow = camera.aspect < .9;
-    const airborne = Math.max(0, visual.y - .75);
-    const backDistance = narrow ? 8.75 : 7.65;
-    const height = (narrow ? 3.25 : 3.05) + airborne * .52;
+    const airborne = Math.max(0, visual.y - car.stance);
+    const backDistance = walking ? (narrow ? 3.7 : 3.45) : (narrow ? 8.75 : 7.65);
+    const height = walking ? 1.38 : (narrow ? 3.25 : 3.05) + airborne * .52;
+    const shoulder = walking ? .63 : 0;
     const eye = new Vec3(visual.x, visual.y + .75, visual.z);
-    const back = new Vec3(-forward.x * backDistance, height - .75, -forward.z * backDistance);
+    const offsetY = aimed ? -Math.sin(lookPitch) * backDistance * .72 : 0;
+    const back = new Vec3(-forward.x * backDistance + Math.cos(cameraYaw) * shoulder, height - .75 + offsetY,
+      -forward.z * backDistance - Math.sin(cameraYaw) * shoulder);
     let clearance = 1;
     world.raycastAll(eye, eye.vadd(back), { skipBackfaces: true }, hit => {
       if (hit.body.type === Body.STATIC && hit.body.position.y > 0) {
@@ -273,8 +512,11 @@ async function boot() {
     cameraGoal.set(visual.x + back.x * cameraClearance, eye.y + back.y * cameraClearance, visual.z + back.z * cameraClearance);
     if (snap || reduced.matches) camera.position.copy(cameraGoal);
     else camera.position.lerp(cameraGoal, 1 - Math.exp(-9.4 * dt));
-    focusGoal.set(visual.x + forward.x * 7.3, Math.max(1.18, visual.y + .15), visual.z + forward.z * 7.3);
-    if (narrow) {
+    if (aimed) {
+      focusGoal.set(cameraGoal.x + forward.x * 18, cameraGoal.y + Math.tan(lookPitch - (walking ? .045 : .08)) * 18,
+        cameraGoal.z + forward.z * 18);
+    } else focusGoal.set(visual.x + forward.x * 7.3, Math.max(1.18, visual.y + .15), visual.z + forward.z * 7.3);
+    if (narrow && !aimed) {
       const alongAvenue = THREE.MathUtils.smoothstep(Math.abs(forward.z), .78, .98);
       const nearCenter = 1 - THREE.MathUtils.smoothstep(Math.abs(visual.x), 4, 8);
       focusGoal.x -= visual.x * alongAvenue * nearCenter * .46;
@@ -288,7 +530,7 @@ async function boot() {
     sun.target.position.set(anchorX, 0, anchorZ);
     sun.position.set(anchorX - 35, 32, anchorZ - 30);
     routeHeading.set(-Math.sin(yaw), 0, -Math.cos(yaw));
-    const story = stories.update(position, car.chassis.velocity, routeHeading, camera.position, dt, reduced.matches);
+    const story = stories.update(position, walking ? still : car.chassis.velocity, routeHeading, camera.position, dt, reduced.matches);
     if (story.shattered) announce(t.shattered, 5);
     if (lastChapter !== story.index) {
       lastChapter = story.index;
@@ -310,19 +552,29 @@ async function boot() {
     const pixelBudget = compact ? 1_900_000 : 4_000_000;
     const maxRatio = compact ? 1.85 : 2;
     const budgetRatio = Math.sqrt(pixelBudget / (clientWidth * clientHeight));
-    renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio, 1.45), maxRatio, budgetRatio));
+    baseRatio = Math.min(Math.max(devicePixelRatio, 1.45), maxRatio, budgetRatio);
+    renderer.setPixelRatio(baseRatio * resolution);
     renderer.setSize(clientWidth, clientHeight, false);
     draw(0, true);
     showTouch();
   }
   function showHud() {
-    const speed = Math.hypot(car.chassis.velocity.x, car.chassis.velocity.z) * 3.6;
+    const velocity = walking ? player.body.velocity : car.chassis.velocity;
+    const speed = Math.hypot(velocity.x, velocity.z) * 3.6;
     speedValue.textContent = String(Math.round(speed)).padStart(3, '0');
   }
   function resetCar() {
     crateCountdown.cancel();
     city.resetParkCrates();
-    car.setPose(initial.x, initial.y, initial.z);
+    if (walking || car === tank) {
+      car = getVehicle(selectedKind);
+      spawned.add(car);
+      enterVehicle(car);
+    }
+    car.setPose(initial.x, car.stance, initial.z);
+    exitRequested = false;
+    clearInput();
+    updateFleet();
     tippedFor = 0;
     launched = false;
     yaw = 0;
@@ -336,9 +588,12 @@ async function boot() {
   function clearInput() {
     keys.clear();
     pointers.clear();
+    firing = false;
+    aimPointer = null;
   }
   function recovery(dt) {
-    if (!isTipped(car.chassis) || position.y > 1.7) {
+    const altitude = position.y - car.stance;
+    if (!isTipped(car.chassis) || altitude > .93) {
       if (launched && time - launchedAt > .35 && car.grounded && !isTipped(car.chassis)) launched = false;
       tippedFor = 0;
       return;
@@ -346,49 +601,101 @@ async function boot() {
     const touchingDown = world.contacts.some(contact =>
       (contact.bi === car.chassis || contact.bj === car.chassis) && Math.abs(contact.ni.y) > .45);
     if (touchingDown || tippedFor) tippedFor += dt;
-    if (tippedFor >= 1 && position.y < 1.4 && Math.abs(car.chassis.velocity.y) < 1.8) {
+    if (tippedFor >= 1 && altitude < .63 && Math.abs(car.chassis.velocity.y) < 1.8) {
       const [x, z, road] = city.safeLanding(position.x, position.z);
       const heading = launched ? launchYaw : yaw;
       const roadAxis = road === 'east-west' ? Math.PI / 2 : 0;
       const safeYaw = road ? roadAxis + Math.round((heading - roadAxis) / Math.PI) * Math.PI : heading;
-      car.setPose(x, .91, z, safeYaw, !reduced.matches);
+      car.setPose(x, car.stance + .14, z, safeYaw, !reduced.matches);
       yaw = safeYaw;
       launched = false;
       tippedFor = 0;
       announce(t.recovered);
     }
   }
+  function shoot() {
+    if (walking) {
+      camera.getWorldDirection(shotDirection);
+      shotPoint.copy(camera.position).addScaledVector(shotDirection, 26);
+      let closest = 26;
+      world.raycastAll(staticRayStart.copy(camera.position), staticRayEnd.copy(shotPoint),
+        { skipBackfaces: true, checkCollisionResponse: false }, hit => {
+          if (hit.body === player.body || hit.distance >= closest) return;
+          closest = hit.distance;
+          shotPoint.copy(hit.hitPointWorld);
+        });
+      const muzzle = player.muzzle(tools[activeTool].id === 'firework');
+      shotDirection.subVectors(shotPoint, muzzle).normalize();
+      kit.fire(muzzle, shotDirection, player.body);
+    } else if (car === tank) {
+      const { muzzle, direction } = tank.shot();
+      kit.fire(muzzle, direction, tank.chassis, true);
+    }
+  }
   function tick(now) {
     frame = 0;
     if (stopped || document.hidden || graphicsLost) return;
-    const dt = Math.min((now - previous) / 1000, .045);
+    const elapsed = now - previous;
+    const dt = Math.min(elapsed / 1000, .045);
     previous = now;
+    elapsedFrameTime += Math.min(elapsed, 100);
+    frameSamples++;
+    if (frameSamples >= 84) {
+      const average = elapsedFrameTime / frameSamples;
+      const target = average > 22 ? Math.max(.67, resolution - .10) : average < 15 ? Math.min(1, resolution + .05) : resolution;
+      if (target !== resolution) {
+        resolution = target;
+        renderer.setPixelRatio(baseRatio * resolution);
+      }
+      elapsedFrameTime = frameSamples = 0;
+    }
     time += dt;
-    city.sync(position, car.chassis.velocity);
+    const velocity = walking ? player.body.velocity : car.chassis.velocity;
+    const speed = Math.hypot(velocity.x, velocity.z);
+    city.sync(position, velocity);
+    updateFleet();
     for (const action of controls.values()) input[action] = false;
-    for (const code of keys) input[controls.get(code)] = true;
+    input.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    for (const code of keys) if (controls.has(code)) input[controls.get(code)] = true;
     for (const action of pointers.values()) input[action] = true;
-    car.drive(input, dt);
+    if (exitRequested) input.brake = true;
+    for (const vehicle of spawned) {
+      if (!vehicle.chassis.world) continue;
+      if (vehicle === car && !walking) vehicle.drive(input, dt);
+      else vehicle.drive(parkedInput, dt);
+    }
+    if (walking) player.step(input, lookYaw, dt);
     world.step(1 / 60, dt, 4);
-    recovery(dt);
-    city.process(time, ({ x, z, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
+    if (!walking) {
+      recovery(dt);
+      if (exitRequested && speed < 4 && position.y < car.stance + .7) exitVehicle();
+    } else if (position.y < -3) player.place(position.x, 1.04, position.z, lookYaw);
+    city.update(time, position, !reduced.matches, dt, speed);
+    if (firing && toolWheel.hidden) shoot();
+    kit.update(dt, time, position, walking, !reduced.matches);
+    city.process(time, ({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
       if (earned) {
         coins += earned;
         coinCount.textContent = String(coins);
       }
-      if (!launched) launchYaw = flatYaw(car.chassis);
-      launched = true;
-      launchedAt = time;
-      launcherImpulse(car.chassis, x, z, impact, localHit, localCrate, pile && !shortcut ? 1.45 : 1);
+      const occupied = !walking && driver === car.chassis;
+      if (occupied) {
+        if (!launched) launchYaw = flatYaw(driver);
+        launched = true;
+        launchedAt = time;
+      }
+      launcherImpulse(driver, x, z, impact, localHit, localCrate, pile && !shortcut ? 1.45 : 1);
       if (pile) effects.chain(x, z, pile);
       else effects.blast(x, z);
-      if (shortcut) crateCountdown.start(profileParks.get(shortcut));
-      else announce(t.launch);
+      audio.play('blast');
+      if (occupied && shortcut) crateCountdown.start(profileParks.get(shortcut));
+      else if (occupied) announce(t.launch);
     });
-    city.update(time, position, !reduced.matches);
     if (noticeUntil <= time && notice.textContent) notice.textContent = '';
     if (time >= hudAt) {
       showHud();
+      updatePrompt();
+      audio.engine(walking ? null : car.kind, speed, input.forward || input.reverse);
       hudAt = time + .11;
     }
     effects.update(dt);
@@ -404,10 +711,15 @@ async function boot() {
   function setPaused(value) {
     stopped = value;
     clearInput();
+    if (stopped) {
+      releaseLook();
+      audio.engine(null);
+    }
     if (!stopped) wake();
   }
   function showTouch() {
     touch.hidden = !started || !(coarse.matches || view.clientWidth < 640) || graphicsLost;
+    modTouch.hidden = touch.hidden;
   }
   function healSigns() {
     const restored = stories.heal(stopped || reduced.matches);
@@ -448,40 +760,160 @@ async function boot() {
   reader.addEventListener('close', () => {
     if (!graphicsLost) setPaused(false);
   });
+  const soundToggle = find('#drive-sound');
+  const volume = find('#drive-volume');
+  const volumeValue = find('#drive-volume-value');
+  function syncAudio() {
+    audio.configure(Number(volume.value) / 100, !soundToggle.checked);
+    volumeValue.value = volume.value + '%';
+  }
+  soundToggle.addEventListener('change', () => { syncAudio(); audio.play('click'); });
+  volume.addEventListener('input', syncAudio);
+  settingsButton.setAttribute('aria-label', label('settings', 'Settings'));
+  toolWheel.setAttribute('aria-label', label('wheel', 'Tool wheel'));
+  find('#touch-interact').setAttribute('aria-label', label('enterExit', 'Enter or exit vehicle'));
+  fireButton.setAttribute('aria-label', label('fire', 'Fire'));
+  settingsButton.addEventListener('click', () => {
+    audio.unlock();
+    audio.play('click');
+    openWheel(false);
+    setPaused(true);
+    settings.showModal();
+  });
+  settings.addEventListener('close', () => {
+    if (!graphicsLost && !reader.open) setPaused(false);
+  });
+  vehicleSelect.addEventListener('change', () => {
+    switchVehicle(vehicleSelect.value);
+    audio.play('click');
+  });
+  toolToggle.addEventListener('click', () => openWheel(toolWheel.hidden, true));
+  for (const [index, button] of toolSlots.entries()) {
+    button.addEventListener('click', () => {
+      if (!kit.select(index)) return;
+      openWheel(false);
+      audio.play('click');
+      toolToggle.focus({ preventScroll: true });
+    });
+  }
   coarse.addEventListener('change', showTouch);
   start.addEventListener('click', () => {
+    audio.unlock();
+    audio.play('click');
     started = true;
     cover.hidden = true;
     reset.disabled = false;
     healButton.disabled = false;
     readButton.disabled = false;
-    showTouch();
-    find('#game').focus({ preventScroll: true });
+    settingsButton.disabled = false;
+    updateMode();
+    game.focus({ preventScroll: true });
     setPaused(false);
   });
-  reset.addEventListener('click', resetCar);
-  healButton.addEventListener('click', healSigns);
-  readButton.addEventListener('click', readEntry);
+  reset.addEventListener('click', () => { audio.play('click'); resetCar(); });
+  healButton.addEventListener('click', () => { audio.play('click'); healSigns(); });
+  readButton.addEventListener('click', () => { audio.play('click'); openWheel(false); readEntry(); });
+  find('#touch-interact').addEventListener('click', interact);
+  const aimed = () => started && !stopped && !graphicsLost && (walking || car === tank) && toolWheel.hidden;
+  function turnLook(dx, dy) {
+    lookYaw -= dx * .0034;
+    lookPitch = THREE.MathUtils.clamp(lookPitch - dy * .00325, -.82, .70);
+  }
+  view.addEventListener('pointerdown', event => {
+    if (!aimed() || event.button !== 0) return;
+    aimPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    view.setPointerCapture(event.pointerId);
+    game.focus({ preventScroll: true });
+    if (event.pointerType !== 'mouse') return;
+    firing = true;
+    if (document.pointerLockElement === renderer.domElement) return;
+    try {
+      const lock = renderer.domElement.requestPointerLock?.();
+      lock?.catch(() => {});
+    } catch {
+      // Drag aiming still works when pointer lock is not available.
+    }
+  });
+  document.addEventListener('pointermove', event => {
+    if (!aimed()) return;
+    if (document.pointerLockElement === renderer.domElement) turnLook(event.movementX, event.movementY);
+    else if (aimPointer?.id === event.pointerId) {
+      turnLook(event.clientX - aimPointer.x, event.clientY - aimPointer.y);
+      aimPointer.x = event.clientX;
+      aimPointer.y = event.clientY;
+    }
+  });
+  function stopPointer(event) {
+    if (aimPointer?.id === event.pointerId) aimPointer = null;
+    if (event.pointerType === 'mouse') firing = false;
+  }
+  document.addEventListener('pointerup', stopPointer);
+  document.addEventListener('pointercancel', stopPointer);
+  document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) firing = false; });
+  let lastScroll = -Infinity;
+  game.addEventListener('wheel', event => {
+    if (!walking || stopped || !event.deltaY || event.target.closest('dialog')) return;
+    event.preventDefault();
+    if (event.timeStamp - lastScroll < 105) return;
+    lastScroll = event.timeStamp;
+    kit.cycle(Math.sign(event.deltaY));
+  }, { passive: false });
+  fireButton.addEventListener('pointerdown', event => {
+    if (!aimed() || event.button !== 0) return;
+    event.preventDefault();
+    fireButton.setPointerCapture(event.pointerId);
+    firing = true;
+    shoot();
+  });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) {
+    fireButton.addEventListener(name, () => { firing = false; });
+  }
+  fireButton.addEventListener('click', event => { if (event.detail === 0 && aimed()) shoot(); });
   window.addEventListener('keydown', event => {
-    if (!started || reader.open || graphicsLost || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!started || stopped || graphicsLost || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.code === 'Tab' && walking && !event.shiftKey && toolWheel.hidden && document.activeElement === game) {
+      event.preventDefault();
+      openWheel(true, true);
+      return;
+    }
+    if (event.code === 'Escape' && !toolWheel.hidden) {
+      openWheel(false);
+      toolToggle.focus({ preventScroll: true });
+      return;
+    }
+    if (!event.repeat && event.code === 'KeyF') {
+      event.preventDefault();
+      interact();
+      return;
+    }
+    if (walking && /^Digit[1-5]$/.test(event.code)) {
+      if (kit.select(Number(event.code.at(-1)) - 1)) openWheel(false);
+      return;
+    }
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      keys.add(event.code);
+      return;
+    }
     if (!event.repeat && event.code === 'KeyR') {
       resetCar();
     } else if (!event.repeat && event.code === 'KeyH') {
       healSigns();
-    } else if (!stopped && controls.has(event.code) &&
+    } else if (controls.has(event.code) &&
       !(event.code === 'Space' && event.target.closest?.('button, a, summary'))) {
       event.preventDefault();
+      if (walking && event.code === 'Space' && !event.repeat) player.jump();
       keys.add(event.code);
     }
   });
   window.addEventListener('keyup', event => keys.delete(event.code));
-  window.addEventListener('blur', clearInput);
+  window.addEventListener('blur', () => { clearInput(); releaseLook(); });
   document.addEventListener('visibilitychange', () => {
     clearInput();
     if (document.hidden && frame) {
       cancelAnimationFrame(frame);
       frame = 0;
     }
+    if (document.hidden) audio.engine(null);
     wake();
   });
   for (const button of touchButtons) {
@@ -490,6 +922,7 @@ async function boot() {
       if (stopped || event.button !== 0) return;
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
+      if (walking && button.dataset.input === 'brake') player.jump();
       pointers.set(event.pointerId, button.dataset.input);
     });
     for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
@@ -498,6 +931,7 @@ async function boot() {
     button.addEventListener('keydown', event => {
       if (stopped || (event.code !== 'Space' && event.code !== 'Enter')) return;
       event.preventDefault();
+      if (walking && button.dataset.input === 'brake' && !event.repeat) player.jump();
       pointers.set(keyboard, button.dataset.input);
     });
     button.addEventListener('keyup', event => {
@@ -509,13 +943,19 @@ async function boot() {
     event.preventDefault();
     graphicsLost = true;
     crateCountdown.cancel();
-    clearInput();
+    setPaused(true);
     fail(t.lost);
   });
-  find('#game').tabIndex = -1;
+  game.tabIndex = -1;
   resetCar();
   resize();
   window.addEventListener('resize', resize);
+  try {
+    await renderer.compileAsync(scene, camera);
+  } catch {
+    // Drivers without asynchronous compilation can still render the city normally.
+  }
+  if (graphicsLost) return;
   coverText.textContent = t.ready;
   start.hidden = false;
 }

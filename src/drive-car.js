@@ -138,6 +138,7 @@ export function createCar(scene, world) {
   const inverse = new THREE.Quaternion();
   const wheelRotation = new THREE.Quaternion();
   const exhaust = createExhaust(scene);
+  let active = true;
   let steering = 0;
   let throttle = 0;
   let braking = 0;
@@ -187,6 +188,7 @@ export function createCar(scene, world) {
     tail.color.setHex(stopping ? 0xffa0a6 : 0xff566c);
   }
   function render(dt = 0, emit = false) {
+    if (!active) return;
     body.position.copy(chassis.interpolatedPosition);
     body.quaternion.copy(chassis.interpolatedQuaternion);
     if (righting) {
@@ -210,7 +212,16 @@ export function createCar(scene, world) {
     shadow.material.opacity = .32 / Math.max(1, body.position.y * 1.3);
     exhaust.update(dt, body, Math.abs(throttle), speed, emit);
   }
-  return { chassis, drive, render, setPose, viewPosition: body.position, get grounded() { return vehicle.numWheelsOnGround >= 2; } };
+  function setActive(value) {
+    if (value === active) return;
+    active = value;
+    if (value) vehicle.addToWorld(world);
+    else vehicle.removeFromWorld(world);
+    body.visible = shadow.visible = value;
+    for (const wheel of wheels) wheel.visible = value;
+    exhaust.clear();
+  }
+  return { chassis, drive, render, setPose, setActive, stance: .77, width: .97, kind: 'sport', viewPosition: body.position, get grounded() { return vehicle.numWheelsOnGround >= 2; } };
 }
 
 export function flatYaw(body) {
