@@ -80,7 +80,9 @@ function drawChart(canvas, campaign, position, parked, next, stage) {
   ctx.strokeStyle = '#183034'; ctx.stroke();
 }
 
-export function bindHuntHud(hunt, castle, copy, castleCopy, { game, announce, setPaused, canPlay, position, parkedPosition, rewardCoins }) {
+export function bindHuntHud(hunt, castle, copy, castleCopy, {
+  game, announce, setPaused, canPlay, position, parkedPosition, rewardCoins, nearbyNotes, openNotes,
+}) {
   if (!hunt) return null;
   const find = id => document.getElementById(id);
   const dialog = find('hunt-log');
@@ -159,17 +161,25 @@ export function bindHuntHud(hunt, castle, copy, castleCopy, { game, announce, se
       if (meter.textContent !== distance) meter.textContent = distance;
       arrowHead.style.rotate = (Math.atan2(x, -z) + heading) + 'rad';
     } else meter.textContent = '';
-    const nearby = visible && active.game.nearby(player, walking);
+    const nearby = visible && (active.game.nearby(player, walking) || walking && nearbyNotes(player) && 'notes');
     action.hidden = !nearby;
     if (nearby && nearby !== lastAction) {
-      action.textContent = active.copy.actions[nearby];
+      action.textContent = nearby === 'notes' ? castleCopy.readNotes : active.copy.actions[nearby];
       lastAction = nearby;
     }
   }
 
   function press(onFoot) {
     if (!canPlay()) return;
-    const result = active.game.interact(position(), onFoot);
+    const player = position();
+    const result = active.game.interact(player, onFoot);
+    if (!result && onFoot) {
+      const notes = nearbyNotes(player);
+      if (notes) {
+        openNotes(notes);
+        return;
+      }
+    }
     if (result === active.reward) rewardCoins(active.coins);
     if (result) announce(active.copy.messages[result], result === active.reward ? 6 : 3.5);
     update(onFoot, heading);

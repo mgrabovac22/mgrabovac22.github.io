@@ -193,14 +193,6 @@ function rooms(add, world) {
     add(i % 3 ? shaded : light, axis ? along : 0, y, axis ? 0 : along, axis ? 2.12 : 4.93, .056,
       axis ? 4.93 : 2.12);
   }
-  for (const x of [-5.45, 5.45]) for (const z of [-5.45, 5.45]) {
-    add(limestone,x,.2,z,1.55,.31,1.61);
-    add(limestone,x,1.9,z,.66,3.41,.67,0,cylinder);
-    add(light,x,3.62,z,1.37,.27,1.31);
-    collision(world,x,1.78,z,.68,3.55,.68);
-  }
-  for (const x of [-5.45, 5.45]) add(light,x,3.83,0,1.45,.37,11.86);
-  for (const z of [-5.45, 5.45]) add(shaded,0,4.03,z,12.37,.44,1.66);
 }
 
 function furniture(add, world) {

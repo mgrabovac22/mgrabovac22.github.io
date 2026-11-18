@@ -10,6 +10,8 @@ import { buildRaceDistrict, buildRaceFence, createRaceGrid } from './drive-race.
 import { createRallyHunt, rallyHuntSites } from './drive-rally-hunt.js';
 import { buildIslandCastle } from './drive-island-castle.js';
 import { createCastleQuests } from './drive-castle-quests.js';
+import { buildCastleKeep, inCastleKeep } from './drive-castle-keep.js';
+import { buildCastleNotes } from './drive-castle-notes.js';
 export { RallyPhysicsWorld } from './drive-rally-props.js';
 
 const layouts = {
@@ -246,7 +248,7 @@ function ocean(parent, terrain) {
   return surface.uniforms.clock;
 }
 
-function buildRally(parent, world, route, add, rand, stops) {
+function buildRally(parent, world, route, add, rand, stops, pages) {
   const terrain = buildRallyTerrain(parent, world, route);
   const props = createRallyProps(parent, world, terrain, rand);
   const wave = ocean(parent, terrain);
@@ -265,11 +267,13 @@ function buildRally(parent, world, route, add, rand, stops) {
   props.commit();
   const hunt = createRallyHunt(parent, world, route, terrain, sites);
   const castle = buildIslandCastle(parent, world, add, terrain);
+  buildCastleKeep(parent, world, add);
+  const notes = buildCastleNotes(parent, world, pages);
   const quests = createCastleQuests(parent, route);
-  return { terrain, wave, props, hunt, castle, quests, ...surroundings };
+  return { terrain, wave, props, hunt, castle, quests, notes, ...surroundings };
 }
 
-export function createCourse(scene, world, kind, stops = new Map()) {
+export function createCourse(scene, world, kind, stops = new Map(), pages = []) {
   const route = defineCircuit(kind);
   const scenery = new THREE.Group();
   scene.add(scenery);
@@ -294,7 +298,7 @@ export function createCourse(scene, world, kind, stops = new Map()) {
     world.addBody(new Body({ mass: 0, shape: new Box(new Vec3(530, .20, 530)), position: new Vec3(0, -.20, 0) }));
     grid = createRaceGrid(scenery, world, route);
   } else {
-    island = buildRally(scenery, world, route, add, rand, stops);
+    island = buildRally(scenery, world, route, add, rand, stops, pages);
     const ring = new THREE.RingGeometry(.82, 1, 27).rotateX(-Math.PI / 2);
     for (let i = 0; i < 3; i++) {
       const mesh = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({ color: 0xdff8f2, transparent: true, opacity: 0, depthWrite: false }));
@@ -323,6 +327,8 @@ export function createCourse(scene, world, kind, stops = new Map()) {
   let depth = 0;
   return {
     route, start, grid, hunt: island?.hunt, castleQuests: island?.quests,
+    insideKeep(position) { return Boolean(island && inCastleKeep(position)); },
+    nearbyNotes(position) { return island?.notes.nearby(position); },
     sync(position) {
       closest = route.locate(position);
       if (island) {

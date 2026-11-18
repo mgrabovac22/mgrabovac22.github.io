@@ -293,7 +293,7 @@ async function boot() {
   world.solver.iterations = 9;
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
-  const course = courseModule?.createCourse(scene, world, mapKind, islandStops);
+  const course = courseModule?.createCourse(scene, world, mapKind, islandStops, pages);
   const raceRank = find('#race-rank');
   const islandDialog = find('#island-stop');
   find('#race-position').hidden = !course?.grid;
@@ -322,6 +322,8 @@ async function boot() {
     game, announce, setPaused, rewardCoins, position: () => position,
     canPlay: () => started && !stopped && !graphicsLost,
     parkedPosition: () => car.chassis.position,
+    nearbyNotes: point => course.nearbyNotes(point),
+    openNotes: readCastleNotes,
   });
   let lookYaw = 0;
   let lookPitch = -.05;
@@ -580,8 +582,9 @@ async function boot() {
     cameraYaw = snap || reduced.matches ? heading : cameraYaw + angularError * (1 - Math.exp(-(aimed ? 21 : 5.4) * dt));
     forward.set(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
     const narrow = camera.aspect < .9;
+    const indoors = walking && course?.insideKeep(visual);
     const airborne = Math.max(0, visual.y - car.stance);
-    const backDistance = walking ? (course ? 4.25 : narrow ? 3.7 : 3.45) : car === tank ? (narrow ? 8.8 : 8.1) : (narrow ? 8.75 : 7.65);
+    const backDistance = walking ? (indoors ? 3.1 : course ? 4.25 : narrow ? 3.7 : 3.45) : car === tank ? (narrow ? 8.8 : 8.1) : (narrow ? 8.75 : 7.65);
     const height = walking ? 1.38 : (car === tank ? 3.30 : narrow ? 3.25 : 3.05) + airborne * .52;
     const shoulder = walking ? .63 : 0;
     const eye = new Vec3(visual.x, visual.y + .75, visual.z);
@@ -591,7 +594,7 @@ async function boot() {
     let clearance = 1;
     world.raycastAll(eye, eye.vadd(back), { skipBackfaces: true }, hit => {
       if (hit.body.type === Body.STATIC && hit.body.position.y > 0) {
-        clearance = Math.min(clearance, Math.max(.39, (hit.distance - .43) / back.length()));
+        clearance = Math.min(clearance, Math.max(indoors ? .14 : .39, (hit.distance - .43) / back.length()));
       }
     });
     cameraClearance = snap || reduced.matches ? clearance :
@@ -879,6 +882,29 @@ async function boot() {
     const restored = stories.heal(stopped || reduced.matches);
     announce(restored ? t.healed : t.intact);
     if (stopped) draw(0, true);
+  }
+  function readCastleNotes(station) {
+    if (reader.open) return;
+    entry.replaceChildren();
+    const title = document.createElement('h2');
+    title.id = 'entry-title';
+    title.textContent = copy.castle.notesTitle;
+    entry.append(title);
+    for (const note of station.excerpts) {
+      const section = document.createElement('section');
+      section.className = 'castle-sticky-note';
+      const chapter = document.createElement('p');
+      chapter.className = 'label';
+      chapter.textContent = note.chapter;
+      const heading = document.createElement('h3');
+      heading.textContent = note.title;
+      const excerpt = document.createElement('p');
+      excerpt.textContent = note.text;
+      section.append(chapter, heading, excerpt);
+      entry.append(section);
+    }
+    setPaused(true);
+    reader.showModal();
   }
   function readEntry() {
     if (!currentPage || reader.open) return;

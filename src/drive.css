@@ -49,6 +49,11 @@ button:disabled { opacity: .6; cursor: default; }
 #story-reader h2 { margin: .2rem 0 .5rem; line-height: 1.2; }
 #story-reader p + p { margin-top: .65rem; }
 #story-reader a { color: var(--acid); display: inline-block; margin: .35rem .8rem 0 0; }
+.castle-sticky-note { padding: .83rem .91rem; margin: .65rem 0; color: #23352c; background: #efd794; border-radius: .15rem; }
+.castle-sticky-note:nth-of-type(2) { background: #c3debb; }
+.castle-sticky-note:nth-of-type(3) { background: #efd2b1; }
+.castle-sticky-note h3 { margin: .2rem 0 .36rem; line-height: 1.2; }
+.castle-sticky-note .label { color: #414e3d; letter-spacing: .07em; }
 #island-stop { width: min(26rem, 90vw); padding: 1rem 1.25rem 1.4rem; color: #fff5e6; background: #172e30; border: 1px solid #dfc58d; border-radius: .55rem; }
 #island-stop::backdrop { background: #081918b5; }
 #island-stop form { display: flex; justify-content: flex-end; }
