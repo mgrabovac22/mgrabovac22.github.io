@@ -49,11 +49,22 @@ button:disabled { opacity: .6; cursor: default; }
 #story-reader h2 { margin: .2rem 0 .5rem; line-height: 1.2; }
 #story-reader p + p { margin-top: .65rem; }
 #story-reader a { color: var(--acid); display: inline-block; margin: .35rem .8rem 0 0; }
-.castle-sticky-note { padding: .83rem .91rem; margin: .65rem 0; color: #23352c; background: #efd794; border-radius: .15rem; }
+#story-reader.castle-reader { padding: .9rem clamp(.8rem, 3vw, 1.45rem) 1.35rem; border-color: #d8bd81a0; background: #1b302cf5; }
+#story-reader.castle-reader::backdrop { background: #0b191b99; }
+#story-reader.castle-reader[open] { animation: castle-note-lift .34s cubic-bezier(.2,.68,.23,1) both; transform-origin: center 75%; }
+@keyframes castle-note-lift { from { opacity: 0; transform: perspective(52rem) translateY(2.4rem) rotateX(24deg) scale(.91); } to { opacity: 1; transform: none; } }
+.castle-sticky-note { padding: .96rem 1rem; margin: .74rem 0; color: #23352c; background: #efd794; border-radius: .15rem; box-shadow: 0 .35rem .75rem #101f1c91, inset 0 .22rem #ffffff36; overflow-wrap: anywhere; }
 .castle-sticky-note:nth-of-type(2) { background: #c3debb; }
 .castle-sticky-note:nth-of-type(3) { background: #efd2b1; }
+.castle-sticky-note.castle-paper { background: #f3e3bb; font-family: Georgia, serif; border-left: .26rem solid #9c6048; }
+.castle-sticky-note.is-selected { outline: 2px solid #f7e6b8; outline-offset: 3px; }
 .castle-sticky-note h3 { margin: .2rem 0 .36rem; line-height: 1.2; }
 .castle-sticky-note .label { color: #414e3d; letter-spacing: .07em; }
+.castle-sticky-note details { margin-top: .6rem; border-top: 1px solid #243c2c42; }
+.castle-sticky-note summary { display: list-item; width: fit-content; padding: .58rem .42rem; color: #24372b; border: 0; background: transparent; list-style-position: inside; }
+.castle-sticky-note summary:hover { background: #24372b16; }
+.castle-sticky-note summary:focus-visible { outline-color: #325948; }
+@media (prefers-reduced-motion: reduce) { #story-reader.castle-reader[open] { animation: none; } }
 #island-stop { width: min(26rem, 90vw); padding: 1rem 1.25rem 1.4rem; color: #fff5e6; background: #172e30; border: 1px solid #dfc58d; border-radius: .55rem; }
 #island-stop::backdrop { background: #081918b5; }
 #island-stop form { display: flex; justify-content: flex-end; }

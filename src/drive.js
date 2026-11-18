@@ -329,6 +329,8 @@ async function boot() {
   let lookPitch = -.05;
   let exitRequested = false;
   let aimPointer = null;
+  let notePointer = null;
+  const notePoint = new THREE.Vector2();
   let mouseLook = null;
   let selectedKind = startKind;
   let nearbyCar = null;
@@ -883,16 +885,21 @@ async function boot() {
     announce(restored ? t.healed : t.intact);
     if (stopped) draw(0, true);
   }
-  function readCastleNotes(station) {
+  function readCastleNotes(station, selected = -1) {
     if (reader.open) return;
     entry.replaceChildren();
+    reader.classList.add('castle-reader');
     const title = document.createElement('h2');
     title.id = 'entry-title';
     title.textContent = copy.castle.notesTitle;
     entry.append(title);
-    for (const note of station.excerpts) {
+    const chosen = station.excerpts[selected];
+    const notes = chosen ? [chosen, ...station.excerpts.filter((_, index) => index !== selected)] : station.excerpts;
+    for (const note of notes) {
       const section = document.createElement('section');
       section.className = 'castle-sticky-note';
+      section.classList.toggle('castle-paper', Boolean(station.paper));
+      section.classList.toggle('is-selected', note === chosen);
       const chapter = document.createElement('p');
       chapter.className = 'label';
       chapter.textContent = note.chapter;
@@ -901,6 +908,19 @@ async function boot() {
       const excerpt = document.createElement('p');
       excerpt.textContent = note.text;
       section.append(chapter, heading, excerpt);
+      if (note.more.length) {
+        const details = document.createElement('details');
+        details.open = station.paper || note === chosen;
+        const summary = document.createElement('summary');
+        summary.textContent = copy.castle.notesMore;
+        details.append(summary);
+        for (const text of note.more) {
+          const paragraph = document.createElement('p');
+          paragraph.textContent = text;
+          details.append(paragraph);
+        }
+        section.append(details);
+      }
       entry.append(section);
     }
     setPaused(true);
@@ -938,6 +958,7 @@ async function boot() {
     reader.showModal();
   }
   reader.addEventListener('close', () => {
+    reader.classList.remove('castle-reader');
     if (!graphicsLost) setPaused(false);
   });
   function openIslandStop(destination) {
@@ -1063,7 +1084,7 @@ async function boot() {
   }
   const mouse = Symbol('mouse');
   window.addEventListener('mousedown', event => {
-    if (!canAim() || event.button !== 0) return;
+    if (!canAim() || event.button !== 0 || notePointer) return;
     const locked = document.pointerLockElement === renderer.domElement;
     if (!locked && !view.contains(event.target)) return;
     event.preventDefault();
@@ -1092,14 +1113,30 @@ async function boot() {
       mouseLook.y = event.clientY;
     }
   });
+  function noteAtPixel(x, y) {
+    const bounds = view.getBoundingClientRect();
+    notePoint.set((x - bounds.left) / bounds.width * 2 - 1, 1 - (y - bounds.top) / bounds.height * 2);
+    return course.noteAt(camera, notePoint, position);
+  }
   view.addEventListener('pointerdown', event => {
-    if (!canAim() || event.pointerType === 'mouse') return;
+    if (!canAim() || event.button !== 0) return;
+    if (walking && course?.castleQuests && !notePointer) {
+      const pointerLocked = document.pointerLockElement === renderer.domElement;
+      if (event.pointerType !== 'mouse' || !pointerLocked && noteAtPixel(event.clientX, event.clientY)) {
+        notePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+        view.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        return;
+      }
+    }
+    if (event.pointerType === 'mouse' || walking || aimPointer) return;
     event.preventDefault();
-    if (walking || aimPointer) return;
     aimPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
     view.setPointerCapture(event.pointerId);
   });
   document.addEventListener('pointermove', event => {
+    if (notePointer?.id === event.pointerId &&
+        Math.hypot(event.clientX - notePointer.x, event.clientY - notePointer.y) > 12) notePointer.moved = true;
     if (canAim() && aimPointer?.id === event.pointerId) {
       turnLook(event.clientX - aimPointer.x, event.clientY - aimPointer.y);
       aimPointer.x = event.clientX;
@@ -1108,9 +1145,17 @@ async function boot() {
   });
   function stopPointer(event) {
     if (aimPointer?.id === event.pointerId) aimPointer = null;
+    if (notePointer?.id !== event.pointerId) return;
+    const { moved, x, y } = notePointer;
+    notePointer = null;
+    if (event.type !== 'pointerup' || moved || !canAim() || !walking ||
+        Math.hypot(event.clientX - x, event.clientY - y) > 12) return;
+    const hit = noteAtPixel(event.clientX, event.clientY);
+    if (hit) readCastleNotes(hit.station, hit.selected);
   }
   document.addEventListener('pointerup', stopPointer);
   document.addEventListener('pointercancel', stopPointer);
+  view.addEventListener('lostpointercapture', stopPointer);
   document.addEventListener('pointerlockchange', () => {
     if (!document.pointerLockElement) {
       trigger.release(mouse);

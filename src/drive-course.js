@@ -329,6 +329,7 @@ export function createCourse(scene, world, kind, stops = new Map(), pages = []) 
     route, start, grid, hunt: island?.hunt, castleQuests: island?.quests,
     insideKeep(position) { return Boolean(island && inCastleKeep(position)); },
     nearbyNotes(position) { return island?.notes.nearby(position); },
+    noteAt(camera, point, position) { return island?.notes.at(camera, point, position); },
     sync(position) {
       closest = route.locate(position);
       if (island) {
