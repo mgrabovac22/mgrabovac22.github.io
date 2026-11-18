@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Body, Box, Vec3 } from 'cannon-es';
-import { buildUtilityBody, buildWheel } from './drive-vehicle-art.js';
+import { createRaceArtwork } from './drive-race-art.js';
 
 const rough = (color, roughness = .83) => new THREE.MeshStandardMaterial({ color, roughness });
 const silver = rough(0x8c9c9d);
@@ -155,52 +155,67 @@ const teams = [
 ];
 const up = new Vec3(0, 1, 0);
 
-function makeRival(parent, world, team) {
-  const view = new THREE.Group();
-  buildUtilityBody(view, 'formula', { color: team.color });
-  view.traverse(mesh => { mesh.castShadow = false; });
-  const wheels = [];
-  for (const z of [-1.45, 1.45]) for (const side of [-1, 1]) {
-    const wheel = buildWheel(.337, z < 0 ? .38 : .49, 6, side, false);
-    wheel.position.set(side * .93, -.30, z);
-    wheel.traverse(mesh => { mesh.castShadow = false; });
-    view.add(wheel);
-    wheels.push(wheel);
-  }
+function makeRival(parent, world, team, artwork, color) {
+  const { model } = artwork;
+  const { view, wheels } = artwork.instantiate(color, false);
+  view.add(...wheels);
   parent.add(view);
   const body = new Body({ type: Body.KINEMATIC, mass: 0, collisionFilterGroup: 64, collisionFilterMask: 4,
-    shape: new Box(new Vec3(1.085, .275, 2.03)), position: new Vec3(0, .57, 0) });
+    shape: new Box(new Vec3(model.width * 1.08, Math.max(.275, model.roof * .41), model.depth * .90)),
+    position: new Vec3(0, model.stance, 0) });
   world.addBody(body);
-  return { ...team, meter: team.grid, speed: 0, line: team.lane, body, view, wheels };
+  return { ...team, pace: team.pace * model.max / 52, model, meter: team.grid, speed: 0, line: team.lane, body, view, wheels };
 }
 
-export function createRaceGrid(parent, world, route) {
-  const rivals = teams.map(team => makeRival(parent, world, team));
+export function createRaceGrid(parent, world, route, initialArtwork) {
+  let ownedArtwork = initialArtwork ? null : createRaceArtwork();
+  let rivals = [];
   let progress = 0, previous = 0;
-  let clock = 0;
+  let clock = 0, moving = false;
+  function setArtwork(artwork) {
+    for (const rival of rivals) {
+      parent.remove(rival.view);
+      world.removeBody(rival.body);
+    }
+    if (ownedArtwork && ownedArtwork !== artwork) {
+      ownedArtwork.dispose();
+      ownedArtwork = null;
+    }
+    const playerPaint = new THREE.Color(artwork.paint);
+    const remaining = [...teams.map(team => team.color), 0xaf598c, 0x56815f, 0x923e3b];
+    const candidate = new THREE.Color();
+    const distinct = remaining.filter(color => {
+      candidate.set(color);
+      return Math.abs(playerPaint.r - candidate.r) + Math.abs(playerPaint.g - candidate.g) + Math.abs(playerPaint.b - candidate.b) > .23;
+    });
+    const palette = [...distinct, ...remaining.filter(color => !distinct.includes(color))];
+    rivals = teams.map((team, index) => makeRival(parent, world, team, artwork, palette[index]));
+    reset();
+  }
   function target(rival, meter, line) {
     const p = route.sample(meter);
     return { x: p.x + p.nx * line, z: p.z + p.nz * line };
   }
   function reset() {
     progress = previous = clock = 0;
+    moving = false;
     for (const rival of rivals) {
       rival.meter = rival.grid;
       rival.speed = 0;
       rival.line = rival.lane;
       const { x, z } = target(rival, rival.meter, rival.line);
       const { yaw } = route.sample(rival.meter);
-      rival.view.position.set(x, .646, z);
+      rival.view.position.set(x, rival.model.stance - .024, z);
       rival.view.rotation.y = yaw;
-      rival.body.position.set(x, .65, z);
+      rival.body.position.set(x, rival.model.stance - .02, z);
       rival.body.quaternion.setFromAxisAngle(up, yaw);
       rival.body.velocity.setZero();
       rival.body.aabbNeedsUpdate = true;
     }
   }
-  reset();
+  setArtwork(initialArtwork ?? ownedArtwork);
   return {
-    reset,
+    reset, setArtwork,
     rank(position) {
       const { meters } = route.locate(position);
       let travel = meters - previous;
@@ -210,7 +225,9 @@ export function createRaceGrid(parent, world, route) {
       previous = meters;
       return { place: rivals.filter(rival => rival.meter > progress + 1).length + 1, count: rivals.length + 1 };
     },
-    advance(dt, driver, playerMeter) {
+    advance(dt, driver, playerMeter, throttle) {
+      if (!moving && !throttle) return;
+      moving = true;
       clock += dt;
       for (const rival of rivals) {
         const ahead = route.sample(rival.meter + 13);
@@ -229,7 +246,9 @@ export function createRaceGrid(parent, world, route) {
           lane = THREE.MathUtils.lerp(lane, front.line + shift, 1 - THREE.MathUtils.smoothstep(gap, 5.5, 14));
           if (gap < 8) targetSpeed = Math.min(targetSpeed, Math.max(9, front.speed - (8 - gap) * .72));
         }
-        rival.speed = THREE.MathUtils.damp(rival.speed, targetSpeed, targetSpeed < rival.speed ? 3.1 : 1.45, dt);
+        const acceleration = 1.45 * THREE.MathUtils.clamp(rival.model.power / rival.model.mass / (8100 / 770), .80, 1.35);
+        const deceleration = 3.1 * (rival.model.brakePower ?? .11) / .11;
+        rival.speed = THREE.MathUtils.damp(rival.speed, targetSpeed, targetSpeed < rival.speed ? deceleration : acceleration, dt);
         const distance = route.separation(rival.meter, playerMeter);
         const near = distance < 17 && Math.hypot(driver.x - rival.body.position.x, driver.z - rival.body.position.z) < 15;
         const playerLane = (driver.x - entry.x) * entry.nx + (driver.z - entry.z) * entry.nz;
@@ -240,13 +259,13 @@ export function createRaceGrid(parent, world, route) {
         const next = target(rival, rival.meter, rival.line);
         const dx = next.x - old.x, dz = next.z - old.z;
         const yaw = Math.atan2(-dx, -dz);
-        rival.body.position.set(old.x, .65, old.z);
+        rival.body.position.set(old.x, rival.model.stance - .02, old.z);
         rival.body.velocity.set(dx / dt, 0, dz / dt);
         rival.body.quaternion.setFromAxisAngle(up, yaw);
         rival.body.aabbNeedsUpdate = true;
-        rival.view.position.set(next.x, .646, next.z);
+        rival.view.position.set(next.x, rival.model.stance - .024, next.z);
         rival.view.rotation.y = yaw;
-        for (const wheel of rival.wheels) wheel.rotation.x -= rival.speed * dt / .337;
+        for (const wheel of rival.wheels) wheel.rotation.x -= rival.speed * dt / rival.model.radius;
       }
     },
   };

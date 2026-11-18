@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { waterline } from './drive-rally-terrain.js';
+import { batchIslandDetails } from './drive-rally-batches.js';
 
 const material = color => new THREE.MeshStandardMaterial({ color, roughness: .84 });
 const bark = material(0x79543a);
@@ -86,6 +87,7 @@ export function buildBeachDetails(parent, props, route, terrain, keepClear) {
           part(view, sphere, yellow, claw*.23,.19,-.11,.18,.129,.15);
           part(view, sphere, charcoal, claw*.087,.235,-.054,.048,.056,.046);
         }
+        batchIslandDetails(view, new Set());
         crabs.push({ view, p, side, offset: station * .134 + index * 2.48 });
       }
       break;

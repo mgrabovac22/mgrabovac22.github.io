@@ -286,6 +286,11 @@ async function boot() {
   scene.add(fill, sun, sun.target, bounce);
 
   const courseModule = cityMode ? null : await import('./drive-course.js');
+  const raceArt = mapKind === 'race' ? await import('./drive-race-art.js') : null;
+  let raceArtwork = raceArt?.createRaceArtwork();
+  let raceBuild = null;
+  let workshopActive = false;
+  let workshopDialog = null;
   const PhysicsWorld = mapKind === 'rally' ? courseModule.RallyPhysicsWorld : World;
   const world = new PhysicsWorld({ gravity: new Vec3(0, -9.81, 0), allowSleep: true });
   world.broadphase = new SAPBroadphase(world);
@@ -293,11 +298,11 @@ async function boot() {
   world.solver.iterations = 9;
   world.defaultContactMaterial.friction = .42;
   world.defaultContactMaterial.restitution = .06;
-  const course = courseModule?.createCourse(scene, world, mapKind, islandStops, pages);
+  const course = courseModule?.createCourse(scene, world, mapKind, islandStops, pages, raceArtwork);
   const raceRank = find('#race-rank');
   const islandDialog = find('#island-stop');
   find('#race-position').hidden = !course?.grid;
-  const starter = cityMode ? createCar(scene, world) : createUtilityVehicle(scene, world, startKind);
+  const starter = cityMode ? createCar(scene, world) : createUtilityVehicle(scene, world, startKind, raceArtwork);
   const initial = course?.start ?? { x: 3, z: 9, yaw: 0 };
   let tank = null;
   const fleet = new Map([[startKind, starter]]);
@@ -637,7 +642,7 @@ async function boot() {
   }
   function resize() {
     const { clientWidth, clientHeight } = view;
-    if (!clientWidth || !clientHeight || graphicsLost) return;
+    if (!clientWidth || !clientHeight || graphicsLost || workshopActive) return;
     camera.aspect = clientWidth / clientHeight;
     camera.fov = camera.aspect < .9 ? 64 : 53;
     camera.updateProjectionMatrix();
@@ -690,6 +695,7 @@ async function boot() {
     pointers.clear();
     trigger.clear();
     aimPointer = null;
+    notePointer = null;
     mouseLook = null;
     resetStick(walkStick, walk);
     resetStick(lookStick, look);
@@ -782,7 +788,7 @@ async function boot() {
       player.step(input, lookYaw, dt);
     }
     course?.wade(car.chassis, dt);
-    course?.advance(dt, walking ? null : car);
+    course?.advance(dt, walking ? null : car, input.forward || input.reverse);
     world.step(1 / 60, dt, 4);
     if (!walking) {
       recovery(dt);
@@ -822,7 +828,7 @@ async function boot() {
       showHud();
       updatePrompt();
       huntHud?.update(walking, walking ? lookYaw : yaw);
-      audio.engine(walking ? null : car.kind, speed, input.forward || input.reverse);
+      audio.engine(walking ? null : car.kind, speed, input.forward || input.reverse, car.engineSetup);
       hudAt = time + .11;
     }
     effects.update(dt);
@@ -1003,8 +1009,52 @@ async function boot() {
     settings.showModal();
   });
   settings.addEventListener('close', () => {
-    if (!graphicsLost && !reader.open) setPaused(false);
+    if (!graphicsLost && !reader.open && !workshopActive) setPaused(false);
   });
+  const workshopButton = find('#race-workshop-open');
+  if (course?.grid) {
+    workshopButton.hidden = false;
+    workshopButton.addEventListener('click', async () => {
+      workshopButton.disabled = true;
+      audio.play('click');
+      try {
+        const workshop = await import('./drive-workshop.js');
+        if (!settings.open || graphicsLost) return;
+        workshopActive = true;
+        workshopDialog = workshop.openRaceWorkshop({ renderer, environment: scene.environment, language, active: raceBuild,
+          playEngine: audio.previewEngine, onClose(result) {
+          workshopDialog = null;
+          workshopActive = false;
+          audio.engine(null);
+          view.append(renderer.domElement);
+          if (result && !graphicsLost) {
+            const replacement = createUtilityVehicle(scene, world, startKind, result.artwork);
+            course.grid.setArtwork(result.artwork);
+            spawned.delete(car);
+            car.dispose();
+            raceArtwork.dispose();
+            raceArtwork = result.artwork;
+            raceBuild = result.build;
+            car = replacement;
+            position = car.chassis.position;
+            fleet.set(startKind, car);
+            spawned.add(car);
+            find('#fixed-drive-vehicle').textContent = raceArtwork.model.name;
+            resetCar();
+            settings.close();
+          } else if (result) result.artwork.dispose();
+          resize();
+        } });
+      } catch {
+        workshopActive = false;
+        view.append(renderer.domElement);
+        resize();
+        announce(label('raceWorkshopError', 'Could not open the workshop. Try again.'));
+      } finally {
+        workshopButton.disabled = false;
+      }
+    });
+  }
   vehicleSelect.addEventListener('change', () => {
     switchVehicle(vehicleSelect.value);
     audio.play('click');
@@ -1255,6 +1305,7 @@ async function boot() {
   renderer.domElement.addEventListener('webglcontextlost', event => {
     event.preventDefault();
     graphicsLost = true;
+    workshopDialog?.close();
     crateCountdown.cancel();
     setPaused(true);
     fail(t.lost);
@@ -1265,6 +1316,21 @@ async function boot() {
   window.addEventListener('resize', resize);
   try {
     await renderer.compileAsync(scene, camera);
+    if (mapKind === 'rally' && !graphicsLost) {
+      const warmCamera = new THREE.PerspectiveCamera(67, 1, .18, 184);
+      const target = new THREE.WebGLRenderTarget(24, 24, { stencilBuffer: false });
+      renderer.setRenderTarget(target);
+      try {
+        for (const [x, y, z, lookY] of [[58, 36, 60, 8], [4.4, 2.8, 4.7, 1.4]]) {
+          warmCamera.position.set(x, y, z);
+          warmCamera.lookAt(0, lookY, 0);
+          renderer.render(scene, warmCamera);
+        }
+      } finally {
+        renderer.setRenderTarget(null);
+        target.dispose();
+      }
+    }
   } catch {
     // Drivers without asynchronous compilation can still render the city normally.
   }

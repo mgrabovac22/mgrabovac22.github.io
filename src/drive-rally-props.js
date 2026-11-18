@@ -154,6 +154,7 @@ export function createRallyProps(parent, world, terrain, random) {
       parts.push({ batch, index: batch.poses.length - 1, relative: dummy.matrix.clone().premultiply(inverse) });
     });
     const prop = { body, center, orientation, parts, spec, knocked: false, lastArrival: -Infinity };
+    body.addEventListener('sleep', () => { prop.lastPose = true; });
     body.addEventListener('collide', ({ body: driver }) => {
       const speed = Math.hypot(driver.velocity.x, driver.velocity.z);
       const hitByCar = driver.collisionFilterGroup === 4;
@@ -190,7 +191,15 @@ export function createRallyProps(parent, world, terrain, random) {
     for (const { batch, index, relative } of prop.parts) {
       if (!batch.mesh) continue;
       batch.mesh.setMatrixAt(index, render.multiplyMatrices(transform, relative));
-      batch.mesh.instanceMatrix.needsUpdate = true;
+      const attribute = batch.mesh.instanceMatrix;
+      const start = index * 16;
+      const range = attribute.updateRanges[0];
+      if (range) {
+        const end = Math.max(range.start + range.count, start + 16);
+        range.start = Math.min(range.start, start);
+        range.count = end - range.start;
+      } else attribute.addUpdateRange(start, 16);
+      attribute.needsUpdate = true;
     }
   }
 
@@ -240,6 +249,8 @@ export function createRallyProps(parent, world, terrain, random) {
     for (const prop of nearby) {
       if (!prop.knocked && !prop.spec.floats) continue;
       const { body, spec } = prop;
+      if (!spec.floats && body.sleepState === Body.SLEEPING && !prop.lastPose) continue;
+      prop.lastPose = false;
       if (spec.floats && prop.knocked) {
         const level = spec.y + Math.sin(now * 1.28 + prop.center.x) * .08;
         body.velocity.y += ((level - body.position.y) * 19 - body.velocity.y * 6) * dt;

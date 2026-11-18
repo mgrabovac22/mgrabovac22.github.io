@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Body, Box, Quaternion, Vec3 } from 'cannon-es';
+import { batchIslandDetails } from './drive-rally-batches.js';
 
 const stopSpecs = {
   wreck: [32, -10.6], trail: [153, -12.4], ruins: [182.4, -24.5], chest: [547, -29],
@@ -198,6 +199,7 @@ export function createRallyHunt(parent, world, route, terrain, sites = rallyHunt
   const jewel = new THREE.Mesh(gemGeometry, new THREE.MeshBasicMaterial({ color: 0xffe18d }));
   jewel.scale.setScalar(.88);
   scene.add(jewel);
+  for (const group of objects.values()) batchIslandDetails(group, new Set([lid]));
 
   let stage = 0;
   let seconds = 0, gate = 0, combination = 0, solving = false;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RaycastResult, Vec3 } from 'cannon-es';
 import { keepCollision, keepLevel } from './drive-castle-keep.js';
+import { batchIslandDetails } from './drive-rally-batches.js';
 
 const desks = [
   { x: -3.42, z: -6.69, floor: 0, yaw: 0, desk: true },
@@ -125,6 +126,8 @@ function piece(group, material, x,y,z,w,h,d, geometry=box) {
 export function buildCastleNotes(parent, world, pages, random = Math.random) {
   const notes = pickCastleNotes(pages,random);
   const stations = [];
+  const furnishings = new THREE.Group();
+  parent.add(furnishings);
   const picker = new THREE.Raycaster();
   const rayStart = new Vec3(), rayEnd = new Vec3();
   const obstruction = new RaycastResult();
@@ -136,7 +139,7 @@ export function buildCastleNotes(parent, world, pages, random = Math.random) {
     const group = new THREE.Group();
     group.position.set(x,y,z);
     group.rotation.y = yaw;
-    parent.add(group);
+    furnishings.add(group);
     const count = paper ? 1 : 3;
     const excerpts = Array.from({ length: count }, (_, i) => notes[(offset + i) % notes.length]);
     offset += count;
@@ -165,6 +168,7 @@ export function buildCastleNotes(parent, world, pages, random = Math.random) {
     const frontX = Math.sin(yaw), frontZ = Math.cos(yaw);
     stations.push({ x: x + frontX * approach, y, z: z + frontZ * approach, desk, paper, frontX, frontZ, excerpts, target });
   }
+  batchIslandDetails(furnishings, new Set(stations.map(station => station.target)));
 
   function withinReach(position, station) {
     if (Math.abs(position.y - station.y - .84) > 1.32) return false;

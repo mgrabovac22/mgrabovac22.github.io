@@ -49,6 +49,8 @@ const padding = new THREE.MeshStandardMaterial({ color: 0x3c4443, roughness: .93
 const helmet = new THREE.SphereGeometry(.5, 16, 12);
 const lensDot = new THREE.SphereGeometry(.5, 9, 6);
 const steeringWheel = new THREE.TorusGeometry(.116, .019, 6, 17);
+const whitewall = new THREE.TorusGeometry(.5, .027, 5, 28).rotateY(Math.PI / 2);
+const wheelSpoke = new THREE.BoxGeometry();
 
 function paint(color) {
   return new THREE.MeshPhysicalMaterial({ color, clearcoat: .74, clearcoatRoughness: .19, metalness: .53, roughness: .29 });
@@ -74,7 +76,9 @@ function beam(parent, mat, start, end, diameter, open = false) {
 
 function molding(parent, material, points, radius) {
   const path = new THREE.CatmullRomCurve3(points.map(point => new THREE.Vector3(...point)));
-  parent.add(new THREE.Mesh(new THREE.TubeGeometry(path, 14, radius, 6), material));
+  const geometry = new THREE.TubeGeometry(path, 14, radius, 6);
+  geometry.userData.vehicleOwned = true;
+  parent.add(new THREE.Mesh(geometry, material));
 }
 
 function spring(body, start, end) {
@@ -116,6 +120,7 @@ export function batchVehicleParts(group, castShadow = true) {
     const geometry = mergeGeometries(pieces);
     for (const part of pieces) part.dispose();
     if (!geometry) continue;
+    geometry.userData.vehicleOwned = true;
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = castShadow;
     group.remove(...meshes);
@@ -145,6 +150,7 @@ function shell(parent, material, sections, cross, stepsPerSection = 5) {
   const last = steps * rings;
   for (let i = 1; i < rings - 1; i++) indices.push(0, i + 1, i, last, last + i, last + i + 1);
   const geometry = new THREE.BufferGeometry();
+  geometry.userData.vehicleOwned = true;
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
@@ -366,8 +372,7 @@ function truck(body, p, color, monster) {
   }
 }
 
-function formula(body, color) {
-  const white = paint(0xe5ded0);
+function formula(body, color, white = paint(0xe5ded0), stockWing = true, stockExhaust = true, visor = lens) {
   shell(body, color, [[-2.29, .133, -.13, -.015], [-1.67, .204, -.17, .09], [-.91, .28, -.20, .21],
     [-.59, .53, -.22, .215], [.18, .74, -.22, .225], [.76, .61, -.20, .43],
     [1.26, .34, -.19, .28], [1.84, .24, -.14, .084]], ([, w, y, h]) => profile(w, y, h, .75));
@@ -375,23 +380,27 @@ function formula(body, color) {
     [.73, .70, -.247, -.188], [1.63, .44, -.189, -.108]], ([, w, y, h]) => profile(w, y, h, .93));
   piece(body, carbon, .61, .081, .75, 0, .233, .04);
   piece(body, white, .335, .302, .343, 0, .412, .244, helmet);
-  piece(body, lens, .311, .116, .189, 0, .452, .134, helmet);
+  piece(body, visor, .311, .116, .189, 0, .452, .134, helmet);
   molding(body, carbon, [[-.30, .23, .13], [-.24, .465, -.16], [0, .491, -.32], [.24, .465, -.16], [.30, .23, .13]], .042);
   beam(body, carbon, [0, .25, -.70], [0, .491, -.32], .052);
   piece(body, carbon, .243, .206, .244, 0, .480, .668);
   piece(body, white, .321, .048, .295, 0, .586, .701);
   piece(body, carbon, 2.10, .049, .386, 0, -.153, -2.08);
   piece(body, color, 1.98, .051, .258, 0, -.073, -1.96).rotation.x = -.22;
-  piece(body, carbon, 1.47, .064, .35, 0, .584, 1.96);
-  piece(body, white, 1.47, .051, .205, 0, .714, 2.01).rotation.x = -.18;
+  if (stockWing) {
+    piece(body, carbon, 1.47, .064, .35, 0, .584, 1.96);
+    piece(body, white, 1.47, .051, .205, 0, .714, 2.01).rotation.x = -.18;
+  }
   piece(body, carbon, .59, .072, .44, 0, -.185, 1.81).rotation.x = .18;
-  beam(body, castSteel, [0, .154, 1.63], [0, .155, 1.98], .114, true);
+  if (stockExhaust) beam(body, castSteel, [0, .154, 1.63], [0, .155, 1.98], .114, true);
   piece(body, braking, .154, .063, .039, 0, -.026, 1.98);
   for (const side of [-1, 1]) {
     piece(body, carbon, .063, .181, .40, side * 1.006, -.05, -2.04).rotation.y = side * .08;
     piece(body, color, .072, .097, .504, side * .98, -.033, -1.97);
-    piece(body, carbon, .071, .303, .46, side * .742, .574, 1.969).rotation.y = -side * .075;
-    piece(body, color, .089, .304, .134, side * .258, .411, 1.86).rotation.x = -.20;
+    if (stockWing) {
+      piece(body, carbon, .071, .303, .46, side * .742, .574, 1.969).rotation.y = -side * .075;
+      piece(body, color, .089, .304, .134, side * .258, .411, 1.86).rotation.x = -.20;
+    }
     piece(body, white, .115, .035, .95, side * .54, .219, .12).rotation.y = -side * .090;
     piece(body, carbon, .188, .098, .464, side * .545, .172, -.497).rotation.y = side * .16;
     beam(body, carbon, [side * .235, .267, -.234], [side * .44, .340, -.200], .025);
@@ -493,7 +502,7 @@ export function buildUtilityBody(body, kind, preset) {
 
 const tireGeometry = new Map();
 
-export function buildWheel(radius, width, spokes, face = 1, useTread = true, offroad = false) {
+export function buildWheel(radius, width, spokes, face = 1, useTread = true, offroad = false, style) {
   const wheel = new THREE.Group();
   const key = radius + ':' + width;
   if (!tireGeometry.has(key)) {
@@ -503,16 +512,23 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
   }
   piece(wheel, useTread ? tireRubber : trim, 1, 1, 1, 0, 0, 0, tireGeometry.get(key)).rotation.z = Math.PI / 2;
   const sides = face === 0 ? [-1, 1] : [face];
+  const rim = style?.rim ?? satin;
   piece(wheel, hub, radius * 1.36, width * .69, radius * 1.36, 0, 0, 0, cylinder).rotation.z = Math.PI / 2;
   for (const side of sides) {
     const faceX = side * width * .415;
-    piece(wheel, satin, radius * 1.57, .033, radius * 1.57, faceX, 0, 0, pipe).rotation.z = Math.PI / 2;
+    piece(wheel, rim, radius * 1.57, .033, radius * 1.57, faceX, 0, 0, pipe).rotation.z = Math.PI / 2;
     piece(wheel, trim, radius * .50, .055, radius * .50, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
-    piece(wheel, satin, radius * .232, .063, radius * .232, faceX + side * .011, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    piece(wheel, rim, radius * .232, .063, radius * .232, faceX + side * .011, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    if (style?.type === 'disc') {
+      piece(wheel, rim, radius * 1.48, .032, radius * 1.48, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    }
+    if (style?.whitewall) piece(wheel, reverse, 1, radius * 1.77, radius * 1.77, faceX + side * .022, 0, 0, whitewall);
     for (let i = 0; i < spokes; i++) {
       const angle = i / spokes * Math.PI * 2;
       const r = radius * .463;
-      piece(wheel, satin, .027, radius * .602, radius * .12, faceX, Math.cos(angle) * r, Math.sin(angle) * r).rotation.x = angle + .12;
+      const sweep = style?.type === 'turbine' ? .47 : style?.type === 'mesh' ? (i % 2 ? -.28 : .28) : .12;
+      piece(wheel, rim, .027, radius * .602, radius * .12, faceX, Math.cos(angle) * r, Math.sin(angle) * r,
+        style ? wheelSpoke : rounded).rotation.x = angle + sweep;
       piece(wheel, accent, .025, .024, .024, faceX + side * .033, Math.cos(angle) * radius * .169, Math.sin(angle) * radius * .169, cylinder).rotation.z = Math.PI / 2;
     }
   }
@@ -533,3 +549,5 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
   }
   return wheel;
 }
+
+export { formula as buildFormulaBody, paint as vehiclePaint, piece as vehiclePiece, profile as crossSection, shell as loftShell };

@@ -6,6 +6,7 @@ export function createDriveAudio() {
   let noise;
   let volume = .17;
   let muted = false;
+  let testingEngine = false;
 
   function configure(level = volume, silent = muted) {
     volume = level;
@@ -70,13 +71,40 @@ export function createDriveAudio() {
     voice.stop(now + time);
   }
 
-  function engine(kind, speed = 0, power = false) {
+  function engine(kind, speed = 0, power = false, setup) {
     if (!hum) return;
     const roots = { sport: 38, jeep: 33, monster: 26, bike: 56, tank: 29, formula: 53, buggy: 35 };
     const now = context.currentTime;
-    hum.frequency.setTargetAtTime((roots[kind] ?? 35) + Math.min(speed, 50) * (kind === 'formula' || kind === 'bike' ? 3.4 : 1.9), now, .12);
+    if (testingEngine) {
+      testingEngine = false;
+      hum.frequency.cancelScheduledValues(now);
+      engineGain.gain.cancelScheduledValues(now);
+    }
+    const profile = setup?.engine;
+    const wave = profile?.wave ?? 'triangle';
+    if (hum.type !== wave) hum.type = wave;
+    const shift = setup?.gears ? 1 - .17 * Math.floor(speed / setup.max * setup.gears) / setup.gears : 1;
+    const speedPitch = Math.min(speed, 58) * (profile?.range ?? (kind === 'formula' || kind === 'bike' ? 3.4 : 1.9));
+    hum.frequency.setTargetAtTime((profile?.root ?? roots[kind] ?? 35) + speedPitch * shift, now, .12);
     engineGain.gain.setTargetAtTime(kind ? .075 + (power ? .09 : 0) + Math.min(.06, speed * .003) : 0, now, .12);
   }
 
-  return { unlock, configure, play, engine };
+  function previewEngine(setup) {
+    unlock();
+    if (!hum || muted) return;
+    const now = context.currentTime;
+    const motor = setup.engine;
+    testingEngine = true;
+    hum.type = motor.wave;
+    hum.frequency.cancelScheduledValues(now);
+    engineGain.gain.cancelScheduledValues(now);
+    hum.frequency.setValueAtTime(motor.root, now);
+    hum.frequency.exponentialRampToValueAtTime(motor.root + motor.range * 38, now + .72);
+    hum.frequency.exponentialRampToValueAtTime(motor.root, now + 1.28);
+    engineGain.gain.setValueAtTime(.026, now);
+    engineGain.gain.linearRampToValueAtTime(.145, now + .24);
+    engineGain.gain.linearRampToValueAtTime(0, now + 1.29);
+  }
+
+  return { unlock, configure, play, engine, previewEngine };
 }

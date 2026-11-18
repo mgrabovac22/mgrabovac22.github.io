@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { castleBridges, castleIsland, castleIslandDistance } from './drive-rally-terrain.js';
+import { batchIslandDetails } from './drive-rally-batches.js';
 
 const tasks = {
   charter: [['ledger',0,3.55]],
@@ -136,6 +137,7 @@ export function createCastleQuests(parent, route) {
     }
   }
 
+  batchIslandDetails(scenery, new Set([...triggers.values(), ...wheels.values(), ...flames.values(), lid]));
   let stage = 0, timer = 0, through = false, flowing = false;
   const finished = new Set();
   const settings = new Map();

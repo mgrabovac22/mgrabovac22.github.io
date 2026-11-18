@@ -3,6 +3,7 @@ import { Body, Box, RaycastVehicle, Vec3 } from 'cannon-es';
 import { createPerson } from './drive-people.js';
 import { buildUtilityBody, buildWheel } from './drive-vehicle-art.js';
 import { crateGroup } from './drive-crates.js';
+import { modelFor, raceWheelWidth } from './drive-race-build.js';
 
 export const tankBay = { x: -4.04, z: -276.25, yaw: -.09 };
 export const vehicleTypes = ['sport', 'jeep', 'monster', 'bike'];
@@ -12,7 +13,6 @@ const presets = {
   monster: { mass: 2600, axle: 1.34, length: 1.56, radius: .84, rest: .55, stance: 1.46, power: 20200, stiffness: 34, max: 30, steer: .55, width: 1.0, depth: 2.10, color: 0x926244 },
   bike: { mass: 255, axle: 0, length: 1.12, radius: .36, rest: .27, stance: .67, power: 2250, stiffness: 48, max: 48, steer: .44, width: .34, depth: 1.27, color: 0x414e61 },
   tank: { mass: 3150, axle: 1.02, length: 1.35, radius: .48, rest: .40, stance: .98, power: 17500, stiffness: 45, max: 22, steer: .58, width: 1.17, depth: 1.98, color: 0x497478 },
-  formula: { mass: 770, axle: .93, length: 1.45, radius: .337, rest: .22, stance: .67, power: 8100, stiffness: 60, max: 52, steer: .55, width: .96, depth: 2.28, color: 0xc73830 },
   buggy: { mass: 870, axle: .92, length: 1.16, radius: .46, rest: .42, stance: .98, power: 6550, stiffness: 34, max: 36, steer: .57, width: .86, depth: 1.71, color: 0xc68138 },
 };
 
@@ -20,11 +20,13 @@ const up = new Vec3(0, 1, 0);
 const forward = new Vec3(0, 0, -1);
 const idle = { forward: false, reverse: false, left: false, right: false, brake: true };
 
-export function createUtilityVehicle(scene, world, kind) {
-  const p = presets[kind];
+export function createUtilityVehicle(scene, world, kind, artwork) {
+  const p = artwork?.model ?? (kind === 'formula' ? modelFor(kind) : presets[kind]);
+  const openWheel = p.id === 'formula';
   const bike = kind === 'bike';
-  const body = new THREE.Group();
-  const { equipment, pilot } = buildUtilityBody(body, kind, p);
+  const race = artwork?.instantiate();
+  const body = race?.view ?? new THREE.Group();
+  const { equipment, pilot } = race ? {} : buildUtilityBody(body, kind, p);
   let rider = pilot;
   if (bike) {
     const { view, parts } = createPerson(body, 5, true);
@@ -52,8 +54,8 @@ export function createUtilityVehicle(scene, world, kind) {
   scene.add(shadow);
   const chassis = new Body({ mass: p.mass, linearDamping: .09, angularDamping: .51, collisionFilterGroup: 4 });
   chassis.addShape(new Box(new Vec3(p.width, bike ? .25 : .32, p.depth)), new Vec3(0, .10, 0));
-  chassis.addShape(new Box(new Vec3(p.width * .8, kind === 'formula' ? .17 : .29, bike ? .57 : 1.02)),
-    new Vec3(0, kind === 'formula' ? .30 : .62, .25));
+  chassis.addShape(new Box(new Vec3(p.width * .8, openWheel ? .17 : .29, bike ? .57 : 1.02)),
+    new Vec3(0, openWheel ? .30 : artwork ? p.roof - .29 : .62, .25));
   if (kind === 'monster') {
     // The real tire footprint can touch a crate while the chassis passes above it.
     const inertia = chassis.inertia.clone();
@@ -77,10 +79,10 @@ export function createUtilityVehicle(scene, world, kind) {
         chassisConnectionPointLocal: new Vec3(side * p.axle, -.10, z),
         suspensionRestLength: p.rest, suspensionStiffness: p.stiffness, maxSuspensionForce: p.mass * 31,
         dampingRelaxation: 3.8, dampingCompression: 5.5, maxSuspensionTravel: p.rest * .77,
-        rollInfluence: .06, frictionSlip: kind === 'formula' ? 6.8 : kind === 'buggy' ? 4.2 : bike ? 4.4 : 5.1,
+        rollInfluence: .06, frictionSlip: p.grip ?? (kind === 'buggy' ? 4.2 : bike ? 4.4 : 5.1),
       });
-      const width = kind === 'monster' ? .66 : bike ? .20 : kind === 'formula' ? (z < 0 ? .38 : .49) : .34;
-      const wheel = kind === 'tank' ? null : buildWheel(p.radius, width, bike ? 5 : 7, side, kind !== 'formula', kind === 'buggy');
+      const width = kind === 'monster' ? .66 : bike ? .20 : openWheel ? raceWheelWidth(p, z) : .34;
+      const wheel = race?.wheels[wheels.length] ?? (kind === 'tank' ? null : buildWheel(p.radius, width, bike ? 5 : 7, side, !openWheel, kind === 'buggy'));
       if (wheel) scene.add(wheel);
       wheels.push(wheel);
     }
@@ -134,12 +136,17 @@ export function createUtilityVehicle(scene, world, kind) {
     brake = THREE.MathUtils.damp(brake, Number(braking), 15, dt);
     throttle = THREE.MathUtils.damp(throttle, braking ? 0 : power, 8, dt);
     const limit = throttle < 0 ? Math.min(13, p.max * .55) : p.max;
-    const force = throttle * (1 - brake) * p.power * Math.max(0, 1 - Math.abs(speed) / limit);
+    const ratio = Math.abs(speed) / limit;
+    const gearPhase = ratio * (p.gears ?? 0) % 1;
+    const shifting = p.gears && ratio > .14 ? .88 + .12 * THREE.MathUtils.smoothstep(gearPhase, 0, .22) : 1;
+    const force = throttle * (1 - brake) * p.power * Math.max(0, 1 - ratio) * shifting;
     const front = wheels.length / 2;
+    const frontShare = p.frontDrive ?? .42;
     for (let i = 0; i < wheels.length; i++) {
       if (i < front) rig.setSteeringValue(steer, i);
-      rig.applyEngineForce(force * (i < front ? (bike ? 0 : .21) : (bike ? 1 : .29)), i);
-      rig.setBrake(2 + brake * (p.mass * .11), i);
+      const split = bike ? (i < front ? 0 : 1) : (i < front ? frontShare : 1 - frontShare) / 2;
+      rig.applyEngineForce(force * split, i);
+      rig.setBrake(2 + brake * p.mass * (p.brakePower ?? .11), i);
     }
     if (bike && rig.numWheelsOnGround) {
       const lean = steer * Math.min(1, Math.abs(speed) / 8) * .89;
@@ -191,8 +198,14 @@ export function createUtilityVehicle(scene, world, kind) {
   const muzzle = new THREE.Vector3();
   const direction = new THREE.Vector3();
   return {
-    chassis, stance: p.stance, width: p.width, kind, viewPosition: body.position, drive, render, setPose, setActive,
+    chassis, stance: p.stance, width: p.width, kind, engineSetup: artwork ? p : null, viewPosition: body.position, drive, render, setPose, setActive,
     get grounded() { return rig.numWheelsOnGround >= 2; },
+    dispose() {
+      setActive(false);
+      scene.remove(body, shadow, ...wheels.filter(Boolean));
+      shadow.geometry.dispose();
+      shadow.material.dispose();
+    },
     aim(yaw, pitch) {
       if (!equipment) return;
       equipment.turret.rotation.y = yaw;

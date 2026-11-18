@@ -1,0 +1,122 @@
+.race-workshop {
+  --accent: #62e1c5;
+  --line: #405863;
+  position: fixed;
+  width: min(1180px, calc(100% - 3rem));
+  max-width: none;
+  max-height: calc(100dvh - 3rem);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #14212b;
+  color: #eef5f5;
+  box-shadow: 0 1.7rem 5rem #040a11c9;
+  overflow: hidden;
+}
+.race-workshop[open] { display: flex; flex-direction: column; }
+.race-workshop::backdrop { background: #070f17dc; }
+.workshop-header, .workshop-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: .7rem;
+  align-items: center;
+  padding: .85rem 1.35rem;
+  flex: none;
+}
+.workshop-header { border-bottom: 1px solid var(--line); }
+.workshop-header h2 { font-size: clamp(1.3rem, 3vw, 1.9rem); margin: .19rem 0 0; font-weight: 750; line-height: 1.05; }
+.workshop-track, .workshop-class { color: var(--accent); font: 700 .68rem/1.05 ui-monospace, monospace; letter-spacing: .13em; }
+.workshop-workspace { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(295px, 1fr); height: min(40rem, calc(100dvh - 12rem)); min-height: 0; overflow: hidden; }
+.workshop-display { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.workshop-view {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  flex: 1;
+  min-height: 0;
+  cursor: grab;
+  isolation: isolate;
+  background: #0c1823;
+}
+.workshop-view:active { cursor: grabbing; }
+.workshop-view:focus-visible { outline-offset: -4px; }
+.workshop-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.workshop-description { position: absolute; pointer-events: none; inset: 1rem 1.35rem auto; }
+.workshop-description h3 { font-size: clamp(1.58rem, 4.2vw, 3.2rem); margin: .16rem 0 .31rem; line-height: .99; letter-spacing: -.035em; }
+.workshop-description dl { display: flex; flex-wrap: wrap; gap: .85rem; margin: 0; }
+.workshop-description dt { font-size: .65rem; color: #b5c9cd; }
+.workshop-description dd { font: 700 .76rem/1.25 ui-monospace, monospace; margin: .16rem 0 0; }
+.workshop-orbit {
+  position: absolute;
+  right: 1rem;
+  bottom: .75rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: .54rem .65rem;
+  background: #101d27e9;
+  display: flex;
+  align-items: center;
+  gap: .34rem;
+  font-size: .71rem;
+  cursor: pointer;
+}
+.workshop-orbit input { accent-color: var(--accent); }
+.workshop-cars { display: flex; flex: none; overflow-x: auto; gap: .38rem; padding: .54rem .67rem; background: #172831; scrollbar-color: #4a6a75 transparent; }
+.workshop-cars button {
+  flex: none;
+  padding: .43rem .48rem .48rem;
+  min-width: 6.1rem;
+  min-height: 3.55rem;
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: start;
+  align-content: center;
+  background: #14232d;
+  font-size: .72rem;
+}
+.workshop-cars button b { font: 700 .64rem/1 ui-monospace, monospace; color: #9bb5bf; }
+.workshop-cars button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: #1f3b42; }
+.workshop-controls { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; gap: .65rem; padding: .90rem; border-left: 1px solid var(--line); }
+.workshop-model { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .88rem; font-weight: 750; }
+.workshop-model select, .workshop-fields select, .workshop-fields input {
+  min-height: 44px;
+  max-width: 100%;
+  padding: .44rem .52rem;
+  font: 650 .83rem/1.3 system-ui, sans-serif;
+  color: #eef5f5;
+  background: #0f1d26;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.workshop-model select { flex: 1; }
+.workshop-tabs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .33rem; }
+.workshop-tabs button { min-width: 0; padding: .34rem .25rem; background: #20343e; }
+.workshop-tabs button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: #193842; }
+.workshop-tabs button:last-child { grid-column: 1 / -1; }
+.workshop-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .72rem .54rem; }
+.workshop-fields label { display: grid; gap: .23rem; font-size: .77rem; font-weight: 650; color: #d8e5e7; }
+.workshop-fields input[type=color] { width: 100%; padding: .22rem; cursor: pointer; }
+.workshop-fields select:disabled { opacity: .54; }
+.workshop-engine-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+.workshop-engine-tools button { padding-inline: .4rem; }
+.workshop-status { margin-top: auto; font-size: .71rem; line-height: 1.3; color: var(--accent); }
+.workshop-status:empty { display: none; }
+.workshop-footer { border-top: 1px solid var(--line); background: #182933; }
+.workshop-footer > div { display: flex; gap: .38rem; }
+.workshop-footer button { text-align: center; }
+.workshop-apply { background: var(--accent); color: #102b31; border-color: var(--accent); }
+.workshop-apply:hover { background: #a6ffe3; }
+@media(max-width: 780px) {
+  .race-workshop { width: calc(100% - .8rem); height: calc(100dvh - .8rem); max-height: calc(100dvh - .8rem); border-radius: 8px; }
+  .workshop-header, .workshop-footer { padding: .58rem .69rem; }
+  .workshop-back { padding-inline: .55rem; }
+  .workshop-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); flex: 1; height: auto; }
+  .workshop-controls { border-left: 0; border-top: 1px solid var(--line); gap: .5rem; padding: .62rem; }
+  .workshop-view { flex: none; height: min(32dvh, 19rem); }
+  .workshop-description { left: .82rem; top: .71rem; }
+  .workshop-description h3 { font-size: 1.75rem; }
+  .workshop-orbit { font-size: .68rem; right: .42rem; bottom: .42rem; }
+  .workshop-cars { padding: .35rem .50rem; }
+  .workshop-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .workshop-tabs button, .workshop-footer button { font-size: .73rem; padding-inline: .27rem; }
+}

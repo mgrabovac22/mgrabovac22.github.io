@@ -12,6 +12,7 @@ import { buildIslandCastle } from './drive-island-castle.js';
 import { createCastleQuests } from './drive-castle-quests.js';
 import { buildCastleKeep, inCastleKeep } from './drive-castle-keep.js';
 import { buildCastleNotes } from './drive-castle-notes.js';
+import { packKeepColliders } from './drive-rally-batches.js';
 export { RallyPhysicsWorld } from './drive-rally-props.js';
 
 const layouts = {
@@ -267,13 +268,15 @@ function buildRally(parent, world, route, add, rand, stops, pages) {
   props.commit();
   const hunt = createRallyHunt(parent, world, route, terrain, sites);
   const castle = buildIslandCastle(parent, world, add, terrain);
+  const keepStart = world.bodies.length;
   buildCastleKeep(parent, world, add);
   const notes = buildCastleNotes(parent, world, pages);
+  packKeepColliders(world, world.bodies.slice(keepStart));
   const quests = createCastleQuests(parent, route);
   return { terrain, wave, props, hunt, castle, quests, notes, ...surroundings };
 }
 
-export function createCourse(scene, world, kind, stops = new Map(), pages = []) {
+export function createCourse(scene, world, kind, stops = new Map(), pages = [], raceArtwork) {
   const route = defineCircuit(kind);
   const scenery = new THREE.Group();
   scene.add(scenery);
@@ -296,7 +299,7 @@ export function createCourse(scene, world, kind, stops = new Map(), pages = []) 
   if (kind === 'race') {
     buildRace(scenery, world, route, add, rand);
     world.addBody(new Body({ mass: 0, shape: new Box(new Vec3(530, .20, 530)), position: new Vec3(0, -.20, 0) }));
-    grid = createRaceGrid(scenery, world, route);
+    grid = createRaceGrid(scenery, world, route, raceArtwork);
   } else {
     island = buildRally(scenery, world, route, add, rand, stops, pages);
     const ring = new THREE.RingGeometry(.82, 1, 27).rotateX(-Math.PI / 2);
@@ -399,11 +402,11 @@ export function createCourse(scene, world, kind, stops = new Map(), pages = []) 
         ? groundHit.hitPointWorld.y : 0;
     },
     takeArrival(body) { return island?.takeArrival(body); },
-    advance(dt, car) {
+    advance(dt, car, throttle = false) {
       activeDriver = car?.chassis;
       if (!activeDriver) return;
       crateSweep.begin(car);
-      if (grid && dt > 0) grid.advance(dt, activeDriver.position, closest.meters);
+      if (grid && dt > 0) grid.advance(dt, activeDriver.position, closest.meters, throttle);
     },
     walkSurface(x, z, above) {
       rayStart.set(x, above, z);
