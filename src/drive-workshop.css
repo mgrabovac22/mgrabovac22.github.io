@@ -41,18 +41,36 @@
 .workshop-view:active { cursor: grabbing; }
 .workshop-view:focus-visible { outline-offset: -4px; }
 .workshop-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.workshop-description { position: absolute; pointer-events: none; inset: 1rem 1.35rem auto; }
-.workshop-description h3 { font-size: clamp(1.58rem, 4.2vw, 3.2rem); margin: .16rem 0 .31rem; line-height: .99; letter-spacing: -.035em; }
-.workshop-description dl { display: flex; flex-wrap: wrap; gap: .85rem; margin: 0; }
-.workshop-description dt { font-size: .65rem; color: #b5c9cd; }
-.workshop-description dd { font: 700 .76rem/1.25 ui-monospace, monospace; margin: .16rem 0 0; }
+.workshop-description {
+  flex: none;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: .55rem 1rem;
+  padding: .72rem .94rem .78rem;
+  border-bottom: 1px solid var(--line);
+  background: #142630;
+}
+.workshop-description h3 { font-size: clamp(1.26rem, 2.8vw, 2.35rem); margin: .17rem 0 0; line-height: 1; letter-spacing: -.029em; }
+.workshop-description dl { display: grid; grid-template-columns: repeat(3,max-content); gap: .26rem .67rem; margin: 0; }
+.workshop-description dt { font-size: .62rem; color: #b5c9cd; }
+.workshop-description dd { font: 700 .74rem/1.25 ui-monospace, monospace; margin: .16rem 0 0; }
+.workshop-camera {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: .28rem .38rem;
+  padding: .32rem .63rem;
+  border-top: 1px solid var(--line);
+  background: #142630;
+}
 .workshop-orbit {
-  position: absolute;
-  right: 1rem;
-  bottom: .75rem;
   border: 1px solid var(--line);
   border-radius: 5px;
-  padding: .54rem .65rem;
+  min-height: 44px;
+  padding: .35rem .53rem;
   background: #101d27e9;
   display: flex;
   align-items: center;
@@ -61,8 +79,9 @@
   cursor: pointer;
 }
 .workshop-orbit input { accent-color: var(--accent); }
-.workshop-views { position: absolute; left: .78rem; bottom: .68rem; display: flex; gap: .24rem; }
-.workshop-views button { padding-inline: .52rem; background: #101d27e9; font-size: .69rem; }
+.workshop-views, .workshop-zoom { display: flex; gap: .24rem; }
+.workshop-camera button { padding-inline: .52rem; background: #101d27e9; font-size: .72rem; }
+.workshop-zoom button { font-size: 1.05rem; }
 .workshop-cars { display: flex; flex: none; overflow-x: auto; gap: .38rem; padding: .54rem .67rem; background: #172831; scrollbar-color: #4a6a75 transparent; }
 .workshop-cars button {
   flex: none;
@@ -115,12 +134,33 @@
   .workshop-back { padding-inline: .55rem; }
   .workshop-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); flex: 1; height: auto; }
   .workshop-controls { border-left: 0; border-top: 1px solid var(--line); gap: .5rem; padding: .62rem; }
-  .workshop-view { flex: none; height: min(32dvh, 19rem); }
-  .workshop-description { left: .82rem; top: .71rem; }
-  .workshop-description h3 { font-size: 1.75rem; }
-  .workshop-orbit { font-size: .68rem; right: .42rem; bottom: .42rem; }
-  .workshop-cars { padding: .35rem .50rem; }
-  .workshop-views { left: .42rem; bottom: .42rem; }
-  .workshop-views button { padding-inline: .32rem; }
+  .workshop-view { flex: none; height: clamp(7.7rem, 26dvh, 17.5rem); }
+  .workshop-description { display: grid; gap: .38rem; padding: .46rem .66rem .51rem; }
+  .workshop-description h3 { font-size: 1.30rem; }
+  .workshop-description dl { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .workshop-camera { padding: .29rem .37rem; }
+  .workshop-orbit { font-size: .68rem; padding-inline: .32rem; }
+  .workshop-cars { display: none; }
+  .workshop-camera button { padding-inline: .33rem; }
+  .workshop-zoom button { min-width: 38px; }
   .workshop-tabs button, .workshop-footer button { font-size: .73rem; padding-inline: .27rem; }
+}
+@media (max-width: 350px) {
+  .workshop-header h2 { font-size: 1.09rem; }
+  .workshop-back { font-size: .73rem; }
+}
+@media (min-width: 380px) and (max-width: 780px) and (orientation: portrait) {
+  .workshop-tabs { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .workshop-tabs button:last-child { grid-column: auto; }
+}
+@media (orientation: landscape) and (max-height: 570px) {
+  .race-workshop { width: calc(100% - .8rem); height: calc(100dvh - .8rem); max-height: calc(100dvh - .8rem); }
+  .workshop-header, .workshop-footer { padding: .27rem .65rem; }
+  .workshop-workspace { grid-template-columns: minmax(0,1.07fr) minmax(0,1fr); grid-template-rows: minmax(0,1fr); flex: 1; height: auto; }
+  .workshop-view { flex: 1; height: auto; }
+  .workshop-description { display: grid; gap: .31rem; padding: .37rem .52rem; }
+  .workshop-description h3 { font-size: 1.17rem; }
+  .workshop-description dl { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .workshop-cars { display: none; }
+  .workshop-controls { border-left: 1px solid var(--line); border-top: 0; }
 }

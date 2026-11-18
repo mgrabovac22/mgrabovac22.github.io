@@ -25,25 +25,36 @@ const formulaModel = raceModels[0];
 export const raceOptions = {
   finish: ['gloss', 'metallic', 'satin', 'matte', 'chrome', 'pearl'],
   livery: ['none', 'twin', 'offset', 'diagonal', 'lower', 'fade', 'chevron', 'checker', 'pinstripe'],
-  wing: ['stock', 'none', 'ducktail', 'club', 'gt', 'swan', 'endurance'],
+  wing: ['stock', 'none', 'ducktail', 'club', 'gt', 'swan', 'endurance', 'swept', 'split', 'longtail'],
   wingFinish: ['stock', 'carbon', 'body', 'accent', 'alloy'],
+  wingWidth: ['stock', 'narrow', 'wide'],
+  wingMount: ['stock', 'low', 'high'],
+  wingPitch: ['stock', 'flat', 'steep'],
   splitter: ['stock', 'street', 'track', 'canards'],
   skirts: ['stock', 'blade', 'wide'],
   hood: ['stock', 'vents', 'scoop', 'carbon', 'power', 'louvers'],
   frontBumper: ['stock', 'mesh', 'split', 'track'],
   rearBumper: ['stock', 'road', 'gt', 'vertical'],
   fenders: ['stock', 'flared', 'riveted', 'gt'],
-  mirrors: ['stock', 'carbon', 'classic', 'aero'],
+  mirrors: ['stock', 'carbon', 'classic', 'aero', 'bullet', 'angular', 'camera'],
+  mirrorFinish: ['stock', 'body', 'accent', 'carbon', 'alloy'],
+  intakeMesh: ['stock', 'honeycomb', 'horizontal', 'vertical'],
+  sideIntake: ['stock', 'smooth', 'gills', 'duct'],
+  hoodPins: ['off', 'flush', 'race'],
   roof: ['stock', 'black', 'carbon', 'scoop'],
   trim: ['stock', 'black', 'chrome', 'carbon'],
   rims: ['stock', 'five', 'mesh', 'turbine', 'disc', 'split', 'deep', 'retro'],
+  rimDiameter: ['stock', 'small', 'large'],
   tire: ['slick', 'grooved', 'whitewall', 'semiSlick'],
   exhaust: ['stock', 'twin', 'quad', 'center', 'angled', 'side'],
   tipFinish: ['steel', 'black', 'blued'],
+  tipShape: ['round', 'oval', 'slash', 'square'],
   plateStyle: ['off', 'light', 'dark', 'race'],
   glass: ['clear', 'smoke', 'ice', 'amber'],
-  headlights: ['stock', 'projector', 'halo', 'blade'],
-  taillights: ['stock', 'bar', 'pixel', 'smoke'],
+  headlights: ['stock', 'projector', 'halo', 'blade', 'swept', 'arrow', 'quad'],
+  taillights: ['stock', 'bar', 'pixel', 'smoke', 'ring', 'claw', 'split'],
+  fogLights: ['stock', 'off', 'round', 'led'],
+  lightLens: ['clear', 'smoke', 'ice'],
   lights: ['white', 'amber', 'ice', 'mint'],
   glow: ['off', 'on'],
   engine: ['factory', 'i6', 'v6', 'v8', 'bigV8', 'v10', 'v12', 'electric'],
@@ -74,7 +85,8 @@ const tyreGrip = { slick: 1, grooved: 1.025, whitewall: .976, semiSlick: 1.044 }
 const brakePower = { factory: .11, sport: .139, ceramic: .173 };
 const frontDrive = { factory: .42, rear: 0, all: .50, front: 1 };
 const weightTargets = { factory: 1, clubsport: .945, race: .88 };
-const closedBody = new Set(['frontBumper', 'rearBumper', 'fenders', 'headlights', 'plateStyle', 'plateText']);
+const closedBody = new Set(['frontBumper', 'rearBumper', 'fenders', 'headlights', 'plateStyle', 'plateText',
+  'intakeMesh', 'sideIntake', 'hoodPins', 'fogLights']);
 
 export function raceOptionAvailable(model, key) {
   if (key === 'roof') return model.id !== 'formula' && model.type !== 'roadster';

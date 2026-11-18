@@ -2,10 +2,18 @@ import * as THREE from 'three';
 import { batchVehicleParts, buildFormulaBody, buildWheel, vehicleCarbon as carbon, vehiclePaint, vehiclePiece as part } from './drive-vehicle-art.js';
 import { normalizeRaceBuild, raceOptions, raceSpec, raceWheelWidth } from './drive-race-build.js';
 import { bodySurfaceHeight, coachwork, fitFormulaTail, fitMirrors, sidePoint } from './drive-race-coachwork.js';
+import { fitWing, stockWingUnchanged } from './drive-race-aero.js';
 
 const shapeBox = new THREE.BoxGeometry();
 const plate = new THREE.PlaneGeometry();
 const pipe = new THREE.CylinderGeometry(.5, .5, 1, 16, 1, true);
+const squarePipe = new THREE.CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2, 1, 4, 1, true).rotateY(Math.PI/4);
+const slantedPipe = pipe.clone();
+const endVertices = slantedPipe.getAttribute('position');
+for (let index=0;index<endVertices.count;index++) {
+  if (endVertices.getY(index)>.1) endVertices.setY(index,.5+endVertices.getX(index)*.38);
+}
+slantedPipe.computeVertexNormals();
 const rimRotor = new THREE.CylinderGeometry(.5, .5, 1, 16);
 const intake = new THREE.CylinderGeometry(.5, .57, 1, 12);
 const bucket = new THREE.MeshStandardMaterial({ color: 0x141b21, metalness: .26, roughness: .69 });
@@ -19,10 +27,6 @@ const finishProps = {
 };
 const glassColors = { clear: 0x304754, smoke: 0x131e27, ice: 0x43667e, amber: 0x51413a };
 const lampColors = { white: 0xe0f1fa, amber: 0xffc768, ice: 0x84d4fa, mint: 0x81ffce };
-const spoilerShapes = {
-  ducktail: [.10, .56, .22], club: [.34, .83, .26], gt: [.56, .95, .35], swan: [.73, .91, .38],
-  endurance: [.51, .93, .39],
-};
 
 function primaryPaint(build, model, color) {
   const material = vehiclePaint(color);
@@ -70,33 +74,8 @@ function primaryPaint(build, model, color) {
 
 function aero(body, model, build, paint, accent) {
   const { width, depth, type } = model;
-  const rear = depth - .29;
-  const deck = bodySurfaceHeight(model,rear), hood = bodySurfaceHeight(model,-depth*.55);
-  const fitted = { carbon, body: paint, accent, alloy };
-  const wing = build.wing === 'stock'
-    ? type === 'formula' ? (build.wingFinish === 'stock' ? 'none' : 'club')
-      : (['gt', 'prototype', 'attack'].includes(type) ? 'club' : 'ducktail')
-    : build.wing;
-  if (spoilerShapes[wing]) {
-    const [lift, span, chord] = spoilerShapes[wing];
-    const height = deck + lift;
-    const skin = fitted[build.wingFinish] ?? (wing === 'ducktail' ? paint : carbon);
-    part(body, skin, width * span * 2, .073, chord, 0, height, rear).rotation.x = -.19;
-    if (wing === 'ducktail') part(body,skin,width*span*1.89,.087,.188,0,deck+.024,rear-.034);
-    if (lift > .15) for (const side of [-1, 1]) {
-      const rake = wing === 'swan' ? .24 : -.061;
-      const foot = deck - .12, rise = height - foot;
-      const stand = part(body, alloy, .087, Math.hypot(rise, rake), .126,
-        side * width * .49, (foot + height) / 2, rear - rake / 2);
-      stand.rotation.x = Math.atan2(rake, rise);
-      part(body, accent, .064, .208, chord + .079, side * width * span, height, rear);
-    }
-    if (wing === 'swan') part(body, accent, width * span * 1.95, .055, .17, 0, height + .098, rear - .043);
-    if (wing === 'endurance') {
-      part(body, skin, width * 1.77, .046, .22, 0, height+.103, rear-.049).rotation.x = -.17;
-      for (const side of [-1,1]) part(body, accent, .051,.177,.20,side*width*.871,height+.052,rear-.05,shapeBox);
-    }
-  }
+  const hood = bodySurfaceHeight(model,-depth*.55);
+  fitWing(body, model, build, { paint, accent, alloy, carbon });
   if (build.splitter !== 'stock') {
     const wide = build.splitter === 'street' ? 1.56 : 2.13;
     part(body, carbon, width * wide, .059, .40, 0, -.207, -depth + .073);
@@ -132,22 +111,28 @@ function aero(body, model, build, paint, accent) {
     for (let index=0;index<7;index++) part(body, bucket, span*.92,.026,.04,0,hood+.048,-depth*.55-.225+index*.070,shapeBox).rotation.x = .31;
   }
   const tipMetal = build.tipFinish === 'blued' ? oxide : build.tipFinish === 'black' ? blackChrome : alloy;
+  const shell = build.tipShape === 'square' ? squarePipe : build.tipShape === 'slash' ? slantedPipe : pipe;
+  const oval = build.tipShape === 'oval' ? 1.38 : 1;
   if (build.exhaust === 'side') {
     for (const side of [-1,1]) {
       const span=width*(type==='formula'?.78:.94);
-      part(body, tipMetal, .131,.27,.131,side*span,-.177,.68,pipe).rotation.z=Math.PI/2;
+      part(body, tipMetal, .131,.27,.131*oval,side*span,-.177,.68,shell).rotation.z=-side*Math.PI/2;
     }
     return;
   }
   const outlets = build.exhaust === 'quad' ? [-.69,-.49,.49,.69] : build.exhaust === 'twin' ? [-.59,.59]
     : build.exhaust === 'angled' ? [-.77,.77] : build.exhaust === 'center' ? [0]
-      : type === 'formula' ? (build.tipFinish === 'steel' ? [] : [0]) : type === 'electric' ? [] : [-.55,.55];
+      : type === 'formula' ? (build.tipFinish === 'steel' && build.tipShape==='round' ? [] : [0])
+        : type === 'electric' ? [] : [-.55,.55];
   const longTip = type !== 'formula' && build.rearBumper !== 'stock';
   const tailMount = type === 'formula' ? -.155 : longTip ? .142 : build.exhaust === 'stock' ? -.021 : .057;
   for (const x of outlets) {
-    const tip = part(body, tipMetal, x === 0 ? .22 : .114, longTip ? .34 : .25, .109, x * width, -.09, depth + tailMount, pipe);
+    const opening = (x === 0 ? .22 : .114) * oval;
+    const tip = part(body, tipMetal, opening, longTip ? .34 : .25, .109, x*width,-.09,depth+tailMount,shell);
     tip.rotation.x = Math.PI / 2;
     if (build.exhaust === 'angled') tip.rotation.z = Math.sign(x) * .37;
+    part(body,bucket,opening*.88,.026,.087,x*width,-.09,depth+tailMount+.044,
+      build.tipShape==='square' ? shapeBox : rimRotor).rotation.copy(tip.rotation);
   }
 }
 
@@ -211,10 +196,11 @@ export function createRaceArtwork(input) {
   const owned = [primary, accent, glass, rim, caliper, lamp];
   const glowMaterials = [];
   if (model.id === 'formula') {
-    buildFormulaBody(body, primary, accent, build.wing === 'stock' && build.wingFinish === 'stock',
-      build.exhaust === 'stock' && build.tipFinish === 'steel', glass, build.mirrors === 'stock' && build.trim === 'stock',
-      build.taillights === 'stock');
-    if (build.mirrors !== 'stock' || build.trim !== 'stock') fitMirrors(body, build, { x: .356, y: .328, z: -.24 }, surfaces);
+    const stockMirrors = build.mirrors==='stock' && build.trim==='stock' && build.mirrorFinish==='stock';
+    buildFormulaBody(body, primary, accent, stockWingUnchanged(build),
+      build.exhaust==='stock' && build.tipFinish==='steel' && build.tipShape==='round', glass, stockMirrors,
+      build.taillights==='stock' && build.lightLens==='clear');
+    if (!stockMirrors) fitMirrors(body, build, { x: .356, y: .328, z: -.24 }, surfaces);
     fitFormulaTail(body, model, build, surfaces);
     if (build.lights !== 'white') part(body, lamp, .62, .029, .032, 0, -.081, -2.266, shapeBox);
   } else coachwork(body, model, build, surfaces);
@@ -237,7 +223,8 @@ export function createRaceArtwork(input) {
   for (const z of [-model.length, model.length]) for (const side of [-1, 1]) {
     const width = raceWheelWidth(model, z);
     const wheel = buildWheel(model.radius, width, spokes[build.rims], side, build.tire === 'grooved', false,
-      { rim, type: build.rims, whitewall: build.tire === 'whitewall', semiSlick: build.tire === 'semiSlick' });
+      { rim, type: build.rims, whitewall: build.tire==='whitewall', semiSlick: build.tire==='semiSlick',
+        scale: build.rimDiameter==='small'?.895:build.rimDiameter==='large'?1.098:1 });
     const rotor = part(body, alloy, model.radius * 1.24, .032, model.radius * 1.24,
       side * (model.axle + width * .18), -.28, z, rimRotor);
     rotor.rotation.z = Math.PI / 2;

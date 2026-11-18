@@ -523,40 +523,41 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
     1, 1, 1, 0, 0, 0, tireGeometry.get(key)).rotation.z = Math.PI / 2;
   const sides = face === 0 ? [-1, 1] : [face];
   const rim = style?.rim ?? satin;
-  piece(wheel, hub, radius * 1.36, width * .69, radius * 1.36, 0, 0, 0, cylinder).rotation.z = Math.PI / 2;
+  const metalRadius = radius * (style?.scale ?? 1);
+  piece(wheel, hub, metalRadius * 1.36, width * .69, metalRadius * 1.36, 0, 0, 0, cylinder).rotation.z = Math.PI / 2;
   for (const side of sides) {
     const type = style?.type;
     const lipX = side * width * (style ? .451 : .415);
     const faceX = side * width * (type === 'deep' ? .24 : .415);
     const dish = style ? Math.abs(lipX - faceX) + .024 : .033;
-    piece(wheel, rim, radius * 1.57, dish, radius * 1.57, (faceX+lipX)/2, 0, 0, pipe).rotation.z = Math.PI / 2;
-    piece(wheel, trim, radius * .50, .055, radius * .50, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
-    piece(wheel, rim, radius * .232, .063, radius * .232, faceX + side * .011, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    piece(wheel, rim, metalRadius * 1.57, dish, metalRadius * 1.57, (faceX+lipX)/2, 0, 0, pipe).rotation.z = Math.PI / 2;
+    piece(wheel, trim, metalRadius * .50, .055, metalRadius * .50, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    piece(wheel, rim, metalRadius * .232, .063, metalRadius * .232, faceX + side * .011, 0, 0, cylinder).rotation.z = Math.PI / 2;
     if (style) {
-      piece(wheel, type === 'deep' || type === 'retro' ? satin : rim, .34, radius * 1.51, radius * 1.51, lipX, 0, 0, whitewall);
-      piece(wheel, trim, .30, radius * 1.66, radius * 1.66, lipX + side * .011, 0, 0, whitewall);
+      piece(wheel, type === 'deep' || type === 'retro' ? satin : rim, .34, metalRadius * 1.51, metalRadius * 1.51, lipX, 0, 0, whitewall);
+      piece(wheel, trim, .30, metalRadius * 1.66, metalRadius * 1.66, lipX + side * .011, 0, 0, whitewall);
     }
     if (style?.type === 'disc') {
-      piece(wheel, rim, radius * 1.48, .032, radius * 1.48, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
+      piece(wheel, rim, metalRadius * 1.48, .032, metalRadius * 1.48, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
     }
     if (style?.whitewall) piece(wheel, reverse, 1, radius * 1.77, radius * 1.77, faceX + side * .022, 0, 0, whitewall);
     if (type === 'retro') {
-      piece(wheel, rim, radius * .92, .036, radius * .92, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
+      piece(wheel, rim, metalRadius * .92, .036, metalRadius * .92, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
     }
     for (let i = 0; i < spokes; i++) {
       const angle = type === 'split' ? Math.floor(i / 2) / (spokes / 2) * Math.PI * 2 + (i % 2 ? .148 : -.148)
         : i / spokes * Math.PI * 2;
-      const r = radius * .463;
+      const r = metalRadius * .463;
       const sweep = type === 'turbine' ? .47 : type === 'mesh' ? (i % 2 ? -.28 : .28) : .12;
       const spokeWidth = type === 'deep' ? .174 : type === 'split' ? .071 : .12;
-      piece(wheel, rim, .027, radius * .602, radius * spokeWidth, faceX, Math.cos(angle) * r, Math.sin(angle) * r,
+      piece(wheel, rim, .027, metalRadius * .602, metalRadius * spokeWidth, faceX, Math.cos(angle) * r, Math.sin(angle) * r,
         style ? wheelSpoke : rounded).rotation.x = angle + sweep;
       if (!style) piece(wheel, accent, .025, .024, .024, faceX + side * .033,
-        Math.cos(angle) * radius * .169, Math.sin(angle) * radius * .169, cylinder).rotation.z = Math.PI / 2;
+        Math.cos(angle) * metalRadius * .169, Math.sin(angle) * metalRadius * .169, cylinder).rotation.z = Math.PI / 2;
     }
     if (style) for (let lug = 0; lug < 5; lug++) {
       const angle = lug * Math.PI * 2 / 5;
-      piece(wheel, castSteel,.022,.021,.022,faceX+side*.038,Math.cos(angle)*radius*.170,Math.sin(angle)*radius*.170,
+      piece(wheel, castSteel,.022,.021,.022,faceX+side*.038,Math.cos(angle)*metalRadius*.170,Math.sin(angle)*metalRadius*.170,
         wheelSpoke).rotation.x = angle;
     }
   }

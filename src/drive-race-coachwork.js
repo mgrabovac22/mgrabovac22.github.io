@@ -5,9 +5,15 @@ import { silhouettes } from './drive-race-silhouettes.js';
 const box = new THREE.BoxGeometry();
 const circle = new THREE.CylinderGeometry(.5, .5, 1, 16);
 const ring = new THREE.TorusGeometry(.5, .068, 6, 24);
+const grilleCell = new THREE.RingGeometry(.71,1,6);
+const bulletPod = new THREE.SphereGeometry(.5,16,8);
+const wedgePod = new THREE.CylinderGeometry(.50,.65,1,5).rotateX(Math.PI/2);
 const darkLens = new THREE.MeshStandardMaterial({ color: 0x192229, roughness: .33, metalness: .42 });
 const clearLens = new THREE.MeshPhysicalMaterial({ color: 0x8495a0, roughness: .17, metalness: .57, clearcoat: .84 });
 const smokeLens = new THREE.MeshPhysicalMaterial({ color: 0x351e28, roughness: .23, metalness: .37, clearcoat: .61 });
+const coldLens = new THREE.MeshPhysicalMaterial({ color: 0x648fb0, roughness: .17, metalness: .48, clearcoat: .71 });
+const mirrorGlass = new THREE.MeshStandardMaterial({ color: 0xb9c9d6, roughness: .12, metalness: .87 });
+const amberMarker = new THREE.MeshStandardMaterial({ color: 0xda9137, roughness: .27, emissive: 0x422305, emissiveIntensity: .48 });
 const bolt = new THREE.MeshStandardMaterial({ color: 0xa6b2b5, metalness: .72, roughness: .44 });
 
 function trace(body, material, points, radius) {
@@ -112,7 +118,7 @@ function bodySkin(body, model, paint, carbon) {
   part(body, carbon, width * 1.56, .068, depth * 1.47, 0, -.246, 0, box);
 }
 
-function panelLines(body, model, { bucket, paint, trim }) {
+function panelLines(body, model, build, { bucket, paint, trim, alloy }) {
   const [screen] = silhouettes[model.id].cabin;
   const front = -model.depth + .19, back = screen - .14;
   const corners = [[front+.09,-.56],[front+.022,-.36],[front,0],[front+.022,.36],[front+.09,.56]];
@@ -120,6 +126,15 @@ function panelLines(body, model, { bucket, paint, trim }) {
   for (const side of [-1,1]) {
     trace(body,bucket,[[front+.09,.56],[front+.28,.57],[(front+back)*.5,.58],[back,.62]]
       .map(([z,x])=>deckPoint(model,z,side*x,.004)),.006);
+    if (build.hoodPins!=='off') {
+      const [x,y,z] = deckPoint(model,front+.183,side*.44,.011);
+      const diameter = build.hoodPins==='race' ? .091 : .070;
+      part(body,bucket,diameter,.016,diameter,x,y,z,circle);
+      part(body,alloy,diameter*.70,.018,diameter*.70,x,y+.012,z,circle);
+      if (build.hoodPins==='race') {
+        trace(body,alloy,[[x-.041,y+.025,z],[x,y+.045,z-.006],[x+.041,y+.025,z]],.007);
+      }
+    }
   }
   if (model.type==='prototype') {
     const tail = silhouettes[model.id].cabin[3];
@@ -253,17 +268,31 @@ function windshield(body, model, build, surfaces) {
   return { x: half * .93, y: base+.134, z: z+.198 };
 }
 
-export function fitMirrors(body, build, { x, y, z }, { carbon, bucket, trim, accent, alloy }) {
-  const profile = build.mirrors === 'classic' ? [.189,.117,.21] : build.mirrors === 'aero' ? [.294,.057,.18] : [.234,.079,.161];
-  const material = build.mirrors === 'carbon' || build.mirrors === 'aero' ? carbon : build.mirrors === 'classic' ? alloy : accent;
+export function fitMirrors(body, build, { x, y, z }, { carbon, bucket, trim, paint, accent, alloy }) {
+  const shape = build.mirrors;
+  const proportions = {
+    stock: [.224,.083,.162], carbon: [.224,.083,.162], classic: [.193,.123,.178],
+    aero: [.281,.061,.166], bullet: [.162,.101,.231], angular: [.253,.091,.193], camera: [.109,.055,.155],
+  };
+  const [width,height,depth] = proportions[shape];
+  const finish = { body:paint, accent, carbon, alloy };
+  const material = finish[build.mirrorFinish] ?? (shape==='classic'?alloy:shape==='stock'?trim:carbon);
+  const pod = shape==='angular'||shape==='aero'?wedgePod:shape==='bullet'||shape==='classic'?bulletPod:undefined;
   for (const sign of [-1,1]) {
-    const extending = build.mirrors === 'aero' ? .149 : .109;
-    const stem = part(body, bucket, .19, .045, .092, sign*(x+extending*.40), y-.022, z-.017);
-    stem.rotation.z = sign*.25;
-    const cap = part(body, material, ...profile, sign*(x+extending), y+.014, z);
-    cap.rotation.y = sign*.12;
-    const glass = part(body, trim, profile[0]*.75, profile[1]*.68, .014, sign*(x+extending), y+.014, z+profile[2]*.45);
-    glass.rotation.y = sign*.12;
+    const extension = shape==='camera'?.087:shape==='aero'?.149:.116;
+    const mount = part(body,bucket,extension*1.43,.038,.089,sign*(x+extension*.37),y-.026,z-.017);
+    mount.rotation.z=sign*.22;
+    const cap = part(body,material,width,height,depth,sign*(x+extension),y+.013,z,pod);
+    cap.rotation.y=sign*(shape==='angular'?.28:.12);
+    const windowWidth = shape==='camera'?.046:width*.74;
+    const windowHeight = shape==='camera'?.032:height*.69;
+    const bezel = part(body,bucket,windowWidth+.014,windowHeight+.015,.025,cap.position.x,y+.013,z+depth*.408);
+    bezel.rotation.y=cap.rotation.y;
+    part(body,shape==='camera'?darkLens:mirrorGlass,windowWidth,windowHeight,.015,
+      cap.position.x,y+.013,z+depth*.467).rotation.y=cap.rotation.y;
+    if (shape!=='camera' && shape!=='classic') {
+      part(body,amberMarker,width*.29,.016,.024,cap.position.x+sign*width*.255,y+.004,z-depth*.38,box);
+    }
   }
 }
 
@@ -282,13 +311,16 @@ function sideDetails(body, model, build, { trim, bucket, paint, alloy }) {
         [b-.079,.13],[b-.042,.20],[b-.012,.53],[b,.96]];
       trace(body,bucket,lower.map(([z,y])=>sidePoint(model,sign,z,y)),.007);
     }
-    if (['gt','prototype','hyper','attack'].includes(model.type)) {
+    const stockDuct = ['gt','prototype','hyper','attack'].includes(model.type);
+    if (build.sideIntake!=='smooth' && (build.sideIntake!=='stock'||stockDuct)) {
       const inlet = model.length - model.radius - .20;
+      const opening = build.sideIntake==='duct'?.54:.43;
       gridSurface(body,bucket,7,3,(s,t)=>{
         const high = THREE.MathUtils.lerp(.42,.76,s);
-        return sidePoint(model,sign,inlet-.40+s*.43,THREE.MathUtils.lerp(.25,high,t),.012);
+        return sidePoint(model,sign,inlet-opening+s*opening,THREE.MathUtils.lerp(.25,high,t),.013);
       },sign > 0);
-      for (let slat = 0; slat < 3; slat++) {
+      const fins = build.sideIntake==='duct'?1:build.sideIntake==='gills'?4:3;
+      for (let slat = 0; slat < fins; slat++) {
         const z = inlet - .05 - slat*.094;
         trace(body,trim,[sidePoint(model,sign,z,.31,.019),sidePoint(model,sign,z+.052,.55,.019)],.009);
       }
@@ -337,7 +369,9 @@ function bumpers(body, model, build, { paint, bucket, carbon, trim }) {
   const [, , , peak] = bodyDimensions(model,-depth);
   const modern = ['gt','hyper','prototype','attack','electric'].includes(type);
   const front = build.frontBumper;
-  const bars = front === 'mesh' ? 4 : type === 'muscle' ? 3 : 2;
+  const pattern = build.intakeMesh;
+  const grille = trim===bucket ? darkLens : trim;
+  const bars = pattern==='honeycomb'||pattern==='vertical'?0:pattern==='horizontal'||front==='mesh'?4:type==='muscle'?3:2;
   const center = front === 'track' ? .83 : type === 'electric' && front === 'stock' ? .42 : .64;
   const portTop = type === 'muscle' ? .167 : Math.min(peak-.035, .052);
   const lip = type === 'muscle' ? trim : paint;
@@ -351,12 +385,26 @@ function bumpers(body, model, build, { paint, bucket, carbon, trim }) {
     const y = THREE.MathUtils.lerp(-.109,portTop-.028,i/Math.max(1,bars-1));
     const bound = center*.91;
     if (split) {
-      for (const sign of [-1,1]) fasciaBand(body,trim,model,-1,sign*.070,sign*bound,()=>[y,y+.012],.042);
-    } else fasciaBand(body,trim,model,-1,-bound,bound,()=>[y,y+.012],.041);
+      for (const sign of [-1,1]) fasciaBand(body,grille,model,-1,sign*.070,sign*bound,()=>[y,y+.012],.042);
+    } else fasciaBand(body,grille,model,-1,-bound,bound,()=>[y,y+.012],.041);
   }
-  if (front === 'mesh') for (let i=-5;i<=5;i++) {
+  if (pattern==='vertical' || (pattern==='stock' && front==='mesh')) for (let i=-6;i<=6;i++) {
     const across = i*center*.167;
-    fasciaBand(body,trim,model,-1,across-.009,across+.009,()=>[-.105,portTop-.028],.044);
+    if (split && Math.abs(across)<.075) continue;
+    const edge = portTop - .071 * Math.abs(across) / center;
+    fasciaBand(body,grille,model,-1,across-.008,across+.008,()=>[-.105,edge],.044);
+  }
+  if (pattern==='honeycomb') {
+    const rows = portTop<.03?2:3;
+    const acrossStep = center*.178;
+    for (let row=0;row<rows;row++) for (let i=-4;i<=4;i++) {
+      const across = (i+(row%2)*.49)*acrossStep;
+      if (split && Math.abs(across)<.090) continue;
+      const y = -.103+(portTop+.075)*row/rows;
+      const point = fasciaPoint(model,-1,across,y,.045);
+      const cell = part(body,grille,width*.038,.029,1,...point,grilleCell);
+      cell.rotation.y = Math.PI + across*.28;
+    }
   }
   if (modern || front === 'track') for (const side of [-1,1]) {
     const lower = x => -.131 + .185 * Math.abs(Math.abs(x)-.83);
@@ -382,11 +430,13 @@ function lenses(body, model, build, { lamp, brakeLamp, bucket, trim }) {
   const { depth, type }=model;
   const [, , , brow] = bodyDimensions(model,-depth);
   const [, , , tail] = bodyDimensions(model,depth);
-  const wideRear = type === 'electric' || build.taillights === 'bar';
-  const rearLight = build.taillights === 'smoke' ? smokeLens : brakeLamp;
+  const frontLens = build.lightLens==='ice'?coldLens:build.lightLens==='smoke'?darkLens:clearLens;
+  const rearHousing = build.lightLens==='ice'?coldLens:darkLens;
+  const wideRear = type==='electric' && build.taillights==='stock' || build.taillights==='bar';
+  const rearLight = build.taillights==='smoke' || build.lightLens==='smoke' ? smokeLens : brakeLamp;
   const tailY = tail - .069;
   if (wideRear) {
-    fasciaBand(body,darkLens,model,1,-.845,.845,()=>[tailY-.054,tailY+.032],.027);
+    fasciaBand(body,rearHousing,model,1,-.845,.845,()=>[tailY-.054,tailY+.032],.027);
     fasciaBand(body,rearLight,model,1,-.805,.805,()=>[tailY-.014,tailY+.013],.034);
   }
   for (const side of [-1,1]) {
@@ -398,35 +448,60 @@ function lenses(body, model, build, { lamp, brakeLamp, bucket, trim }) {
         const housing = type === 'muscle' || type === 'roadster' ? .208 : .157;
         part(body,bucket,housing,.070,housing,x,y,z,circle).rotation.x=angle;
         part(body,build.headlights==='halo'?lamp:trim,housing*.78,housing*.78,.082,x,y,z-.046,ring);
-        part(body,clearLens,housing*.71,.020,housing*.71,x,y,z-.052,circle).rotation.x=angle;
+        part(body,frontLens,housing*.71,.020,housing*.71,x,y,z-.052,circle).rotation.x=angle;
         part(body,lamp,housing*.49,.026,housing*.49,x,y,z-.066,circle).rotation.x=angle;
       }
     } else {
       const sweep = type === 'hyper' ? .199 : type === 'touring' || type === 'rally' ? .038 : .096;
-      const edgeY = x => brow - .125 + (Math.abs(x)-.47) * sweep;
-      fasciaBand(body,darkLens,model,-1,side*.467,side*.918,x=>[edgeY(x),edgeY(x)+.106],.024);
-      fasciaBand(body,clearLens,model,-1,side*.493,side*.896,x=>[edgeY(x)+.017,edgeY(x)+.091],.033);
-      if (build.headlights === 'projector') {
-        for (const across of [.64,.805]) {
+      const shape = build.headlights;
+      const arc = shape==='swept'||shape==='arrow';
+      const tipY = x => Math.max(0,Math.abs(x)-.66)*(shape==='swept'?.26:shape==='arrow'?.16:0);
+      const edgeY = x => brow - .125 + (Math.abs(x)-.47)*sweep + tipY(x);
+      const outer = arc?.966:.918;
+      const inner = shape==='arrow'?.427:.467;
+      fasciaBand(body,darkLens,model,-1,side*inner,side*outer,x=>[edgeY(x),edgeY(x)+.106],.024);
+      fasciaBand(body,frontLens,model,-1,side*(inner+.019),side*(outer-.018),x=>[edgeY(x)+.017,edgeY(x)+.091],.033);
+      if (shape==='projector'||shape==='quad') {
+        const acrossSet=shape==='quad'?[.538,.640,.752,.861]:[.64,.805];
+        const diameter=shape==='quad'?.043:.062;
+        for (const across of acrossSet) {
           const [x,y,z] = fasciaPoint(model,-1,side*across,edgeY(across)+.046,.044);
-          part(body,lamp,.062,.023,.062,x,y,z,circle).rotation.x=Math.PI/2;
+          part(body,lamp,diameter,.023,diameter,x,y,z,circle).rotation.x=Math.PI/2;
         }
       } else {
-        const blade = build.headlights === 'blade' || build.headlights === 'stock' && type === 'hyper';
-        fasciaBand(body,lamp,model,-1,side*.505,side*.889,
-          x=>[edgeY(x)+.067,edgeY(x)+(blade?.080:.090)],.042);
-        if (blade) fasciaBand(body,lamp,model,-1,side*.557,side*.876,x=>[edgeY(x)+.031,edgeY(x)+.043],.044);
+        const blade = shape==='blade'||shape==='stock'&&type==='hyper';
+        const lightY = x => edgeY(x) + (shape==='arrow'?.039 + Math.abs(Math.abs(x)-.66)*.162:.067);
+        fasciaBand(body,lamp,model,-1,side*(inner+.030),side*(outer-.032),
+          x=>[lightY(x),lightY(x)+(blade?.013:.022)],.042);
+        if (blade || shape==='arrow') fasciaBand(body,lamp,model,-1,side*.557,side*.876,x=>[edgeY(x)+.029,edgeY(x)+.041],.044);
       }
-      if (type === 'rally') {
+    }
+    if (build.fogLights==='round'||build.fogLights==='stock'&&type==='rally') {
         const [x,y,z] = fasciaPoint(model,-1,side*.826,-.103,.054);
+        part(body,bucket,.113,.054,.113,x,y,z+.014,circle).rotation.x=Math.PI/2;
         part(body,lamp,.086,.034,.086,x,y,z,circle).rotation.x=Math.PI/2;
-      }
+    } else if (build.fogLights==='led') {
+      fasciaBand(body,darkLens,model,-1,side*.696,side*.921,()=>[-.131,-.088],.051);
+      fasciaBand(body,lamp,model,-1,side*.724,side*.896,()=>[-.112,-.099],.060);
     }
 
     if (wideRear) continue;
     const taper = x => tailY + .041 * (Math.abs(x) - .65);
-    fasciaBand(body,darkLens,model,1,side*.442,side*.912,x=>[taper(x)-.051,taper(x)+.044],.037);
-    if (build.taillights === 'pixel') {
+    fasciaBand(body,rearHousing,model,1,side*.442,side*.912,x=>[taper(x)-.051,taper(x)+.044],.037);
+    if (build.taillights==='ring') {
+      for (const across of [.569,.787]) {
+        const [x,y,z]=fasciaPoint(model,1,side*across,taper(across),.053);
+        part(body,rearLight,.096,.096,.067,x,y,z,ring).rotation.y=-side*.15;
+        part(body,brakeLamp,.028,.021,.026,x,y,z+.016,box);
+      }
+    } else if (build.taillights==='claw') {
+      for (const across of [.573,.675,.789]) {
+        fasciaBand(body,rearLight,model,1,side*across,side*(across+.047),x=>[taper(x)-.036,taper(x)+.033],.053);
+      }
+    } else if (build.taillights==='split') {
+      for (const bar of [-.021,.023]) fasciaBand(body,rearLight,model,1,side*.472,side*.880,
+        x=>[taper(x)+bar,taper(x)+bar+.014],.052);
+    } else if (build.taillights==='pixel') {
       for (let i=0;i<5;i++) {
         const x = .474 + i*.082;
         fasciaBand(body,rearLight,model,1,side*x,side*(x+.059),at=>[taper(at)-.023,taper(at)+.024],.045);
@@ -440,7 +515,7 @@ function lenses(body, model, build, { lamp, brakeLamp, bucket, trim }) {
 
 export function coachwork(body, model, build, surfaces) {
   bodySkin(body,model,surfaces.paint,surfaces.carbon);
-  panelLines(body,model,surfaces);
+  panelLines(body,model,build,surfaces);
   const mirrors = windshield(body,model,build,surfaces);
   fitMirrors(body,build,mirrors,surfaces);
   sideDetails(body,model,build,surfaces);
@@ -449,11 +524,19 @@ export function coachwork(body, model, build, surfaces) {
 }
 
 export function fitFormulaTail(body, model, build, { bucket, brakeLamp }) {
-  if (build.taillights==='stock') return;
+  if (build.taillights==='stock' && build.lightLens==='clear') return;
   const z=model.depth-.202;
-  part(body,bucket,.250,.107,.076,0,-.019,z);
-  const width=build.taillights==='pixel'?.046:.184;
-  for (const x of build.taillights==='pixel'?[-.065,0,.065]:[0]) {
-    part(body,build.taillights==='smoke'?smokeLens:brakeLamp,width,.051,.049,x,-.013,z+.036,box);
+  part(body,build.lightLens==='ice'?coldLens:bucket,.250,.107,.076,0,-.019,z);
+  const lamp = build.taillights==='smoke'||build.lightLens==='smoke'?smokeLens:brakeLamp;
+  if (build.taillights==='ring') {
+    part(body,lamp,.089,.079,.048,0,-.014,z+.050,ring);
+  } else if (build.taillights==='split') {
+    for (const y of [-.036,.011]) part(body,lamp,.184,.017,.041,0,y,z+.041,box);
+  } else {
+    const cells=build.taillights==='pixel'||build.taillights==='claw';
+    const width=cells?(build.taillights==='claw'?.031:.047):.184;
+    for (const x of cells?[-.064,0,.064]:[0]) {
+      part(body,lamp,width,.051,.049,x,-.013,z+.036,box);
+    }
   }
 }
