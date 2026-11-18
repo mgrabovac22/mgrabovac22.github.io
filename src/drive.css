@@ -55,6 +55,29 @@ button:disabled { opacity: .6; cursor: default; }
 #island-stop h2 { margin: .4rem 0 .5rem; }
 #island-stop p { margin: 0 0 1rem; }
 #island-stop a { display: inline-block; background: #deca95; color: #132622; }
+#hunt-hud { position: absolute; z-index: 3; top: max(5rem, calc(env(safe-area-inset-top) + 4.4rem)); left: max(1rem, env(safe-area-inset-left)); width: min(16.5rem, 77vw); color: #fff4db; border: 1px solid #e4d2a378; border-radius: .55rem; background: #143632f2; }
+#hunt-open { width: 100%; justify-content: space-between; gap: .5rem; padding: .45rem .65rem; border: 0; border-radius: .5rem .5rem 0 0; background: #204c45; }
+#hunt-count, #hunt-distance { color: #fae2a4; font: 700 .72rem/1.15 ui-monospace, monospace; white-space: nowrap; }
+.hunt-objective { display: flex; align-items: center; gap: .3rem; padding: .45rem .65rem; font-size: .76rem; line-height: 1.35; }
+#hunt-next { flex: 1; }
+#hunt-arrow { display: grid; place-items: center; width: 20px; aspect-ratio: 1; border: 1px solid #f6e2a591; border-radius: 50%; color: #ffe0a0; font-size: .67rem; }
+#hunt-arrow span { line-height: 1; }
+#hunt-action { position: absolute; z-index: 3; left: 50%; bottom: max(29%, calc(var(--hud-bottom) + 6.25rem)); translate: -50% 0; max-width: 85vw; color: #192f29; background: #f1d68f; border: 1px solid #ffeab5; box-shadow: 0 3px 16px #091916b3; }
+#hunt-action:hover { background: #ffe8ac; }
+#game:not([data-touch]) #hunt-action::before { content: 'E'; padding: .13rem .31rem; border: 1px solid #546147; border-radius: .2rem; font: 700 .7rem/1 ui-monospace, monospace; }
+#game[data-touch][data-walking] #hunt-action { bottom: calc(var(--walk-bottom) + var(--pad-size) + 6rem); }
+#hunt-log { width: min(34rem, 94vw); max-height: 88dvh; color: #fff4db; background: #153532; border: 1px solid #c3af7d; border-radius: .65rem; overflow: auto; padding: 1rem 1.25rem; }
+#hunt-log::backdrop { background: #071917bd; }
+#hunt-log form { display: flex; justify-content: flex-end; }
+#hunt-log h2 { margin: .22rem 0 .65rem; }
+#hunt-map { display: block; box-sizing: border-box; width: 100%; height: auto; border: 1px solid #b3a27370; border-radius: .32rem; }
+#hunt-stops { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.7rem; padding: 0 0 0 1.3rem; font-size: .84rem; }
+#hunt-stops li[aria-current] { color: #f6d88c; font-weight: 750; }
+#hunt-stops li[data-complete] { color: #c5dfa8; }
+#hunt-stops li[data-complete]::after { content: ' ✓'; }
+#hunt-parking { margin-top: .65rem; color: #cfe0cd; font-size: .82rem; }
+@media (max-width: 590px) { #hunt-hud { top: max(7.3rem, calc(env(safe-area-inset-top) + 6.5rem)); left: max(.65rem, env(safe-area-inset-left)); } }
+@media (max-height: 480px) and (orientation: landscape) { #hunt-hud { width: min(12rem, 42vw); } #game[data-touch][data-walking] #hunt-action { bottom: calc(var(--walk-bottom) + var(--pad-size) + 1.5rem); } }
 .race-position { width: max-content; margin: .26rem auto 0; color: #fff5dc; background: #101f25eb; padding: .25rem .48rem; border-radius: .2rem; font-size: .69rem; line-height: 1.15; }
 .race-position b { color: #f0d38f; font-variant-numeric: tabular-nums; }
 #notice { position: absolute; bottom: max(14%, calc(var(--hud-bottom) + 3.25rem)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 76vw; padding: .45rem .8rem; border-radius: 3px; color: #fff2d7; background: var(--panel); text-align: center; font-size: .85rem; font-weight: 700; }
@@ -123,6 +146,7 @@ kbd { display: inline-block; padding: .15rem .3rem; border: 1px solid var(--line
 .map-options { display: flex; gap: .34rem; flex-wrap: wrap; }
 .map-options button { padding-inline: .56rem; }
 #game[data-circuit] .city-controls { display: none; }
+#game[data-circuit="race"] .foot-controls, #game:not([data-circuit="rally"]) .hunt-controls { display: none; }
 #aim { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; border: 1px solid #f9f5d6; border-radius: 50%; box-shadow: 0 0 0 1px #142327dd; translate: -50% -50%; pointer-events: none; }
 #tank-hud { position: absolute; z-index: 2; left: 50%; bottom: var(--hud-bottom); translate: -50% 0; padding: .48rem .6rem; border-radius: 4px; background: var(--panel); font-size: .75rem; }
 #vehicle-prompt { position: absolute; left: 50%; bottom: max(23%, 9rem); translate: -50% 0; width: max-content; max-width: 86vw; padding: .35rem .65rem; background: var(--panel); border-radius: 4px; font-size: .81rem; }

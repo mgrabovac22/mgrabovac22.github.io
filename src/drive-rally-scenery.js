@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rallyBridges, rallyJumps, rallyStops } from './drive-rally-terrain.js';
 import { buildRallyMarina } from './drive-rally-marina.js';
+import { buildBeachDetails } from './drive-rally-beach.js';
 
 const rough = color => new THREE.MeshStandardMaterial({ color, roughness: .91 });
 const darkWood = rough(0x593c27);
@@ -85,7 +86,7 @@ function brush(props, x, y, z, size, yaw) {
   });
 }
 
-function forest(props, route, terrain, random, crossings) {
+function forest(props, route, terrain, random, crossings, keepClear) {
   for (const [station, count] of [[41, 35], [230, 42], [465, 37], [690, 45], [840, 24]]) {
     const roots = [];
     for (let i = 0; i < count * 3 && roots.length < count; i++) {
@@ -94,7 +95,7 @@ function forest(props, route, terrain, random, crossings) {
       const p = route.sample(meters);
       const [x, z] = at(p, -14 - random() * 27, 0);
       const y = terrain.height(x, z);
-      if (y < -.20 || roots.some(([px, pz]) => Math.hypot(x - px, z - pz) < 2.2)) continue;
+      if (y < -.20 || keepClear(x, z) || roots.some(([px, pz]) => Math.hypot(x - px, z - pz) < 2.2)) continue;
       roots.push([x, z]);
       const height = 3.6 + random() * 5.9;
       if (i % 4 === 0) {
@@ -158,7 +159,7 @@ function marker(add, p, lateral, along, title, signMaterial, color) {
   part(add, p, signMaterial(title, '#263c36', '#fff0c6'), lateral, 1.84, along - .111, 2.89, .66, 1, 0, signPlane);
 }
 
-export function buildRallyScenery(parent, props, route, terrain, add, random, destinations, signMaterial) {
+export function buildRallyScenery(parent, props, route, terrain, add, random, destinations, signMaterial, keepClear) {
   const crossings = [...rallyJumps.map(jump => jump.meters), ...rallyBridges];
   const pending = new Map();
   const lampGeo = new THREE.OctahedronGeometry(.18);
@@ -210,14 +211,14 @@ export function buildRallyScenery(parent, props, route, terrain, add, random, de
     const [x, z] = at(p, lateral, 0);
     const y = terrain.height(x, z);
     const scale = random();
-    if (y < -.19) continue;
+    if (y < -.19 || keepClear(x, z)) continue;
     if (i % 5 === 0) plantPalm(props, x, z, y, 3.39 + scale * 4.75, i);
     else if (i % 4 === 0) {
       const h = .53 + scale * 1.72;
       looseRock(props, x, y + h * .45, z, 1.15 + scale * 2.25, h, .87 + scale * 1.74, i, i % 3 ? moss : stone);
     } else brush(props, x, y, z, .61 + scale * .70, i);
   }
-  forest(props, route, terrain, random, crossings);
+  forest(props, route, terrain, random, crossings, keepClear);
   for (const meters of crossings) {
     const p = route.sample(meters);
     for (let i = 0; i < 32; i++) {
@@ -243,7 +244,8 @@ export function buildRallyScenery(parent, props, route, terrain, add, random, de
       });
     }
   }
-  const marina = buildRallyMarina(parent, props, route, terrain, random);
+  const marina = buildRallyMarina(parent, props, route, terrain, random, keepClear);
+  const beach = buildBeachDetails(parent, props, route, terrain, keepClear);
 
   const birds = Array.from({ length: 10 }, (_, i) => {
     const bird = new THREE.Group();
@@ -266,7 +268,7 @@ export function buildRallyScenery(parent, props, route, terrain, add, random, de
       pending.clear();
       return destination;
     },
-    animate(time) {
+    animate(time, position) {
       for (const { bird, wings, i } of birds) {
         const phase = time * .24 + i * .27;
         bird.position.set(Math.cos(phase) * (39 + i * 4) + 53, 10 + Math.sin(phase * 3 + i) * 1.45 + i * .31,
@@ -276,6 +278,7 @@ export function buildRallyScenery(parent, props, route, terrain, add, random, de
         wings[1].rotation.z = -wings[0].rotation.z;
       }
       marina.update(time);
+      beach.update(time, position);
     },
   };
 }

@@ -222,7 +222,7 @@ function ship(parent, model) {
   return { vessel, length, width };
 }
 
-export function buildRallyMarina(parent, props, route, terrain, random) {
+export function buildRallyMarina(parent, props, route, terrain, random, keepClear) {
   const crossings = [...rallyJumps.map(jump => jump.meters), ...rallyBridges];
   for (const [index, station] of [20, 61, 158, 227, 316, 443, 491, 573, 674, 774, 847].entries()) {
     if (crossings.some(cut => route.separation(cut, station) <= 25) ||
@@ -232,7 +232,7 @@ export function buildRallyMarina(parent, props, route, terrain, random) {
     const lateral = -10.6 - (index % 3) * 1.18;
     const [x, z] = coords(p, lateral - 5.1, 1.1);
     const ground = terrain.height(x, z);
-    if (ground < -.19) continue;
+    if (ground < -.19 || keepClear(x, z)) continue;
     props.place({ x, y: ground + 1.26, z, yaw: p.yaw, bounds: [2.04,1.24,1.48], mass: 77, effect: 'fruit', tip: 1.42 },
       draw => shack(draw, x, ground, z, p.yaw, tone));
     for (const [n, [row, offset]] of [[-1.1, -.6], [.02, -.66], [1.18, .23], [2.3, .83]].entries()) {

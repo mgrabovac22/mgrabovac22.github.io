@@ -4,6 +4,7 @@ import { Body, Box, PointToPointConstraint, Vec3 } from 'cannon-es';
 
 const surface = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .86 });
 const unit = new THREE.SphereGeometry(1, 14, 10);
+export const outdoorStyle = 6;
 const weave = new Uint8Array(32 * 32 * 4);
 for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
   const shade = 142 + ((x + y) % 4 < 2 ? 24 : -24) + (y % 4 < 2 ? 11 : -11);
@@ -26,6 +27,7 @@ const styles = [
   [0x343d4e, 0x2e3138, 0x815a42, 0x241f1e, 0xe0d7c2],
   [0x596370, 0x5a5147, 0xd0a38a, 0x47403c, 0xead2ac],
   [0x344550, 0x2e333a, 0xc4937b, 0x2d2725, 0xb7c7bc],
+  [0x4c756d, 0x8c7e62, 0xbe8c70, 0x302b25, 0xe6ce9d],
 ];
 const skeleton = [
   [-1, 0, 1.025, 0, .35, .47, .219, .21],
@@ -139,6 +141,7 @@ function model(style, detail = false) {
   const key = style * 2 + Number(detail);
   if (models.has(key)) return models.get(key);
   const [coat, pants, skin, hair, shirt] = styles[style];
+  const outdoors = style === outdoorStyle;
   const piecesByBone = skeleton.map((_, bone) => {
     let pieces;
     if (bone === 0) {
@@ -167,11 +170,36 @@ function model(style, detail = false) {
         pieces.push(ellipsoid(tint(coat, .69), 0, .068, .114, .008, .101, .009));
         pieces.push(ellipsoid(0x8e9693, .006, .182, .125, .007, .018, .005));
       }
+      if (outdoors) {
+        pieces.push(ellipsoid(0x726447, 0, .234, -.158, .113, .173, .076));
+        pieces.push(ellipsoid(0x9d865d, 0, .266, -.214, .101, .113, .041));
+        pieces.push(ellipsoid(0x5f543d, 0, .128, -.203, .104, .056, .039));
+        pieces.push(ellipsoid(0xa69067, 0, .078, -.199, .128, .026, .030));
+        pieces.push(ellipsoid(0x423b2b, 0, .228, -.252, .069, .004, .004));
+        pieces.push(ellipsoid(0xc5aa71, .031, .225, -.256, .009, .006, .003));
+        for (const side of [-1, 1]) {
+          pieces.push(ellipsoid(0x615940, 0, 0, 0, .014, .151, .012).rotateZ(side * -.16).translate(side * .103, .260, .103));
+          pieces.push(ellipsoid(0xb79c62, side * .108, .204, .113, .016, .012, .007));
+          pieces.push(ellipsoid(0x776949, side * .09, .123, -.226, .008, .024, .008));
+        }
+      }
     } else if (bone === 1) {
       pieces = head(skin, hair, style, detail);
+      if (outdoors) {
+        pieces.push(garment(0xb79762, [[0,.189],[.109,.181],[.132,.165],[.135,.158],
+          [.104,.154],[.091,.182],[.079,.239],[.054,.253],[0,.26]], 1.12).translate(0, 0, -.014));
+        pieces.push(garment(0x715e43, [[.094,.177],[.093,.189],[.091,.198],[.089,.200]], 1.13).translate(0, 0, -.015));
+        pieces.push(ellipsoid(0xcdad72, .029, .246, -.036, .046, .009, .047));
+      }
     } else if (bone < 4) {
-      pieces = [garment(coat, [[0, -.271], [.044, -.271], [.051, -.19], [.066, -.044], [.058, .018], [0, .025]], .93)];
-      if (detail) {
+      if (outdoors) {
+        pieces = [
+          garment(coat, [[0,-.156],[.052,-.163],[.061,-.141],[.071,-.073],[.062,.006],[.042,.029],[0,.034]], .95),
+          garment(skin, [[0,-.285],[.035,-.281],[.046,-.234],[.048,-.174],[.043,-.121],[0,-.114]], 1.03),
+          garment(tint(coat,.87), [[.050,-.162],[.055,-.158],[.057,-.149],[.055,-.144]], .95),
+        ];
+      } else pieces = [garment(coat, [[0, -.271], [.044, -.271], [.051, -.19], [.066, -.044], [.058, .018], [0, .025]], .93)];
+      if (detail && !outdoors) {
         const side = bone === 2 ? -1 : 1;
         pieces.push(ellipsoid(tint(coat, .84), side * .047, -.150, -.004, .012, .076, .040));
         pieces.push(ellipsoid(0x8c9d8e, side * .062, -.064, .006, .008, .020, .024));
@@ -186,9 +214,31 @@ function model(style, detail = false) {
         pieces.push(ellipsoid(skin, bone === 5 ? -.021 : .021, -.248, .038, .016, .029, .021));
         pieces.push(ellipsoid(tint(coat, .73), 0, -.200, 0, .046, .025, .043));
       }
+      if (outdoors) {
+        const sign = bone === 4 ? -1 : 1;
+        pieces.forEach(piece => piece.dispose());
+        pieces = [garment(skin, [[0,-.231],[.029,-.231],[.035,-.182],[.043,-.091],[.045,-.032],
+          [.038,.016],[0,.028]], .98),
+          ellipsoid(skin, 0,-.249,.014,.033,.045,.027),
+          ellipsoid(tint(skin,.94), -sign*.025,-.246,.031,.012,.026,.014),
+        ];
+        for (let finger = 0; finger < 4; finger++) {
+          const spread = (finger - 1.5) * .012;
+          pieces.push(ellipsoid(tint(skin, .97 + finger*.018), spread,-.282 - (finger%3)*.0025,.023,.007,.019,.009));
+        }
+        if (bone === 4) {
+          pieces.push(garment(0x4b534b, [[.033,-.201],[.036,-.199],[.037,-.182],[.033,-.177]], .98));
+          pieces.push(ellipsoid(0x273c3d,-.021,-.190,-.030,.019,.018,.008));
+        }
+      }
     } else if (bone < 8) {
       pieces = [garment(pants, [[0, -.43], [.051, -.426], [.068, -.25], [.087, -.047], [.072, .04], [0, .051]], 1.06)];
       if (detail) pieces.push(ellipsoid(tint(pants, 1.18), bone === 6 ? -.066 : .066, -.11, -.004, .011, .074, .059));
+      if (outdoors) {
+        const side = bone === 6 ? -1 : 1;
+        pieces.push(ellipsoid(tint(pants,.83), side*.069,-.17,.024,.021,.082,.056));
+        pieces.push(ellipsoid(tint(pants,1.12), side*.085,-.116,.022,.012,.019,.055));
+      }
     } else {
       pieces = [
         garment(pants, [[0, -.373], [.041, -.371], [.058, -.224], [.064, -.041], [.05, .022], [0, .041]], 1.08),
@@ -198,6 +248,14 @@ function model(style, detail = false) {
       ];
       if (detail) for (let lace = 0; lace < 3; lace++) {
         pieces.push(ellipsoid(0x9b9380, 0, -.338 - lace * .012, .086 + lace * .013, .029, .004, .009));
+      }
+      if (outdoors) {
+        pieces.push(ellipsoid(0x755c44,0,-.359,.032,.060,.060,.108));
+        for (let notch = 0; notch < 4; notch++) {
+          const z = notch * .042 - .006;
+          pieces.push(ellipsoid(0x333b34,0,-.421,z,.055,.009,.013));
+          pieces.push(ellipsoid(0xab9574, 0, -.327 - notch * .012, .073 + notch * .013, .029,.004,.007));
+        }
       }
     }
     const combined = mergeGeometries(pieces);
@@ -231,7 +289,8 @@ export function createPerson(parent, style, detail = false) {
   skeleton.forEach(([joint, x, y, z], i) => {
     const part = new THREE.Mesh(shapes[i], detail && i !== 1 ? jacketSurface : surface);
     part.castShadow = detail;
-    part.position.set(x, y, z);
+    const shoulder = style === outdoorStyle && (i === 2 || i === 3);
+    part.position.set(shoulder ? x * .883 : x, shoulder ? y - .007 : y, z);
     (joint < 0 ? view : parts[joint]).add(part);
     parts.push(part);
   });

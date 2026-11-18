@@ -24,8 +24,8 @@ export function createUtilityVehicle(scene, world, kind) {
   const p = presets[kind];
   const bike = kind === 'bike';
   const body = new THREE.Group();
-  const equipment = buildUtilityBody(body, kind, p);
-  let rider;
+  const { equipment, pilot } = buildUtilityBody(body, kind, p);
+  let rider = pilot;
   if (bike) {
     const { view, parts } = createPerson(body, 5, true);
     rider = view;

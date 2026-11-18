@@ -10,6 +10,7 @@ import { createStory } from './story.js';
 import { crateProfileUrl, crateServices, createCrateCountdown } from './drive-crate-links.js';
 import { createUtilityVehicle, tankBay, vehicleTypes } from './drive-vehicle.js';
 import { createPlayer } from './drive-player.js';
+import { bindHuntHud } from './drive-hunt-hud.js';
 import { createDriveAudio } from './drive-audio.js';
 import { createShotTrigger, createToolKit, tools } from './drive-tools.js';
 
@@ -209,6 +210,7 @@ async function boot() {
     node.textContent = label(node.dataset.gameCopy, node.textContent);
   }
   const mapKind = cityMode ? 'city' : requestedMap;
+  const canWalk = mapKind !== 'race';
   const islandStops = new Map();
   if (mapKind === 'rally') {
     for (const [id, name] of Object.entries(crateServices)) {
@@ -305,7 +307,7 @@ async function boot() {
   const effects = makeEffects(scene);
   const crateCountdown = createCrateCountdown(find('#crate-redirect'), crateCopy);
   const audio = createDriveAudio();
-  const player = cityMode ? createPlayer(scene, world, audio, compact) : null;
+  const player = canWalk ? createPlayer(scene, world, audio, compact, !cityMode) : null;
   const keys = new Set();
   const pointers = new Map();
   const input = {};
@@ -315,6 +317,12 @@ async function boot() {
   let car = starter;
   let position = car.chassis.position;
   let walking = false;
+  let dryFooting = null;
+  const huntHud = bindHuntHud(course?.hunt, copy.hunt, {
+    game, announce, setPaused, rewardCoins, position: () => position,
+    canPlay: () => started && !stopped && !graphicsLost,
+    parkedPosition: () => car.chassis.position,
+  });
   let lookYaw = 0;
   let lookPitch = -.05;
   let exitRequested = false;
@@ -419,7 +427,7 @@ async function boot() {
   }
   function updateMode() {
     game.toggleAttribute('data-walking', walking);
-    toolHud.hidden = !started || !walking;
+    toolHud.hidden = !started || !walking || !kit;
     tankHud.hidden = !started || walking || car !== tank;
     if (!walking) openWheel(false);
     showTouch();
@@ -462,15 +470,18 @@ async function boot() {
       const z = center.z + dz * distance;
       staticRayEnd.set(x + dx * .27, staticRayStart.y, z + dz * .27);
       let blocked = false;
-      world.raycastAll(staticRayStart, staticRayEnd, { skipBackfaces: true, collisionFilterMask: 5 }, hit => {
+      world.raycastAll(staticRayStart, staticRayEnd, { skipBackfaces: true, collisionFilterMask: cityMode ? 5 : 13 }, hit => {
         if (hit.body !== chassis) blocked = true;
       });
       if (blocked) continue;
+      const ground = course ? course.walkSurface(x, z, center.y + .65) : 0;
+      if (ground === null || course && Math.abs(center.y - car.stance - ground) > 1.05) continue;
       walking = true;
       exitRequested = false;
       lookYaw = heading;
-      lookPitch = -.03;
-      player.place(x, .91, z, heading);
+      lookPitch = course ? -.10 : -.03;
+      player.place(x, ground + .91, z, heading);
+      dryFooting = { x, y: ground + .91, z };
       player.setActive(true);
       position = player.body.position;
       clearInput();
@@ -493,22 +504,27 @@ async function boot() {
     tippedFor = 0;
     clearInput();
     releaseLook();
-    kit.select(-1);
+    kit?.select(-1);
     updateMode();
     updatePrompt();
-    if (car !== tank) vehicleSelect.value = selectedKind = car.kind;
+    if (cityMode && car !== tank) vehicleSelect.value = selectedKind = car.kind;
     audio.play('click');
   }
   function interact() {
-    if (!cityMode || stopped || !started) return;
+    if (!canWalk || stopped || !started) return;
     if (walking) {
       const target = getNearbyCar();
       if (target) enterVehicle(target);
       else announce(label('noVehicle', 'Move closer to a vehicle.'));
-    } else if (Math.hypot(car.chassis.velocity.x, car.chassis.velocity.z) > 4 || position.y > car.stance + .7) {
+    } else if (Math.hypot(car.chassis.velocity.x, car.chassis.velocity.z) > 4 || !canExitHeight()) {
       exitRequested = true;
       announce(label('stopping', 'Stopping to exit…'));
     } else exitVehicle();
+  }
+  function canExitHeight() {
+    if (isTipped(car.chassis)) return false;
+    const ground = course ? course.walkSurface(position.x, position.z, position.y + .26) : 0;
+    return ground !== null && position.y < ground + car.stance + .7;
   }
   function getVehicle(kind) {
     if (!fleet.has(kind)) fleet.set(kind, createUtilityVehicle(scene, world, kind));
@@ -544,6 +560,10 @@ async function boot() {
     notice.textContent = message;
     noticeUntil = time + duration;
   }
+  function rewardCoins(earned) {
+    coins += earned;
+    coinCount.textContent = String(coins);
+  }
   function draw(dt, snap = false) {
     for (const vehicle of spawned) {
       const occupied = vehicle === car && !walking;
@@ -561,7 +581,7 @@ async function boot() {
     forward.set(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
     const narrow = camera.aspect < .9;
     const airborne = Math.max(0, visual.y - car.stance);
-    const backDistance = walking ? (narrow ? 3.7 : 3.45) : car === tank ? (narrow ? 8.8 : 8.1) : (narrow ? 8.75 : 7.65);
+    const backDistance = walking ? (course ? 4.25 : narrow ? 3.7 : 3.45) : car === tank ? (narrow ? 8.8 : 8.1) : (narrow ? 8.75 : 7.65);
     const height = walking ? 1.38 : (car === tank ? 3.30 : narrow ? 3.25 : 3.05) + airborne * .52;
     const shoulder = walking ? .63 : 0;
     const eye = new Vec3(visual.x, visual.y + .75, visual.z);
@@ -656,6 +676,7 @@ async function boot() {
     course?.grid?.reset();
     stories.reset();
     terrain.update(time, position, !reduced.matches);
+    huntHud?.update(walking, yaw);
     showHud();
     draw(0, true);
   }
@@ -756,20 +777,27 @@ async function boot() {
       player.step(input, lookYaw, dt);
     }
     course?.wade(car.chassis, dt);
-    course?.advance(dt, car);
+    course?.advance(dt, walking ? null : car);
     world.step(1 / 60, dt, 4);
     if (!walking) {
       recovery(dt);
-      if (exitRequested && speed < 4 && position.y < car.stance + .7) exitVehicle();
+      if (exitRequested && speed < 4 && canExitHeight()) exitVehicle();
+    } else if (course) {
+      if (course.offCourse(position) || position.y < -2) {
+        player.place(dryFooting.x, dryFooting.y, dryFooting.z, lookYaw);
+        course.hunt.cancelTrail();
+        announce(t.waterRecovery);
+      } else if (time >= hudAt) {
+        const level = course.walkSurface(position.x, position.z, position.y);
+        if (level !== null && position.y - level < 1.23) dryFooting = { x: position.x, y: level + .91, z: position.z };
+      }
     } else if (position.y < -3) player.place(position.x, 1.04, position.z, lookYaw);
+    huntHud?.tick(dt, walking);
     terrain.update(time, position, !reduced.matches, dt, speed);
     if (canFire()) trigger.update(shoot);
     kit?.update(dt);
     terrain.process(time, ({ x, z, driver, impact, localHit, localCrate, pile, shortcut, coins: earned }) => {
-      if (earned) {
-        coins += earned;
-        coinCount.textContent = String(coins);
-      }
+      if (earned) rewardCoins(earned);
       const occupied = !walking && driver === car.chassis;
       if (occupied) {
         if (!launched) launchYaw = flatYaw(driver);
@@ -787,12 +815,13 @@ async function boot() {
     if (time >= hudAt) {
       showHud();
       updatePrompt();
+      huntHud?.update(walking, walking ? lookYaw : yaw);
       audio.engine(walking ? null : car.kind, speed, input.forward || input.reverse);
       hudAt = time + .11;
     }
     effects.update(dt);
     draw(dt);
-    const arrival = course?.takeArrival(car.chassis);
+    const arrival = course?.takeArrival(walking ? null : car.chassis);
     if (arrival) {
       openIslandStop(arrival);
       return;
@@ -818,7 +847,7 @@ async function boot() {
     const touchMode = started && !graphicsLost && (coarse.matches || view.clientWidth < 640);
     game.toggleAttribute('data-touch', touchMode);
     touch.hidden = !touchMode || walking;
-    modTouch.hidden = !touchMode || !cityMode;
+    modTouch.hidden = !touchMode || !canWalk;
     footTouch.hidden = !touchMode || !walking;
     if (footTouch.hidden) {
       resetStick(walkStick, walk);
@@ -917,7 +946,7 @@ async function boot() {
   find('#touch-interact').setAttribute('aria-label', label('enterExit', 'Enter or exit vehicle'));
   fireButton.setAttribute('aria-label', label('fire', 'Fire'));
   jumpButton.setAttribute('aria-label', label('jump', 'Jump'));
-  lookStick.setAttribute('aria-label', label('lookStick', 'Aim or tap to fire'));
+  lookStick.setAttribute('aria-label', cityMode ? label('lookStick', 'Aim or tap to fire') : label('lookAround', 'Look around'));
   settingsButton.addEventListener('click', () => {
     audio.unlock();
     audio.play('click');
@@ -954,6 +983,7 @@ async function boot() {
     audio.unlock();
     audio.play('click');
     started = true;
+    huntHud?.start();
     cover.hidden = true;
     reset.disabled = false;
     healButton.disabled = false;
@@ -1062,7 +1092,7 @@ async function boot() {
   });
   let lastScroll = -Infinity;
   game.addEventListener('wheel', event => {
-    if (!walking || stopped || !event.deltaY || event.target.closest('dialog')) return;
+    if (!kit || !walking || stopped || !event.deltaY || event.target.closest('dialog')) return;
     event.preventDefault();
     if (event.timeStamp - lastScroll < 105) return;
     lastScroll = event.timeStamp;
@@ -1080,7 +1110,7 @@ async function boot() {
   fireButton.addEventListener('click', event => { if (event.detail === 0) tapFire(); });
   window.addEventListener('keydown', event => {
     if (!started || stopped || graphicsLost || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (event.code === 'Tab' && walking && !event.shiftKey && toolWheel.hidden && document.activeElement === game) {
+    if (kit && event.code === 'Tab' && walking && !event.shiftKey && toolWheel.hidden && document.activeElement === game) {
       event.preventDefault();
       openWheel(true, true);
       return;
@@ -1089,12 +1119,17 @@ async function boot() {
       dismissInventory();
       return;
     }
-    if (cityMode && !event.repeat && event.code === 'KeyF') {
+    if (canWalk && !event.repeat && event.code === 'KeyF') {
       event.preventDefault();
       interact();
       return;
     }
-    if (walking && /^Digit[1-5]$/.test(event.code)) {
+    if (huntHud && walking && !event.repeat && event.code === 'KeyE') {
+      event.preventDefault();
+      huntHud.press(walking);
+      return;
+    }
+    if (kit && walking && /^Digit[1-5]$/.test(event.code)) {
       if (kit.select(Number(event.code.at(-1)) - 1)) openWheel(false);
       return;
     }

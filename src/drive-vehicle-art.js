@@ -417,13 +417,15 @@ function buggy(body, color) {
   piece(body, trim, .818, .137, .157, 0, .42, -.535);
   piece(body, lens, .205, .061, .042, -.26, .459, -.447);
   piece(body, carbon, 1, 1, 1, -.26, .49, -.366, steeringWheel).rotation.x = -.29;
-  piece(body, padding, .315, .363, .171, -.26, .439, .23).rotation.x = -.11;
-  piece(body, satin, .248, .254, .24, -.26, .679, .201, helmet);
-  piece(body, lens, .223, .073, .161, -.26, .680, .128, helmet);
+  const pilot = new THREE.Group();
+  body.add(pilot);
+  piece(pilot, padding, .315, .363, .171, -.26, .439, .23).rotation.x = -.11;
+  piece(pilot, satin, .248, .254, .24, -.26, .679, .201, helmet);
+  piece(pilot, lens, .223, .073, .161, -.26, .680, .128, helmet);
   for (const arm of [-1, 1]) {
     const x = -.26 + arm * .112;
-    beam(body, padding, [x + arm * .03, .523, .207], [x + arm * .035, .433, -.154], .091);
-    beam(body, trim, [x + arm * .035, .433, -.154], [x, .50, -.364], .061);
+    beam(pilot, padding, [x + arm * .03, .523, .207], [x + arm * .035, .433, -.154], .091);
+    beam(pilot, trim, [x + arm * .035, .433, -.154], [x, .50, -.364], .061);
   }
   piece(body, trim, .52, .147, .073, 0, .072, -1.703);
   piece(body, castSteel, .466, .029, .04, 0, .062, -1.749);
@@ -473,18 +475,20 @@ function buggy(body, color) {
   spare.rotation.x = -.27;
   piece(body, hub, .397, .205, .397, 0, .473, 1.133, cylinder).rotation.x = -.27;
   for (const side of [-1, 1]) beam(body, harness, [side * .221, .548, .91], [-side * .213, .533, 1.33], .038);
+  batchVehicleParts(pilot);
+  return pilot;
 }
 
 export function buildUtilityBody(body, kind, preset) {
   const color = paint(preset.color);
-  let equipment = null;
+  let equipment = null, pilot = null;
   if (kind === 'bike') bike(body, color);
   else if (kind === 'tank') equipment = serviceTank(body, color);
   else if (kind === 'formula') formula(body, color);
-  else if (kind === 'buggy') buggy(body, color);
+  else if (kind === 'buggy') pilot = buggy(body, color);
   else truck(body, preset, color, kind === 'monster');
   batchVehicleParts(body);
-  return equipment;
+  return { equipment, pilot };
 }
 
 const tireGeometry = new Map();

@@ -41,7 +41,8 @@ function deck(parent, world, point, lateral, width, profile) {
       [-half, bottom, near], [half, bottom, near], [half, bottom, far], [-half, bottom, far],
     ];
     const shape = new ConvexPolyhedron({ vertices: vertices.map(([x, y, z]) => new Vec3(x, y - centerY, z)), faces: wedgeFaces });
-    const body = new Body({ mass: 0, shape, position: new Vec3(...place(point, lateral, centerY, (from + to) / 2)) });
+    const body = new Body({ mass: 0, shape, material: world.defaultMaterial,
+      position: new Vec3(...place(point, lateral, centerY, (from + to) / 2)) });
     body.quaternion.copy(platform.quaternion);
     body.aabbNeedsUpdate = true;
     world.addBody(body);

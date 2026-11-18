@@ -28,6 +28,19 @@
         <button class="settings-button" type="button" id="settings-open" aria-haspopup="dialog" aria-controls="drive-settings" aria-label="Settings" disabled><span aria-hidden="true">⚙</span></button>
       </div>
     </header>
+    <aside id="hunt-hud" hidden>
+      <button id="hunt-open" type="button" aria-haspopup="dialog" aria-controls="hunt-log"><span data-game-copy="treasureHunt">Treasure hunt</span><b id="hunt-count">0 / 4</b></button>
+      <div class="hunt-objective"><span id="hunt-next"></span><span id="hunt-arrow" aria-hidden="true"><span>▲</span></span><span id="hunt-distance"></span></div>
+    </aside>
+    <button id="hunt-action" type="button" hidden></button>
+    <dialog id="hunt-log" aria-labelledby="hunt-title">
+      <form method="dialog"><button data-copy="close">Close</button></form>
+      <h2 id="hunt-title" data-game-copy="treasureHunt">Treasure hunt</h2>
+      <canvas id="hunt-map" width="470" height="290" aria-hidden="true"></canvas>
+      <ol id="hunt-stops"></ol>
+      <p id="hunt-instructions"></p>
+      <p id="hunt-parking"></p>
+    </dialog>
     <dialog id="story-reader" aria-labelledby="entry-title">
       <form method="dialog"><button data-copy="close">Close</button></form>
       <article id="story-entry"></article>
@@ -65,8 +78,9 @@
           <p><kbd>W A S D</kbd> <kbd>↑ ← ↓ →</kbd> <span data-copy="move">Drive and steer</span></p>
           <p><kbd>Space</kbd> <span data-copy="brake">Brake</span> <kbd>R</kbd> <span data-copy="reset">Reset</span></p>
           <p><kbd>H</kbd> <span data-copy="heal">Restore text</span></p>
-          <p class="city-controls"><kbd>F</kbd> <span data-game-copy="enterExit">Enter or exit vehicle</span></p>
-          <p class="city-controls"><kbd>Shift</kbd> <span data-game-copy="sprint">Sprint</span> <kbd>Space</kbd> <span data-game-copy="jump">Jump</span></p>
+          <p class="foot-controls"><kbd>F</kbd> <span data-game-copy="enterExit">Enter or exit vehicle</span></p>
+          <p class="foot-controls"><kbd>Shift</kbd> <span data-game-copy="sprint">Sprint</span> <kbd>Space</kbd> <span data-game-copy="jump">Jump</span></p>
+          <p class="hunt-controls"><kbd>E</kbd> <span data-game-copy="huntInteract">Inspect a nearby clue on foot</span></p>
           <p class="city-controls"><kbd>1–5</kbd> <span data-game-copy="switchTool">Select a tool (or scroll)</span></p>
           <p class="city-controls" data-game-copy="aimControls">Click to aim and fire. Tab opens the inventory.</p>
           <p class="city-controls" data-game-copy="touchControls">Drag the left stick fully to sprint. Drag the right stick to aim or tap it to fire.</p>

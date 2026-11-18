@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { Body, Box, Cylinder, Quaternion, RaycastResult, Vec3, World } from 'cannon-es';
 import { waterline } from './drive-rally-terrain.js';
+import { playerCollisionGroup } from './drive-player.js';
 
 const propGroup = 8;
-const surroundings = 1 | 4 | propGroup;
+const surroundings = 1 | 4 | propGroup | playerCollisionGroup;
 const box = new THREE.BoxGeometry();
 const droplet = new THREE.IcosahedronGeometry(.5, 0);
 const propAxis = new Vec3(0, 1, 0);
@@ -157,7 +158,9 @@ export function createRallyProps(parent, world, terrain, random) {
       const speed = Math.hypot(driver.velocity.x, driver.velocity.z);
       const hitByCar = driver.collisionFilterGroup === 4;
       if (hitByCar && spec.onImpact && speed > .53 && now - prop.lastArrival > 1.6) arrivals.set(prop, driver);
-      if (!prop.knocked && (hitByCar ? speed > .53 : driver.collisionFilterGroup === propGroup && speed > 2.15)) {
+      const kicked = driver.collisionFilterGroup === playerCollisionGroup && spec.mass < 31 && speed > 2.1;
+      const pushed = driver.collisionFilterGroup === propGroup && speed > 2.15;
+      if (!prop.knocked && (hitByCar && speed > .53 || kicked || pushed)) {
         hits.set(prop, { speed, vx: driver.velocity.x, vz: driver.velocity.z });
       }
     });
@@ -226,6 +229,7 @@ export function createRallyProps(parent, world, terrain, random) {
       body.angularVelocity.x += direction.z * strength * torque;
       body.angularVelocity.z -= direction.x * strength * torque;
       if (motion) effects.burst(spec.effect, new Vec3(body.position.x, body.position.y + .18, body.position.z), direction, strength);
+      spec.onKnock?.();
     }
     hits.clear();
     for (const [prop, driver] of arrivals) {
@@ -266,6 +270,7 @@ export function createRallyProps(parent, world, terrain, random) {
       body.aabbNeedsUpdate = true;
       prop.knocked = false;
       prop.lastArrival = -Infinity;
+      prop.spec.onReset?.();
       drawProp(prop, false);
     }
     sync(position, true);

@@ -88,7 +88,7 @@ export function buildRallyTerrain(parent, world, route) {
   parent.add(terrain);
 
   const field = new Heightfield(samples, { elementSize: step, minValue: floor, maxValue: 0 });
-  const body = new Body({ mass: 0, shape: field, position: new Vec3(west, 0, north) });
+  const body = new Body({ mass: 0, shape: field, position: new Vec3(west, 0, north), material: world.defaultMaterial });
   body.quaternion.setFromAxisAngle(new Vec3(1, 0, 0), -Math.PI / 2);
   body.aabbNeedsUpdate = true;
   world.addBody(body);
