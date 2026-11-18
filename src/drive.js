@@ -591,7 +591,10 @@ async function boot() {
     const narrow = camera.aspect < .9;
     const indoors = walking && course?.insideKeep(visual);
     const airborne = Math.max(0, visual.y - car.stance);
-    const backDistance = walking ? (indoors ? 3.1 : course ? 4.25 : narrow ? 3.7 : 3.45) : car === tank ? (narrow ? 8.8 : 8.1) : (narrow ? 8.75 : 7.65);
+    const highTruck = !walking && car.kind === 'monster';
+    const driveDistance = narrow ? 8.75 : 7.65;
+    const backDistance = walking ? (indoors ? 3.1 : course ? 4.25 : narrow ? 3.7 : 3.45)
+      : car === tank ? (narrow ? 8.8 : 8.1) : driveDistance + (highTruck ? (narrow ? 1.35 : .95) : 0);
     const height = walking ? 1.38 : (car === tank ? 3.30 : narrow ? 3.25 : 3.05) + airborne * .52;
     const shoulder = walking ? .63 : 0;
     const eye = new Vec3(visual.x, visual.y + .75, visual.z);
@@ -612,7 +615,10 @@ async function boot() {
     if (aimed) {
       focusGoal.set(cameraGoal.x + forward.x * 18, cameraGoal.y + Math.tan(lookPitch - (walking ? .045 : .14)) * 18,
         cameraGoal.z + forward.z * 18);
-    } else focusGoal.set(visual.x + forward.x * 7.3, Math.max(1.18, visual.y + .15), visual.z + forward.z * 7.3);
+    } else {
+      const focusHeight = Math.max(1.18, visual.y + (highTruck ? -.24 : .15));
+      focusGoal.set(visual.x + forward.x * 7.3, focusHeight, visual.z + forward.z * 7.3);
+    }
     if (narrow && !aimed) {
       const alongAvenue = THREE.MathUtils.smoothstep(Math.abs(forward.z), .78, .98);
       const nearCenter = 1 - THREE.MathUtils.smoothstep(Math.abs(visual.x), 4, 8);
