@@ -11,6 +11,8 @@ const wall = .53;
 const mainPlan = { edgeX: edge, edgeZ: edge, landing, well, halfWell };
 const upperPlan = { edgeX: 6.24, edgeZ: 7.72, landing: 5.6, well: 3.49, halfWell: 1.19 };
 const observatory = 6 * keepLevel;
+const towerCenter = 13.27;
+const towerHalf = 3.12;
 
 const surface = (color, roughness = .91) => new THREE.MeshStandardMaterial({ color, roughness });
 const pale = surface(0xc5b491);
@@ -25,12 +27,7 @@ const opal = surface(0x6e9995, .46);
 const midnight = new THREE.MeshBasicMaterial({ color: 0x243d38 });
 const light = new THREE.MeshBasicMaterial({ color: 0xf0c779 });
 const cylinder = new THREE.CylinderGeometry(.5, .55, 1, 15);
-const roofs = new THREE.ConeGeometry(.5, 1, 8).rotateY(Math.PI / 8);
-const dome = new THREE.LatheGeometry([
-  [.47, -.50], [.5, -.46], [.43, -.36], [.39, -.20], [.33, -.03],
-  [.22, .18], [.115, .35], [.044, .43], [0, .5],
-].map(([radius, y]) => new THREE.Vector2(radius, y)), 12);
-const octagon = new THREE.CylinderGeometry(.5, .5, 1, 8).rotateY(Math.PI / 8);
+export const squareRoof = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4).rotateY(Math.PI / 4);
 const gable = new THREE.CylinderGeometry(.5, .5, 1, 3, 1).rotateX(Math.PI / 2);
 const cutStone = new THREE.IcosahedronGeometry(.5, 1);
 const twill = new THREE.MeshStandardMaterial({ color: 0x42736b, side: THREE.DoubleSide, roughness: .87 });
@@ -41,7 +38,8 @@ const ledgerZ = 3.55;
 
 export function inCastleKeep(position) {
   const x = Math.abs(position.x), z = Math.abs(position.z);
-  return (x < edge + .24 && z < edge + .24 || x > 10 && z > 10 && x < 16.4 && z < 16.4) &&
+  const tower = Math.abs(x - towerCenter) + Math.abs(z - towerCenter) < towerHalf * Math.SQRT2 + .34;
+  return (x < edge + .24 && z < edge + .24 || tower || x > 10 && z > 10 && x < towerCenter && z < towerCenter) &&
     position.y < observatory + 6;
 }
 
@@ -177,88 +175,96 @@ function masonry(add, world, x, y, z, width, height, depth, yaw = 0, material = 
   keepCollision(world, x, y, z, width, height, depth, yaw);
 }
 
-function towerShell(add, world, x, z, y, sx, sz, level) {
-  const points = [[-2.60,-1.34],[-1.34,-2.60],[1.34,-2.60],[2.60,-1.34],
-    [2.60,1.34],[1.34,2.60],[-1.34,2.60],[-2.60,1.34]];
+function towerShell(add, world, x, z, y, yaw, level) {
   const open = level === 3;
-  for (const [index, [ax, az]] of points.entries()) {
-    const [bx, bz] = points[(index + 1) % points.length];
-    const dx = bx - ax, dz = bz - az;
-    const width = Math.hypot(dx, dz);
-    const yaw = Math.atan2(-dz, dx);
-    const mx = x + (ax + bx) / 2, mz = z + (az + bz) / 2;
-    const bevel = dx !== 0 && dz !== 0;
-    const bridge = bevel && Math.sign(ax + bx) === -sx && Math.sign(az + bz) === -sz;
-    const portal = bridge || !level && !bevel;
-    const top = open ? 4.15 : keepLevel;
-    add(pale, x + ax, y + top / 2, z + az, .38, top, .38, yaw);
-    add(pale, mx, y + top - .19, mz, width + .08, .32, .44, yaw);
+  const height = open ? 4.15 : keepLevel;
+  const width = towerHalf * 2;
+  const sin = Math.sin(yaw), cos = Math.cos(yaw);
+  for (const a of [-towerHalf, towerHalf]) for (const b of [-towerHalf, towerHalf]) {
+    const px = x + cos * a + sin * b, pz = z - sin * a + cos * b;
+    masonry(add, world, px, y + height / 2, pz, .42, height, .42, yaw, pale);
+    add(inset, px, y + .21, pz, .54, .34, .54, yaw);
+    add(pale, px, y + height - .22, pz, .58, .29, .58, yaw);
+  }
+
+  for (const turn of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    const direction = yaw + turn;
+    const sine = Math.sin(direction), cosine = Math.cos(direction);
+    const centerX = x + sine * towerHalf, centerZ = z + cosine * towerHalf;
+    const passage = turn === Math.PI;
+    const gap = passage ? 2.48 : level === 0 ? 2.11 : 0;
+    const parts = gap ? [-1, 1].map(side => [side * (width + gap) / 4, (width - gap) / 2]) : [[0, width]];
+    function part(material, across, h, depth, w, sizeY, d, collides = false) {
+      const px = centerX + across * cosine + depth * sine;
+      const pz = centerZ - across * sine + depth * cosine;
+      add(material, px, y + h, pz, w, sizeY, d, direction);
+      if (collides) keepCollision(world, px, y + h, pz, w, sizeY, d, direction);
+    }
+    part(pale, 0, height - .17, 0, width + .15, .33, .53);
 
     if (open) {
-      if (bridge) continue;
-      add(iron, mx, y + .93, mz, width + .10, .14, .16, yaw);
-      add(pale, mx, y + .16, mz, width + .07, .30, .26, yaw);
-      for (let across = -.34 * width; across < .4 * width; across += .34 * width) {
-        add(iron, mx + Math.cos(yaw) * across, y + .51, mz - Math.sin(yaw) * across, .075, .87, .11, yaw);
-      }
-      keepCollision(world, mx, y + .48, mz, width + .09, .96, .15, yaw);
-      continue;
-    }
-    if (portal) {
-      const gap = bevel ? width - .07 : 1.82;
-      for (const side of [-1, 1]) {
-        const border = side * (gap + width) / 4;
-        if (!bevel) masonry(add, world, mx + Math.cos(yaw) * border, y + top / 2,
-          mz - Math.sin(yaw) * border, (width - gap) / 2 + .04, top, .37, yaw);
-        const jamb = side * (gap / 2 + .035);
-        add(pale, mx + Math.cos(yaw) * jamb, y + 1.42, mz - Math.sin(yaw) * jamb, .14, 2.84, .48, yaw);
-      }
-      masonry(add, world, mx, y + (top + 3.02) / 2, mz, gap + .074, top - 3.02, .39, yaw, pale);
-      for (let i = -4; i <= 4; i++) {
-        const across = i * gap / 9;
-        const topArch = 2.52 + .48 * Math.sqrt(1 - (2 * across / gap) ** 2);
-        add(pale, mx + Math.cos(yaw) * across, y + topArch, mz - Math.sin(yaw) * across, gap / 9 + .035, .16, .53, yaw);
+      for (const [middle, span] of parts) {
+        part(pale, middle, .145, 0, span, .29, .31);
+        part(iron, middle, .95, 0, span, .13, .17);
+        for (let across = middle - span / 2 + .23; across < middle + span / 2; across += .54) {
+          part(iron, across, .53, 0, .071, .84, .11);
+        }
+        keepCollision(world, centerX + middle * cosine, y + .48, centerZ - middle * sine, span, .96, .17, direction);
       }
       continue;
     }
 
-    masonry(add, world, mx, y + top / 2, mz, width + .06, top, .35, yaw, level % 2 ? pale : sandstone);
-    for (const band of [.24, 1.09, 3.76]) add(inset, mx, y + band, mz, width + .06, .08, .36, yaw);
-    if (!bevel) {
-      for (const depth of [-.184,.184]) {
-        const wx = mx + Math.sin(yaw) * depth, wz = mz + Math.cos(yaw) * depth;
-        add(midnight, wx, y + 2.48, wz, .28, 1.17, .022, yaw);
-        add(pale, wx, y + 1.88, wz, .59, .13, .20, yaw);
-        add(brass, wx, y + 3.11, wz, .52, .13, .18, yaw);
+    for (const [middle, span] of parts) {
+      part(level % 2 ? pale : sandstone, middle, height / 2, 0, span, height, .38, true);
+      for (const h of [.24, 1.09, 3.76]) part(inset, middle, h, 0, span, .085, .40);
+      if (span < 1.65) continue;
+      const windows = gap ? [middle] : [-1.33, 1.33];
+      for (const across of windows) for (const depth of [-.196, .196]) {
+        part(midnight, across, 2.48, depth, .29, 1.17, .023);
+        part(pale, across, 1.88, depth, .61, .13, .22);
+        part(brass, across, 3.11, depth, .53, .13, .19);
+      }
+    }
+    if (gap) {
+      for (const side of [-1, 1]) part(pale, side * (gap / 2 + .095), 1.46, 0, .17, 2.92, .55);
+      part(pale, 0, (height + 3.02) / 2, 0, gap + .03, height - 3.02, .42, true);
+      for (let i = -5; i <= 5; i++) {
+        const across = i * gap / 11;
+        const arch = 2.54 + .48 * Math.sqrt(1 - (2 * across / gap) ** 2);
+        part(pale, across, arch, 0, gap / 11 + .026, .17, .57);
       }
     }
   }
 }
 
 function tower(add, world, sx, sz) {
-  const x = sx * 13.27, z = sz * 13.27;
+  const x = sx * towerCenter, z = sz * towerCenter;
+  const yaw = Math.atan2(sx, sz);
+  const bridgeStart = 9.34 * Math.SQRT2;
+  const bridgeEnd = towerCenter * Math.SQRT2 - towerHalf + .13;
+  const bridgeLength = bridgeEnd - bridgeStart;
+  const center = (bridgeStart + bridgeEnd) / 2 / Math.SQRT2;
   for (let level = 0; level <= 3; level++) {
     const y = level * keepLevel;
     if (level) {
-      slab(add, world, x, y, z, 5.25, 5.25, sandstone);
-      const cx = sx * 11.52, cz = sz * 11.52;
-      const yaw = Math.atan2(sx, sz);
-      slab(add, world, cx, y, cz, 2.72, 5.96, pale, yaw);
+      const span = towerHalf * 2 + .07;
+      slab(add, world, x, y, z, span, span, sandstone, yaw);
+      slab(add, world, sx * center, y, sz * center, 2.72, bridgeLength, pale, yaw);
       for (const side of [-1, 1]) {
-        const tx = cx + Math.cos(yaw) * side * 1.28;
-        const tz = cz - Math.sin(yaw) * side * 1.28;
-        add(timber, tx, y + .56, tz, .10, .10, 5.84, yaw);
-        keepCollision(world, tx, y + .38, tz, .12, .76, 5.84, yaw);
-        for (let along = -2.65; along < 2.9; along += 1.78) {
-          add(pale, tx + Math.sin(yaw) * along, y + .31, tz + Math.cos(yaw) * along, .17,.62,.17,yaw);
+        const tx = sx * center + Math.cos(yaw) * side * 1.27;
+        const tz = sz * center - Math.sin(yaw) * side * 1.27;
+        add(timber, tx, y + .56, tz, .10, .10, bridgeLength - .14, yaw);
+        keepCollision(world, tx, y + .38, tz, .12, .76, bridgeLength - .14, yaw);
+        for (const along of [-.94, 0, .94]) {
+          add(pale, tx + Math.sin(yaw) * along, y + .31, tz + Math.cos(yaw) * along, .17, .62, .17, yaw);
         }
       }
     }
-    towerShell(add, world, x, z, y, sx, sz, level);
+    towerShell(add, world, x, z, y, yaw, level);
   }
-  add(pale, x, roofY + 4.13, z, 6.48, .46, 6.48, 0, octagon);
-  const tall = sx === sz;
-  finial(add, x, z, roofY + 4.32, 7.14, tall ? 6.68 : 5.76, tall ? dome : roofs);
+  add(pale, x, roofY + 4.13, z, 6.92, .46, 6.92, yaw);
+  add(inset, x, roofY + 4.36, z, 7.23, .19, 7.23, yaw);
+  finial(add, x, z, roofY + 4.40, 7.55, sx === sz ? 6.0 : 5.25, iron, yaw);
 }
 
 function hall(parent, add, world) {
@@ -296,8 +302,8 @@ function hall(parent, add, world) {
   add(opal, 0, .055, ledgerZ - .88, 2.27, .035, .13);
 }
 
-function finial(add, x, z, base, width, height, geometry = dome, metal = iron) {
-  add(metal, x, base + height / 2, z, width, height, width, 0, geometry);
+function finial(add, x, z, base, width, height, metal = iron, yaw = 0) {
+  add(metal, x, base + height / 2, z, width, height, width, yaw, squareRoof);
   add(brass, x, base + height + .23, z, .19, .61, .19, 0, cylinder);
   add(brass, x, base + height + .60, z, .32, .33, .32, 0, cutStone);
 }
@@ -406,24 +412,26 @@ function innerSpire(add, world) {
     const x = sx * 5.46, z = sz * 6.87;
     masonry(add, world, x, observatory + 1.98, z, .52, 3.96, .52, 0, pale);
     add(brass, x, observatory + 3.75, z, .73, .13, .73);
-    const base = roofY + 2.35, turretTop = observatory + (sx === sz ? 2.63 : .65);
-    const tx = sx * 7.63, tz = sz * 4.69;
-    add(inset, tx, (base + turretTop) / 2, tz, 2.70, turretTop - base, 2.70, 0, octagon);
-    add(pale, tx - sx * .24, base - .46, tz, 2.21, .94, 2.41, 0, octagon);
-    for (let band = roofY + 2.53; band < turretTop; band += keepLevel) {
-      add(pale, tx, band, tz, 2.84, .23, 2.84, 0, octagon);
-      add(midnight, tx + sx * 1.258, band + .71, tz, .042, .83, .23);
+    const base = roofY + 3.15, turretTop = observatory + (sx === sz ? 2.63 : .65);
+    const tx = sx * 7.79, tz = sz * 4.69;
+    add(inset, tx, (base + turretTop) / 2, tz, 2.96, turretTop - base, 2.96);
+    add(pale, tx - sx * .24, base - .46, tz, 2.62, .94, 2.63);
+    for (let band = base + .18; band < turretTop; band += keepLevel) {
+      add(pale, tx, band, tz, 3.13, .23, 3.13);
+      add(midnight, tx + sx * 1.49, band + .71, tz, .042, .83, .23);
+      add(midnight, tx, band + .71, tz + sz * 1.49, .23, .83, .042);
     }
-    add(pale, tx, turretTop - .08, tz, 3.05, .32, 3.05, 0, octagon);
-    finial(add, tx, tz, turretTop, 3.36, sx === sz ? 5.96 : 4.43, roofs, sx === sz ? iron : opal);
+    add(pale, tx, turretTop - .08, tz, 3.28, .32, 3.28);
+    finial(add, tx, tz, turretTop + .05, 3.65, sx === sz ? 5.27 : 4.09, sx === sz ? iron : opal);
   }
   for (const side of [-1, 1]) {
     add(opal, side * 8.06, roofY + 5.50, 0, 3.67, 3.31, 7.47, 0, gable);
     add(pale, side * 8.06, roofY + 4.31, 0, 3.17, .25, 7.51);
     add(brass, side * 8.06, roofY + 7.15, 0, .11, .14, 7.32);
   }
-  add(pale, 0, observatory + 3.98, 0, 14.09, .54, 17.04, 0, octagon);
-  finial(add, 0, 0, observatory + 4.22, 15.30, 8.36);
+  add(pale, 0, observatory + 3.98, 0, 15.49, .54, 16.08);
+  add(inset, 0, observatory + 4.23, 0, 16.20, .17, 16.20);
+  finial(add, 0, 0, observatory + 4.27, 16.52, 7.52);
 }
 
 export function buildCastleKeep(parent, world, add) {

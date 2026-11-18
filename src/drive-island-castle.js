@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Body, Box, Quaternion, Vec3 } from 'cannon-es';
 import { castleBridges, castleIslandDistance } from './drive-rally-terrain.js';
 import { timberDeck } from './drive-rally-obstacles.js';
+import { squareRoof } from './drive-castle-keep.js';
 
 const stone = color => new THREE.MeshStandardMaterial({ color, roughness: .92 });
 const limestone = stone(0xa5a995);
@@ -21,7 +22,6 @@ const gleam = new THREE.MeshBasicMaterial({ color: 0xeaf4db, transparent: true, 
 const window = new THREE.MeshBasicMaterial({ color: 0x223e3b });
 const box = new THREE.BoxGeometry();
 const cylinder = new THREE.CylinderGeometry(.5, .5, 1, 14);
-const cone = new THREE.ConeGeometry(.5, 1, 16);
 const rock = new THREE.IcosahedronGeometry(.5, 1);
 const sphere = new THREE.SphereGeometry(.5, 12, 8);
 const matCloth = new THREE.MeshStandardMaterial({ color: 0xd28c58, side: THREE.DoubleSide, roughness: .94 });
@@ -145,21 +145,24 @@ function arch(add, world, p) {
 
 function towers(add, world) {
   for (const x of [-edge, edge]) for (const z of [-edge, edge]) {
-    collision(world, x, 4.58, z, 5.0, 9.16, 5.0);
-    for (const [y, size, h, material] of [[.39,7.47,.78,light],[4.45,6.9,8.42,limestone],[3.01,7.11,.24,shaded],
-      [7.54,7.12,.25,light],[8.71,7.46,.56,light],[9.29,7.61,.79,shaded],[11.03,7.48,3.52,cap]]) {
-      add(material,x,y,z,size,h,size,0,material===cap?cone:cylinder);
+    collision(world, x, 4.62, z, 7.16, 9.24, 7.16);
+    for (const [y, size, h, material] of [[.39,7.56,.78,light],[4.45,7.16,8.42,limestone],[3.01,7.27,.24,shaded],
+      [7.54,7.36,.25,light],[8.71,7.59,.56,light],[9.21,7.70,.55,shaded]]) {
+      add(material, x, y, z, size, h, size);
     }
-    add(wood,x,13.21,z,.16,1.3,.16,0,cylinder);
-    add(gold,x,13.88,z,.34,.34,.34,0,sphere);
-    for (let i = 0; i < 12; i++) {
-      const a = i * Math.PI / 6;
-      const c = Math.cos(a), s = Math.sin(a);
-      add(light,x+c*3.42,9.76,z+s*3.42,.81,.78,.66,-a);
-      if (i % 3 === 0) {
-        add(window,x+c*3.38,6.29,z+s*3.38,.32,1.35,.16,-a + Math.PI / 2);
-        add(light,x+c*3.41,5.56,z+s*3.41,.7,.17,.35,-a + Math.PI / 2);
+    add(cap, x, 11.72, z, 7.72, 4.23, 7.72, 0, squareRoof);
+    add(wood, x, 13.96, z, .16, .57, .16, 0, cylinder);
+    add(gold, x, 14.27, z, .31, .31, .31, 0, sphere);
+    for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      const face = directional(x, z, a);
+      for (const across of [-2.48, -.83, .83, 2.48]) place(add, face, light, across, 9.77, -3.48, .81, .72, .64);
+      for (const across of [-1.21, 1.21]) {
+        place(add, face, window, across, 6.26, -3.59, .32, 1.20, .048);
+        place(add, face, light, across, 5.62, -3.62, .68, .15, .23);
       }
+    }
+    for (const dx of [-3.48, 3.48]) for (const dz of [-3.48, 3.48]) {
+      add(light, x + dx, 9.77, z + dz, .67, .72, .67);
     }
   }
 }
