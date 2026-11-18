@@ -30,9 +30,14 @@ const tread = grain(128, (u, v) => {
   return shoulder < .30 && (channel || across) ? 95 : 204 + Math.round(Math.cos(u * 32 * Math.PI * 2) * 9);
 });
 const brushed = grain(64, (u, v) => 162 + Math.round(24 * Math.sin(v * 47) + 22 * Math.cos(v * 163 + u * 2)));
+const raceGrooves = grain(128, (u,v) => {
+  const center = Math.abs(u - .5);
+  return Math.abs(center - .16) < .018 || (center > .28 && (v * 36 + u * 3) % 1 < .16) ? 102 : 193;
+});
 
 const trim = new THREE.MeshStandardMaterial({ color: 0x21272a, roughness: .46, metalness: .29 });
 const tireRubber = new THREE.MeshStandardMaterial({ color: 0x252728, roughness: .86, bumpMap: tread, bumpScale: .016 });
+const semiSlickRubber = new THREE.MeshStandardMaterial({ color: 0x252728, roughness: .77, bumpMap: raceGrooves, bumpScale: .014 });
 const satin = new THREE.MeshStandardMaterial({ color: 0xa8b1b3, roughness: .27, metalness: .72, roughnessMap: brushed });
 const hub = new THREE.MeshStandardMaterial({ color: 0x536167, roughness: .43, metalness: .73 });
 const lens = new THREE.MeshPhysicalMaterial({ color: 0x24404b, metalness: .44, roughness: .16, clearcoat: .65, clearcoatRoughness: .19 });
@@ -372,7 +377,8 @@ function truck(body, p, color, monster) {
   }
 }
 
-function formula(body, color, white = paint(0xe5ded0), stockWing = true, stockExhaust = true, visor = lens) {
+function formula(body, color, white = paint(0xe5ded0), stockWing = true, stockExhaust = true, visor = lens,
+  stockMirrors = true, stockTail = true) {
   shell(body, color, [[-2.29, .133, -.13, -.015], [-1.67, .204, -.17, .09], [-.91, .28, -.20, .21],
     [-.59, .53, -.22, .215], [.18, .74, -.22, .225], [.76, .61, -.20, .43],
     [1.26, .34, -.19, .28], [1.84, .24, -.14, .084]], ([, w, y, h]) => profile(w, y, h, .75));
@@ -393,7 +399,7 @@ function formula(body, color, white = paint(0xe5ded0), stockWing = true, stockEx
   }
   piece(body, carbon, .59, .072, .44, 0, -.185, 1.81).rotation.x = .18;
   if (stockExhaust) beam(body, castSteel, [0, .154, 1.63], [0, .155, 1.98], .114, true);
-  piece(body, braking, .154, .063, .039, 0, -.026, 1.98);
+  if (stockTail) piece(body, braking, .154, .063, .039, 0, -.026, 1.98);
   for (const side of [-1, 1]) {
     piece(body, carbon, .063, .181, .40, side * 1.006, -.05, -2.04).rotation.y = side * .08;
     piece(body, color, .072, .097, .504, side * .98, -.033, -1.97);
@@ -403,9 +409,11 @@ function formula(body, color, white = paint(0xe5ded0), stockWing = true, stockEx
     }
     piece(body, white, .115, .035, .95, side * .54, .219, .12).rotation.y = -side * .090;
     piece(body, carbon, .188, .098, .464, side * .545, .172, -.497).rotation.y = side * .16;
-    beam(body, carbon, [side * .235, .267, -.234], [side * .44, .340, -.200], .025);
-    piece(body, color, .139, .063, .111, side * .444, .345, -.197);
-    piece(body, satin, .112, .052, .019, side * .454, .343, -.136);
+    if (stockMirrors) {
+      beam(body, carbon, [side * .235, .267, -.234], [side * .44, .340, -.200], .025);
+      piece(body, color, .139, .063, .111, side * .444, .345, -.197);
+      piece(body, satin, .112, .052, .019, side * .454, .343, -.136);
+    }
     for (let louver = 0; louver < 5; louver++) {
       piece(body, carbon, .131, .019, .047, side * (.48 - louver * .022), .311 + .016 * louver, .493 + .074 * louver).rotation.y = side * .22;
     }
@@ -510,26 +518,45 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
       [.966, .39], [.89, .49], [.77, .49], [.61, .34], [.61, -.34]];
     tireGeometry.set(key, new THREE.LatheGeometry(outline.map(([r, x]) => new THREE.Vector2(r * radius, x * width)), 32));
   }
-  piece(wheel, useTread ? tireRubber : trim, 1, 1, 1, 0, 0, 0, tireGeometry.get(key)).rotation.z = Math.PI / 2;
+  piece(wheel, style?.semiSlick ? semiSlickRubber : useTread ? tireRubber : trim,
+    1, 1, 1, 0, 0, 0, tireGeometry.get(key)).rotation.z = Math.PI / 2;
   const sides = face === 0 ? [-1, 1] : [face];
   const rim = style?.rim ?? satin;
   piece(wheel, hub, radius * 1.36, width * .69, radius * 1.36, 0, 0, 0, cylinder).rotation.z = Math.PI / 2;
   for (const side of sides) {
-    const faceX = side * width * .415;
-    piece(wheel, rim, radius * 1.57, .033, radius * 1.57, faceX, 0, 0, pipe).rotation.z = Math.PI / 2;
+    const type = style?.type;
+    const lipX = side * width * (style ? .451 : .415);
+    const faceX = side * width * (type === 'deep' ? .24 : .415);
+    const dish = style ? Math.abs(lipX - faceX) + .024 : .033;
+    piece(wheel, rim, radius * 1.57, dish, radius * 1.57, (faceX+lipX)/2, 0, 0, pipe).rotation.z = Math.PI / 2;
     piece(wheel, trim, radius * .50, .055, radius * .50, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
     piece(wheel, rim, radius * .232, .063, radius * .232, faceX + side * .011, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    if (style) {
+      piece(wheel, type === 'deep' || type === 'retro' ? satin : rim, .34, radius * 1.51, radius * 1.51, lipX, 0, 0, whitewall);
+      piece(wheel, trim, .30, radius * 1.66, radius * 1.66, lipX + side * .011, 0, 0, whitewall);
+    }
     if (style?.type === 'disc') {
       piece(wheel, rim, radius * 1.48, .032, radius * 1.48, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
     }
     if (style?.whitewall) piece(wheel, reverse, 1, radius * 1.77, radius * 1.77, faceX + side * .022, 0, 0, whitewall);
+    if (type === 'retro') {
+      piece(wheel, rim, radius * .92, .036, radius * .92, faceX, 0, 0, cylinder).rotation.z = Math.PI / 2;
+    }
     for (let i = 0; i < spokes; i++) {
-      const angle = i / spokes * Math.PI * 2;
+      const angle = type === 'split' ? Math.floor(i / 2) / (spokes / 2) * Math.PI * 2 + (i % 2 ? .148 : -.148)
+        : i / spokes * Math.PI * 2;
       const r = radius * .463;
-      const sweep = style?.type === 'turbine' ? .47 : style?.type === 'mesh' ? (i % 2 ? -.28 : .28) : .12;
-      piece(wheel, rim, .027, radius * .602, radius * .12, faceX, Math.cos(angle) * r, Math.sin(angle) * r,
+      const sweep = type === 'turbine' ? .47 : type === 'mesh' ? (i % 2 ? -.28 : .28) : .12;
+      const spokeWidth = type === 'deep' ? .174 : type === 'split' ? .071 : .12;
+      piece(wheel, rim, .027, radius * .602, radius * spokeWidth, faceX, Math.cos(angle) * r, Math.sin(angle) * r,
         style ? wheelSpoke : rounded).rotation.x = angle + sweep;
-      piece(wheel, accent, .025, .024, .024, faceX + side * .033, Math.cos(angle) * radius * .169, Math.sin(angle) * radius * .169, cylinder).rotation.z = Math.PI / 2;
+      if (!style) piece(wheel, accent, .025, .024, .024, faceX + side * .033,
+        Math.cos(angle) * radius * .169, Math.sin(angle) * radius * .169, cylinder).rotation.z = Math.PI / 2;
+    }
+    if (style) for (let lug = 0; lug < 5; lug++) {
+      const angle = lug * Math.PI * 2 / 5;
+      piece(wheel, castSteel,.022,.021,.022,faceX+side*.038,Math.cos(angle)*radius*.170,Math.sin(angle)*radius*.170,
+        wheelSpoke).rotation.x = angle;
     }
   }
   batchVehicleParts(wheel);
@@ -550,4 +577,5 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
   return wheel;
 }
 
-export { formula as buildFormulaBody, paint as vehiclePaint, piece as vehiclePiece, profile as crossSection, shell as loftShell };
+export { formula as buildFormulaBody, paint as vehiclePaint, piece as vehiclePiece, profile as crossSection,
+  shell as loftShell, carbon as vehicleCarbon };

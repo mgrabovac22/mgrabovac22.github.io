@@ -32,16 +32,27 @@ export const modelFor = id => models.get(id) ?? formulaModel;
 const formulaModel = raceModels[0];
 
 export const raceOptions = {
-  finish: ['gloss', 'metallic', 'satin', 'matte', 'chrome'],
-  livery: ['none', 'twin', 'offset', 'diagonal', 'lower', 'fade'],
-  wing: ['stock', 'none', 'ducktail', 'club', 'gt', 'swan'],
+  finish: ['gloss', 'metallic', 'satin', 'matte', 'chrome', 'pearl'],
+  livery: ['none', 'twin', 'offset', 'diagonal', 'lower', 'fade', 'chevron', 'checker', 'pinstripe'],
+  wing: ['stock', 'none', 'ducktail', 'club', 'gt', 'swan', 'endurance'],
+  wingFinish: ['stock', 'carbon', 'body', 'accent', 'alloy'],
   splitter: ['stock', 'street', 'track', 'canards'],
   skirts: ['stock', 'blade', 'wide'],
-  hood: ['stock', 'vents', 'scoop', 'carbon'],
-  rims: ['stock', 'five', 'mesh', 'turbine', 'disc'],
-  tire: ['slick', 'grooved', 'whitewall'],
-  exhaust: ['stock', 'twin', 'quad', 'center'],
+  hood: ['stock', 'vents', 'scoop', 'carbon', 'power', 'louvers'],
+  frontBumper: ['stock', 'mesh', 'split', 'track'],
+  rearBumper: ['stock', 'road', 'gt', 'vertical'],
+  fenders: ['stock', 'flared', 'riveted', 'gt'],
+  mirrors: ['stock', 'carbon', 'classic', 'aero'],
+  roof: ['stock', 'black', 'carbon', 'scoop'],
+  trim: ['stock', 'black', 'chrome', 'carbon'],
+  rims: ['stock', 'five', 'mesh', 'turbine', 'disc', 'split', 'deep', 'retro'],
+  tire: ['slick', 'grooved', 'whitewall', 'semiSlick'],
+  exhaust: ['stock', 'twin', 'quad', 'center', 'angled', 'side'],
+  tipFinish: ['steel', 'black', 'blued'],
+  plateStyle: ['off', 'light', 'dark', 'race'],
   glass: ['clear', 'smoke', 'ice', 'amber'],
+  headlights: ['stock', 'projector', 'halo', 'blade'],
+  taillights: ['stock', 'bar', 'pixel', 'smoke'],
   lights: ['white', 'amber', 'ice', 'mint'],
   glow: ['off', 'on'],
   engine: ['factory', 'i6', 'v6', 'v8', 'bigV8', 'v10', 'v12', 'electric'],
@@ -68,16 +79,22 @@ const factoryEngines = { formula: 'v6', vela: 'v8', meridian: 'v6', vector: 'i6'
 const gearSets = { factory: [1, 1, 0], short: [1.15, .94, 7], close: [1.08, 1.015, 6], long: [.91, 1.11, 5] };
 const springs = { factory: [1, 1, 1, 1], comfort: [1.05, .81, .98, .97],
   sport: [.94, 1.10, 1.04, 1.02], race: [.86, 1.24, 1.08, 1.04] };
-const tyreGrip = { slick: 1, grooved: 1.025, whitewall: .976 };
+const tyreGrip = { slick: 1, grooved: 1.025, whitewall: .976, semiSlick: 1.044 };
 const brakePower = { factory: .11, sport: .139, ceramic: .173 };
 const frontDrive = { factory: .42, rear: 0, all: .50, front: 1 };
 const weightTargets = { factory: 1, clubsport: .945, race: .88 };
+const closedBody = new Set(['frontBumper', 'rearBumper', 'fenders', 'headlights', 'plateStyle', 'plateText']);
+
+export function raceOptionAvailable(model, key) {
+  if (key === 'roof') return model.id !== 'formula' && model.type !== 'roadster';
+  return model.id !== 'formula' || !closedBody.has(key);
+}
 
 export function normalizeRaceBuild(input) {
   const model = modelFor(input?.model);
   const setup = { model: model.id };
   for (const [key, values] of Object.entries(raceOptions)) {
-    setup[key] = values.includes(input?.[key]) ? input[key] : values[0];
+    setup[key] = raceOptionAvailable(model, key) && values.includes(input?.[key]) ? input[key] : values[0];
   }
   for (const [key, fallback] of Object.entries(colors)) {
     setup[key] = typeof input?.[key] === 'string' && /^#[0-9a-f]{6}$/i.test(input[key])
@@ -86,6 +103,8 @@ export function normalizeRaceBuild(input) {
   if (raceEngineKey(setup) === 'electric') setup.induction = 'factory';
   const number = Number(input?.number);
   setup.number = Number.isInteger(number) && number >= 0 && number <= 99 ? number : 0;
+  setup.plateText = raceOptionAvailable(model, 'plateText') && typeof input?.plateText === 'string'
+    ? input.plateText.toUpperCase().replace(/[^A-Z0-9 -]/g, '').slice(0, 8) : '';
   return setup;
 }
 

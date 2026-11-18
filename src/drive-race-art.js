@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { batchVehicleParts, buildFormulaBody, buildWheel, crossSection, loftShell, vehiclePaint, vehiclePiece as part } from './drive-vehicle-art.js';
+import { batchVehicleParts, buildFormulaBody, buildWheel, vehicleCarbon as carbon, vehiclePaint, vehiclePiece as part } from './drive-vehicle-art.js';
 import { normalizeRaceBuild, raceOptions, raceSpec, raceWheelWidth } from './drive-race-build.js';
+import { coachwork, fitFormulaTail, fitMirrors } from './drive-race-coachwork.js';
 
 const shapeBox = new THREE.BoxGeometry();
 const plate = new THREE.PlaneGeometry();
@@ -8,22 +9,30 @@ const pipe = new THREE.CylinderGeometry(.5, .5, 1, 16, 1, true);
 const rimRotor = new THREE.CylinderGeometry(.5, .5, 1, 16);
 const intake = new THREE.CylinderGeometry(.5, .57, 1, 12);
 const bucket = new THREE.MeshStandardMaterial({ color: 0x141b21, metalness: .26, roughness: .69 });
-const carbon = new THREE.MeshStandardMaterial({ color: 0x20282b, metalness: .34, roughness: .45 });
 const alloy = new THREE.MeshStandardMaterial({ color: 0xbac2c5, metalness: .79, roughness: .29 });
 const brakeLamp = new THREE.MeshStandardMaterial({ color: 0xcc344b, emissive: 0xa21734, emissiveIntensity: 1.4, roughness: .27 });
+const oxide = new THREE.MeshStandardMaterial({ color: 0x4a618f, metalness: .83, roughness: .29 });
+const blackChrome = new THREE.MeshStandardMaterial({ color: 0x363f47, metalness: .75, roughness: .38 });
 const finishProps = {
   gloss: [.29, .53, .74], metallic: [.24, .68, .91], satin: [.43, .54, .32],
-  matte: [.75, .13, 0], chrome: [.13, .94, .9],
+  matte: [.75, .13, 0], chrome: [.13, .94, .9], pearl: [.25, .52, .89],
 };
 const glassColors = { clear: 0x304754, smoke: 0x131e27, ice: 0x43667e, amber: 0x51413a };
 const lampColors = { white: 0xe0f1fa, amber: 0xffc768, ice: 0x84d4fa, mint: 0x81ffce };
 const spoilerShapes = {
   ducktail: [.10, .56, .22], club: [.34, .83, .26], gt: [.56, .95, .35], swan: [.73, .91, .38],
+  endurance: [.51, .93, .39],
 };
 
 function primaryPaint(build, model, color) {
   const material = vehiclePaint(color);
   [material.roughness, material.metalness, material.clearcoat] = finishProps[build.finish];
+  if (build.finish === 'pearl') {
+    material.iridescence = .67;
+    material.iridescenceIOR = 1.36;
+    material.iridescenceThicknessMinimum = 215;
+    material.iridescenceThicknessMaximum = 460;
+  }
   if (build.livery === 'none') return material;
   const liveryColor = new THREE.Color(build.accent);
   material.userData.liveryColor = liveryColor;
@@ -43,90 +52,36 @@ function primaryPaint(build, model, color) {
         else if (liveryKind < 2.5) stripe = 1. - smoothstep(.13, .141, abs(pos.x - .255));
         else if (liveryKind < 3.5) stripe = 1. - smoothstep(.235, .251, abs(pos.y + pos.x * .47 - .34));
         else if (liveryKind < 4.5) stripe = 1. - smoothstep(.015, .03, liveryPoint.y - pos.y * .11);
-        else stripe = smoothstep(-.14, .78, pos.y) * .91;
+        else if (liveryKind < 5.5) stripe = smoothstep(-.14, .78, pos.y) * .91;
+        else if (liveryKind < 6.5) {
+          float chevron = abs(pos.y + abs(pos.x) * .58 + .10);
+          stripe = (1. - smoothstep(.065, .081, chevron)) + (1. - smoothstep(.045, .062, abs(chevron - .21)));
+        } else if (liveryKind < 7.5) {
+          stripe = step(-.50, pos.y) * step(abs(pos.x), .61) * mod(floor(pos.x * 8.) + floor(pos.y * 10.), 2.);
+        } else {
+          stripe = (1. - smoothstep(.009, .016, abs(liveryPoint.y - .19 - pos.y * .041))) * smoothstep(.84, .956, abs(pos.x));
+        }
         diffuseColor.rgb = mix(diffuseColor.rgb, liveryColor, stripe);
       `);
   };
   return material;
 }
 
-function coachwork(body, model, paint, accent, glass, lamp) {
-  const { shape, depth, width, roof, length, radius, type } = model;
-  const skirt = -.24;
-  const at = [...new Set([-depth, -depth + .22, -length - radius, -length, -length + radius,
-    -.52, .08, .72, length - radius, length, length + radius, depth - .18, depth])].sort((a, b) => a - b);
-  loftShell(body, paint, at.map(z => {
-    const front = THREE.MathUtils.smoothstep(-z, length - .26, depth);
-    const rear = THREE.MathUtils.smoothstep(z, length - .21, depth);
-    const half = width * (shape.shoulders - front * (shape.shoulders - shape.nose) - rear * (shape.shoulders - shape.tail));
-    const axle = Math.abs(Math.abs(z) - length);
-    const cut = Math.sqrt(Math.max(0, (radius + .07) ** 2 - axle ** 2));
-    const arch = Math.max(skirt, -.348 + cut);
-    const panel = shape.hood + (shape.deck - shape.hood) * THREE.MathUtils.smoothstep(z, -.6, depth - .2);
-    return [z, half, arch, Math.max(arch + .083, panel - front * .075 - rear * .026)];
-  }), ([, w, bottom, top]) => crossSection(w, bottom, top, type === 'touring' || type === 'muscle' ? .94 : .82), 2);
-  part(body, carbon, width * 1.72, .082, depth * 1.68, 0, skirt - .02, 0, shapeBox);
-  const [nose, front, back, tail] = shape.cabin;
-  const glassWidth = width * shape.glass;
-  const sill = shape.hood * .47 + shape.deck * .53 - .035;
-  if (type === 'roadster') {
-    const screen = part(body, glass, glassWidth * 1.89, .28, .074, 0, sill + .17, front - .12);
-    screen.rotation.x = -.32;
-    for (const side of [-1, 1]) {
-      part(body, bucket, .33, .30, .22, side * .29, sill + .13, .28);
-      part(body, accent, .22, .19, .08, side * .29, sill + .33, .34);
-    }
-  } else {
-    loftShell(body, glass, [[nose, glassWidth * .96, sill, sill + .035], [front, glassWidth, sill, roof],
-      [back, glassWidth * .96, sill, roof - (type === 'muscle' ? .10 : .03)],
-      [tail, glassWidth * .84, sill, Math.max(sill + .022, shape.deck + .017)]],
-    ([, w, base, top]) => crossSection(w, base, top, type === 'touring' || type === 'rally' ? .93 : .76), 4);
-    const cap = part(body, paint, glassWidth * (type === 'touring' ? 1.73 : 1.49), .09, back - front + .17,
-      0, roof + .036, (front + back) / 2);
-    cap.rotation.x = type === 'muscle' ? .11 : .019;
-    for (const side of [-1, 1]) part(body, paint, .083, (roof - sill) * .88, .105, side * glassWidth * .93,
-      (roof + sill) * .5, back - .16).rotation.z = side * .32;
-  }
-  for (const side of [-1, 1]) {
-    if (type === 'muscle') {
-      for (const across of [.604, .841]) {
-        part(body, alloy, .227, .074, .227, side * width * across, .16, -depth - .025, intake).rotation.x = Math.PI / 2;
-        part(body, lamp, .192, .073, .192, side * width * across, .16, -depth - .049, intake).rotation.x = Math.PI / 2;
-      }
-    } else {
-      const frontLamp = part(body, lamp, width * (type === 'electric' ? .66 : .39), type === 'touring' ? .126 : .076,
-        .212, side * width * shape.nose * .72, shape.hood * .66, -depth + .10);
-      frontLamp.rotation.y = side * (type === 'hyper' ? .48 : .18);
-    }
-    part(body, brakeLamp, width * .51, .072, .058, side * width * shape.tail * .66, shape.deck - .105, depth - .005);
-    part(body, carbon, .151, .12, .23, side * (glassWidth + .067), sill + .15, nose + .15);
-    part(body, accent, .198, .074, .17, side * (glassWidth + .213), sill + .18, nose + .16);
-    if (['hyper','attack','prototype'].includes(type)) {
-      part(body, carbon, .13, .178, .62, side * width * .985, shape.deck - .113, .72).rotation.y = side * .20;
-    }
-  }
-  part(body, carbon, width * (type === 'electric' ? .74 : .99), .139, .085, 0, -.05, -depth + .019);
-  part(body, alloy, width * .61, .03, .044, 0, .044, -depth + .018, shapeBox);
-  part(body, carbon, width * 1.39, .159, .44, 0, -.148, depth - .20);
-  if (type === 'muscle') {
-    part(body, bucket, width * 1.82, .226, .095, 0, .158, -depth + .005);
-    for (const y of [.074, .122, .170, .218]) part(body, alloy, width * 1.00, .016, .028, 0, y, -depth - .058, shapeBox);
-    part(body, alloy, width * 1.89, .117, .156, 0, -.095, -depth - .035);
-    part(body, alloy, width * 1.87, .108, .139, 0, -.10, depth + .007);
-  }
-  if (type === 'electric') part(body, lamp, width * 1.43, .029, .04, 0, shape.hood * .67, -depth + .025, shapeBox);
-}
 
 function aero(body, model, build, paint, accent) {
   const { width, depth, type } = model;
   const deck = model.shape?.deck ?? .14, hood = model.shape?.hood ?? .14;
   const rear = depth - .29;
-  const wing = build.wing === 'stock' && type !== 'formula'
-    ? (['gt', 'prototype', 'attack'].includes(type) ? 'club' : 'ducktail') : build.wing;
+  const fitted = { carbon, body: paint, accent, alloy };
+  const wing = build.wing === 'stock'
+    ? type === 'formula' ? (build.wingFinish === 'stock' ? 'none' : 'club')
+      : (['gt', 'prototype', 'attack'].includes(type) ? 'club' : 'ducktail')
+    : build.wing;
   if (spoilerShapes[wing]) {
     const [lift, span, chord] = spoilerShapes[wing];
     const height = deck + lift;
-    part(body, wing === 'ducktail' ? paint : carbon, width * span * 2, .073, chord, 0, height, rear).rotation.x = -.19;
+    const skin = fitted[build.wingFinish] ?? (wing === 'ducktail' ? paint : carbon);
+    part(body, skin, width * span * 2, .073, chord, 0, height, rear).rotation.x = -.19;
     if (lift > .15) for (const side of [-1, 1]) {
       const rake = wing === 'swan' ? .24 : -.061;
       const foot = deck - .12, rise = height - foot;
@@ -136,6 +91,10 @@ function aero(body, model, build, paint, accent) {
       part(body, accent, .064, .208, chord + .079, side * width * span, height, rear);
     }
     if (wing === 'swan') part(body, accent, width * span * 1.95, .055, .17, 0, height + .098, rear - .043);
+    if (wing === 'endurance') {
+      part(body, skin, width * 1.77, .046, .22, 0, height+.103, rear-.049).rotation.x = -.17;
+      for (const side of [-1,1]) part(body, accent, .051,.177,.20,side*width*.871,height+.052,rear-.05,shapeBox);
+    }
   }
   if (build.splitter !== 'stock') {
     const wide = build.splitter === 'street' ? 1.56 : 2.13;
@@ -162,12 +121,32 @@ function aero(body, model, build, paint, accent) {
       part(body, bucket, type === 'formula' ? .15 : .29, .029, .039,
         s * width * (type === 'formula' ? .14 : .37), hood + .019, -depth * .50 + i * .12, shapeBox);
     }
+  } else if (build.hood === 'power') {
+    const bulge = part(body, paint, type === 'formula' ? .29 : .64, .136, depth*.44, 0, hood+.046, -depth*.55);
+    bulge.rotation.x = -.095;
+    part(body, accent, .071, .024, depth*.34, 0, hood+.115, -depth*.54, shapeBox).rotation.x = -.095;
+  } else if (build.hood === 'louvers') {
+    const span = type === 'formula' ? .33 : .79;
+    part(body, carbon, span, .053, .558, 0, hood+.016, -depth*.55);
+    for (let index=0;index<7;index++) part(body, bucket, span*.92,.026,.04,0,hood+.048,-depth*.55-.225+index*.070,shapeBox).rotation.x = .31;
+  }
+  const tipMetal = build.tipFinish === 'blued' ? oxide : build.tipFinish === 'black' ? blackChrome : alloy;
+  if (build.exhaust === 'side') {
+    for (const side of [-1,1]) {
+      const span=width*(type==='formula'?.78:.94);
+      part(body, tipMetal, .131,.27,.131,side*span,-.177,.68,pipe).rotation.z=Math.PI/2;
+    }
+    return;
   }
   const outlets = build.exhaust === 'quad' ? [-.69,-.49,.49,.69] : build.exhaust === 'twin' ? [-.59,.59]
-    : build.exhaust === 'center' ? [0] : type === 'formula' || type === 'electric' ? [] : [-.55,.55];
+    : build.exhaust === 'angled' ? [-.77,.77] : build.exhaust === 'center' ? [0]
+      : type === 'formula' ? (build.tipFinish === 'steel' ? [] : [0]) : type === 'electric' ? [] : [-.55,.55];
+  const longTip = Boolean(model.shape && build.rearBumper !== 'stock');
+  const tailMount = model.shape ? (longTip ? .152 : .083) : -.155;
   for (const x of outlets) {
-    const tip = part(body, alloy, x === 0 ? .22 : .114, .25, .109, x * width, -.09, depth - .017, pipe);
+    const tip = part(body, tipMetal, x === 0 ? .22 : .114, longTip ? .34 : .25, .109, x * width, -.09, depth + tailMount, pipe);
     tip.rotation.x = Math.PI / 2;
+    if (build.exhaust === 'angled') tip.rotation.z = Math.sign(x) * .37;
   }
 }
 
@@ -190,6 +169,30 @@ function numberPlate(body, model, value) {
   return material;
 }
 
+function registrationPlate(body, model, build) {
+  const board = document.createElement('canvas');
+  board.width = 256;
+  board.height = 80;
+  const ink = board.getContext('2d');
+  const light = build.plateStyle === 'light';
+  ink.fillStyle = light ? '#e6e9e3' : '#202831';
+  ink.fillRect(0, 0, 256, 80);
+  ink.fillStyle = build.plateStyle === 'race' ? '#62d8bc' : '#39759b';
+  ink.fillRect(0, 0, 28, 80);
+  ink.textAlign = 'center';
+  ink.textBaseline = 'middle';
+  ink.font = '800 37px monospace';
+  ink.fillStyle = light ? '#192a35' : '#edf2e7';
+  ink.fillText(build.plateText.trim() || 'APEX', 140, 42, 206);
+  const map = new THREE.CanvasTexture(board);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({ map });
+  const y = Math.max(.015, model.shape.deck * .31), z = model.depth + .078;
+  part(body, bucket, .63,.211,.042,0,y,z,shapeBox);
+  part(body, material, .592,.174,1,0,y,z+.024,plate);
+  return material;
+}
+
 export function createRaceArtwork(input) {
   const build = normalizeRaceBuild(input);
   const model = raceSpec(build);
@@ -200,14 +203,22 @@ export function createRaceArtwork(input) {
   const rim = new THREE.MeshStandardMaterial({ color: build.rimColor, metalness: .77, roughness: .32 });
   const caliper = new THREE.MeshStandardMaterial({ color: build.caliper, metalness: .38, roughness: .39 });
   const lamp = new THREE.MeshStandardMaterial({ color: lampColors[build.lights], emissive: lampColors[build.lights], emissiveIntensity: .64 });
+  const trim = build.trim === 'carbon' ? carbon : build.trim === 'black' ? blackChrome
+    : build.trim === 'chrome' || model.type === 'muscle' ? alloy : bucket;
+  const surfaces = { paint: primary, accent, glass, lamp, brakeLamp, bucket, carbon, trim, alloy };
   const owned = [primary, accent, glass, rim, caliper, lamp];
   const glowMaterials = [];
   if (model.id === 'formula') {
-    buildFormulaBody(body, primary, accent, build.wing === 'stock', build.exhaust === 'stock', glass);
+    buildFormulaBody(body, primary, accent, build.wing === 'stock' && build.wingFinish === 'stock',
+      build.exhaust === 'stock' && build.tipFinish === 'steel', glass, build.mirrors === 'stock' && build.trim === 'stock',
+      build.taillights === 'stock');
+    if (build.mirrors !== 'stock' || build.trim !== 'stock') fitMirrors(body, build, { x: .356, y: .328, z: -.24 }, surfaces);
+    fitFormulaTail(body, model, build, surfaces);
     if (build.lights !== 'white') part(body, lamp, .62, .029, .032, 0, -.081, -2.266, shapeBox);
-  } else coachwork(body, model, primary, accent, glass, lamp);
+  } else coachwork(body, model, build, surfaces);
   aero(body, model, build, primary, accent);
   if (build.number) owned.push(numberPlate(body, model, build.number));
+  if (build.plateStyle !== 'off') owned.push(registrationPlate(body, model, build));
   if (build.glow === 'on') {
     const tint = new THREE.MeshBasicMaterial({ color: build.glowColor });
     const ambient = new THREE.MeshBasicMaterial({ color: build.glowColor, transparent: true, opacity: .22, depthWrite: false });
@@ -219,20 +230,25 @@ export function createRaceArtwork(input) {
       halo.rotation.x = -Math.PI / 2;
     }
   }
-  batchVehicleParts(body);
-  const spokes = { stock: 7, five: 5, mesh: 14, turbine: 10, disc: 0 };
+  const spokes = { stock: 7, five: 5, mesh: 14, turbine: 10, disc: 0, split: 10, deep: 5, retro: 8 };
   const axleParts = [];
   for (const z of [-model.length, model.length]) for (const side of [-1, 1]) {
     const width = raceWheelWidth(model, z);
     const wheel = buildWheel(model.radius, width, spokes[build.rims], side, build.tire === 'grooved', false,
-      { rim, type: build.rims, whitewall: build.tire === 'whitewall' });
+      { rim, type: build.rims, whitewall: build.tire === 'whitewall', semiSlick: build.tire === 'semiSlick' });
     const rotor = part(body, alloy, model.radius * 1.24, .032, model.radius * 1.24,
       side * (model.axle + width * .18), -.28, z, rimRotor);
     rotor.rotation.z = Math.PI / 2;
     // The brake stays behind the wheel instead of spinning with the rim.
     part(body, caliper, .105, .134, .141, side * (model.axle + width * .22), -.18, z + .092);
+    for (let hole = 0; hole < 9; hole++) {
+      const angle = hole * Math.PI * 2 / 9;
+      part(body, bucket, .012, .017, .017, side * (model.axle + width*.18 + .019),
+        -.28 + Math.cos(angle) * model.radius*.495,z + Math.sin(angle) * model.radius*.495,shapeBox);
+    }
     axleParts.push({ wheel, side, z });
   }
+  batchVehicleParts(body);
   const geometry = new Set();
   for (const root of [body, ...axleParts.map(item => item.wheel)]) root.traverse(mesh => {
     if (mesh.geometry?.userData.vehicleOwned) geometry.add(mesh.geometry);

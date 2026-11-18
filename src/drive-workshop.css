@@ -61,6 +61,8 @@
   cursor: pointer;
 }
 .workshop-orbit input { accent-color: var(--accent); }
+.workshop-views { position: absolute; left: .78rem; bottom: .68rem; display: flex; gap: .24rem; }
+.workshop-views button { padding-inline: .52rem; background: #101d27e9; font-size: .69rem; }
 .workshop-cars { display: flex; flex: none; overflow-x: auto; gap: .38rem; padding: .54rem .67rem; background: #172831; scrollbar-color: #4a6a75 transparent; }
 .workshop-cars button {
   flex: none;
@@ -89,14 +91,15 @@
   border-radius: 5px;
 }
 .workshop-model select { flex: 1; }
-.workshop-tabs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .33rem; }
+.workshop-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .33rem; }
 .workshop-tabs button { min-width: 0; padding: .34rem .25rem; background: #20343e; }
 .workshop-tabs button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: #193842; }
 .workshop-tabs button:last-child { grid-column: 1 / -1; }
 .workshop-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .72rem .54rem; }
-.workshop-fields label { display: grid; gap: .23rem; font-size: .77rem; font-weight: 650; color: #d8e5e7; }
+.workshop-fields label { display: grid; grid-template-columns: minmax(0,1fr); min-width: 0; gap: .23rem; font-size: .77rem; font-weight: 650; color: #d8e5e7; }
+.workshop-fields :is(select,input) { width: 100%; min-width: 0; }
 .workshop-fields input[type=color] { width: 100%; padding: .22rem; cursor: pointer; }
-.workshop-fields select:disabled { opacity: .54; }
+.workshop-fields :is(select,input):disabled { opacity: .54; }
 .workshop-engine-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
 .workshop-engine-tools button { padding-inline: .4rem; }
 .workshop-status { margin-top: auto; font-size: .71rem; line-height: 1.3; color: var(--accent); }
@@ -117,6 +120,7 @@
   .workshop-description h3 { font-size: 1.75rem; }
   .workshop-orbit { font-size: .68rem; right: .42rem; bottom: .42rem; }
   .workshop-cars { padding: .35rem .50rem; }
-  .workshop-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .workshop-views { left: .42rem; bottom: .42rem; }
+  .workshop-views button { padding-inline: .32rem; }
   .workshop-tabs button, .workshop-footer button { font-size: .73rem; padding-inline: .27rem; }
 }

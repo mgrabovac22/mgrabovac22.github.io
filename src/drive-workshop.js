@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createEngineDisplay, createRaceArtwork } from './drive-race-art.js';
-import { modelFor, normalizeRaceBuild, raceEngineKey, raceModels, raceOptions, raceSpec } from './drive-race-build.js';
+import { modelFor, normalizeRaceBuild, raceEngineKey, raceModels, raceOptionAvailable, raceOptions, raceSpec } from './drive-race-build.js';
 import './drive-workshop.css';
 
 const storageKey = 'apex-race-builds-v1';
@@ -9,16 +9,29 @@ const copy = {
     title: 'Circuit workshop', close: 'Back to settings', race: 'Apply & race', reset: 'Stock setup', save: 'Save build', saved: 'Build saved on this device.',
     view: 'Rotate the car with drag or arrow keys. Scroll to zoom.', orbit: 'Rotate automatically', list: 'Race cars', speed: 'Top speed', mass: 'Weight', vehicle: 'Car',
     type: ['Formula', 'GT coupe', 'Endurance prototype', 'Touring sedan', 'Open roadster', 'Hypercar', 'Muscle car', 'Rally hatch', 'Electric coupe', 'Time attack'],
-    tabs: ['Paint', 'Aero', 'Wheels', 'Details', 'Powertrain'],
+    tabs: ['Paint', 'Body', 'Aero', 'Wheels', 'Lighting', 'Details', 'Powertrain'],
+    views: ['Front', 'Side', 'Rear'], angle: 'Camera angle',
     force: 'Drive force', inspect: 'Inspect engine', showCar: 'Show car', rev: 'Test engine sound',
     labels: { paint:'Body paint', accent:'Accent paint', finish:'Paint finish', livery:'Livery', wing:'Rear spoiler', splitter:'Front splitter', skirts:'Side skirts', hood:'Hood',
       rims:'Rim design', rimColor:'Rim finish', caliper:'Brake calipers', tire:'Tire', exhaust:'Exhaust', glass:'Glass / visor', lights:'Light tint', glow:'Underglow', glowColor:'Glow color', number:'Race number',
-      engine:'Engine swap', induction:'Forced induction', gearing:'Gearbox', suspension:'Suspension', brakes:'Brakes', drivetrain:'Driven wheels', weight:'Weight reduction' },
+      engine:'Engine swap', induction:'Forced induction', gearing:'Gearbox', suspension:'Suspension', brakes:'Brakes', drivetrain:'Driven wheels', weight:'Weight reduction',
+      frontBumper:'Front bumper', rearBumper:'Rear diffuser', fenders:'Fenders', mirrors:'Mirrors', roof:'Roof panel', trim:'Exterior trim',
+      headlights:'Headlight design', taillights:'Taillight design', wingFinish:'Wing finish', tipFinish:'Exhaust finish', plateStyle:'Plate style', plateText:'Plate text' },
     options: {
-      finish:['Gloss', 'Metallic', 'Satin', 'Matte', 'Chrome'], livery:['Solid', 'Twin stripes', 'Offset stripe', 'Diagonal', 'Two-tone', 'Fade'],
-      wing:['Factory', 'No spoiler', 'Ducktail', 'Club wing', 'High GT', 'Swan neck'], splitter:['Factory', 'Street lip', 'Track blade', 'Blade + canards'],
-      skirts:['Factory', 'Carbon blade', 'Widebody'], hood:['Factory', 'Vents', 'Scoop', 'Carbon panel'], rims:['Factory', 'Five spoke', 'Mesh', 'Turbine', 'Aero disc'],
-      tire:['Slick', 'Grooved', 'Whitewall'], exhaust:['Factory', 'Twin', 'Quad', 'Center'], glass:['Clear', 'Smoke', 'Ice blue', 'Amber'],
+      finish:['Gloss', 'Metallic', 'Satin', 'Matte', 'Chrome', 'Pearlescent'],
+      livery:['Solid', 'Twin stripes', 'Offset stripe', 'Diagonal', 'Two-tone', 'Fade', 'Chevron', 'Checkerboard', 'Pinstripe'],
+      wing:['Factory', 'No spoiler', 'Ducktail', 'Club wing', 'High GT', 'Swan neck', 'Endurance double'],
+      wingFinish:['Factory', 'Carbon', 'Body paint', 'Accent paint', 'Brushed alloy'],
+      splitter:['Factory', 'Street lip', 'Track blade', 'Blade + canards'],
+      skirts:['Factory', 'Carbon blade', 'Widebody'], hood:['Factory', 'Vents', 'Scoop', 'Carbon panel', 'Power bulge', 'Louvers'],
+      frontBumper:['Factory','Mesh grille','Split intake','Track bumper'], rearBumper:['Factory','Road diffuser','GT diffuser','Vertical fins'],
+      fenders:['Factory','Smooth flares','Riveted flares','GT arches'], mirrors:['Factory','Carbon','Classic chrome','Aero'],
+      roof:['Body paint','Gloss black','Carbon','Roof intake'], trim:['Factory','Black chrome','Bright alloy','Carbon'],
+      rims:['Factory', 'Five spoke', 'Mesh', 'Turbine', 'Aero disc', 'Split spoke', 'Deep dish', 'Retro'],
+      tire:['Slick', 'Grooved', 'Whitewall', 'Semi-slick'], exhaust:['Factory', 'Twin', 'Quad', 'Center', 'Angled', 'Side exit'],
+      tipFinish:['Polished steel','Black chrome','Blue titanium'], plateStyle:['Off','Light','Dark','Circuit'],
+      glass:['Clear', 'Smoke', 'Ice blue', 'Amber'],
+      headlights:['Factory','Dual projector','Halo rings','Twin LED blades'], taillights:['Factory','Light bar','Pixels','Smoked'],
       lights:['White', 'Amber', 'Ice blue', 'Mint'], glow:['Off', 'On'],
       engine:['Factory', '3.0 Inline Six', '3.8 V6', '6.2 V8', '7.0 Big Block V8', '5.2 V10', '6.5 V12', 'Dual electric motors'],
       induction:['Factory', 'Twin turbo', 'Supercharger'], gearing:['Factory', 'Short ratio', 'Close ratio', 'Long ratio'],
@@ -30,16 +43,29 @@ const copy = {
     title: 'Trkaća radionica', close: 'Natrag u postavke', race: 'Primijeni i utrkuj se', reset: 'Tvornički izgled', save: 'Spremi izgled', saved: 'Izgled spremljen na ovom uređaju.',
     view: 'Okreći auto povlačenjem ili strelicama. Kotačić približava prikaz.', orbit: 'Automatsko okretanje', list: 'Trkaći automobili', speed: 'Najveća brzina', mass: 'Masa', vehicle: 'Auto',
     type: ['Formula', 'GT kupe', 'Prototip za izdržljivost', 'Trkaća limuzina', 'Otvoreni roadster', 'Hiperautomobil', 'Muscle car', 'Rally kompakt', 'Električni kupe', 'Time attack'],
-    tabs: ['Lakiranje', 'Aerodinamika', 'Kotači', 'Detalji', 'Pogon'],
+    tabs: ['Lakiranje', 'Karoserija', 'Aerodinamika', 'Kotači', 'Svjetla', 'Detalji', 'Pogon'],
+    views: ['Sprijeda', 'Bok', 'Straga'], angle: 'Kut kamere',
     force: 'Pogonska sila', inspect: 'Prikaži motor', showCar: 'Prikaži auto', rev: 'Testiraj zvuk motora',
     labels: { paint:'Boja karoserije', accent:'Boja detalja', finish:'Završna obrada', livery:'Grafika', wing:'Stražnji spojler', splitter:'Prednji splitter', skirts:'Bočni pragovi', hood:'Poklopac motora',
       rims:'Dizajn naplataka', rimColor:'Boja naplataka', caliper:'Boja čeljusti', tire:'Gume', exhaust:'Ispuh', glass:'Stakla / vizir', lights:'Boja svjetala', glow:'Neon ispod auta', glowColor:'Boja neona', number:'Trkaći broj',
-      engine:'Motor', induction:'Punjenje motora', gearing:'Mjenjač', suspension:'Ovjes', brakes:'Kočnice', drivetrain:'Pogon kotača', weight:'Smanjenje mase' },
+      engine:'Motor', induction:'Punjenje motora', gearing:'Mjenjač', suspension:'Ovjes', brakes:'Kočnice', drivetrain:'Pogon kotača', weight:'Smanjenje mase',
+      frontBumper:'Prednji branik', rearBumper:'Stražnji difuzor', fenders:'Blatobrani', mirrors:'Retrovizori', roof:'Krovni panel', trim:'Vanjske obloge',
+      headlights:'Prednja svjetla', taillights:'Stražnja svjetla', wingFinish:'Materijal spojlera', tipFinish:'Materijal ispuha', plateStyle:'Stil tablice', plateText:'Tekst na tablici' },
     options: {
-      finish:['Sjajna', 'Metalizirana', 'Satenska', 'Mat', 'Kromirana'], livery:['Jednobojna', 'Dvije pruge', 'Pomaknuta pruga', 'Dijagonalna', 'Dvobojna', 'Prijelaz'],
-      wing:['Tvornički', 'Bez spojlera', 'Pačji rep', 'Klupsko krilo', 'Visoki GT', 'Labudov vrat'], splitter:['Tvornički', 'Ulični rub', 'Trkaća oštrica', 'Oštrica i krilca'],
-      skirts:['Tvornički', 'Karbonski', 'Prošireni'], hood:['Tvornički', 'Ventilacijski otvori', 'Usisnik', 'Karbonski panel'], rims:['Tvornički', 'Pet krakova', 'Mrežasti', 'Turbina', 'Aero disk'],
-      tire:['Glatke', 'Profilirane', 'Bijeli rub'], exhaust:['Tvornički', 'Dvostruki', 'Četverostruki', 'Središnji'], glass:['Prozirno', 'Zatamnjeno', 'Ledeno plavo', 'Jantarno'],
+      finish:['Sjajna', 'Metalizirana', 'Satenska', 'Mat', 'Kromirana', 'Biserna'],
+      livery:['Jednobojna', 'Dvije pruge', 'Pomaknuta pruga', 'Dijagonalna', 'Dvobojna', 'Prijelaz', 'Dvostruki V', 'Šahovnica', 'Tanka rubna pruga'],
+      wing:['Tvornički', 'Bez spojlera', 'Pačji rep', 'Klupsko krilo', 'Visoki GT', 'Labudov vrat', 'Dvostruko Endurance krilo'],
+      wingFinish:['Tvornički', 'Karbon', 'Boja karoserije', 'Boja detalja', 'Brušena legura'],
+      splitter:['Tvornički', 'Ulični rub', 'Trkaća oštrica', 'Oštrica i krilca'],
+      skirts:['Tvornički', 'Karbonski', 'Prošireni'], hood:['Tvornički', 'Ventilacijski otvori', 'Usisnik', 'Karbonski panel', 'Ispupčeni poklopac', 'Lamele'],
+      frontBumper:['Tvornički','Mrežasta maska','Podijeljeni usis','Trkaći branik'], rearBumper:['Tvornički','Ulični difuzor','GT difuzor','Okomita rebra'],
+      fenders:['Tvornički','Glatka proširenja','Proširenja sa zakovicama','GT lukovi'], mirrors:['Tvornički','Karbonski','Klasični kromirani','Aerodinamični'],
+      roof:['Boja karoserije','Sjajno crni','Karbonski','Krovni usisnik'], trim:['Tvorničke','Crni krom','Polirana legura','Karbon'],
+      rims:['Tvornički', 'Pet krakova', 'Mrežasti', 'Turbina', 'Aero disk', 'Dvostruki krakovi', 'Duboki rub', 'Retro'],
+      tire:['Glatke', 'Profilirane', 'Bijeli rub', 'Poluglatke'], exhaust:['Tvornički', 'Dvostruki', 'Četverostruki', 'Središnji', 'Pod kutom', 'Bočni'],
+      tipFinish:['Polirani čelik','Crni krom','Plavi titan'], plateStyle:['Isključena','Svijetla','Tamna','Trkaća'],
+      glass:['Prozirno', 'Zatamnjeno', 'Ledeno plavo', 'Jantarno'],
+      headlights:['Tvornička','Dvostruki projektor','Svjetleći prstenovi','Dvije LED trake'], taillights:['Tvornička','Spojena LED traka','Pikseli','Zatamnjena'],
       lights:['Bijela', 'Jantarna', 'Ledeno plava', 'Mint'], glow:['Isključeno', 'Uključeno'],
       engine:['Tvornički', 'Redni I6 3.0', 'V6 3.8', 'V8 6.2', 'V8 7.0 Big Block', 'V10 5.2', 'V12 6.5', 'Dva elektromotora'],
       induction:['Tvorničko', 'Dvostruki turbo', 'Kompresor'], gearing:['Tvornički', 'Kratki prijenos', 'Zbijeni omjeri', 'Dugi prijenos'],
@@ -50,12 +76,14 @@ const copy = {
 };
 const sections = [
   ['paint', 'accent', 'finish', 'livery'],
-  ['wing', 'splitter', 'skirts', 'hood'],
+  ['frontBumper', 'rearBumper', 'fenders', 'mirrors', 'roof', 'trim'],
+  ['wing', 'wingFinish', 'splitter', 'skirts', 'hood'],
   ['rims', 'rimColor', 'caliper', 'tire'],
-  ['exhaust', 'glass', 'lights', 'glow', 'glowColor', 'number'],
+  ['headlights', 'taillights', 'lights', 'glow', 'glowColor'],
+  ['exhaust', 'tipFinish', 'glass', 'number', 'plateStyle', 'plateText'],
   ['engine', 'induction', 'gearing', 'suspension', 'brakes', 'drivetrain', 'weight'],
 ];
-const partFields = ['model', 'number', ...Object.keys(raceOptions)];
+const partFields = ['model', 'number', 'plateText', ...Object.keys(raceOptions)];
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function savedBuilds() {
@@ -85,6 +113,7 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
           <div class="workshop-description">
             <span class="workshop-class"></span><h3></h3><dl></dl>
           </div>
+          <div class="workshop-views" role="group" aria-label="${words.angle}"></div>
           <label class="workshop-orbit"><input type="checkbox"> ${words.orbit}</label>
         </div>
         <div class="workshop-cars" role="group" aria-label="${words.list}"></div>
@@ -126,18 +155,20 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
   const camera = new THREE.PerspectiveCamera(42, 1, .1, 42);
   const scene = new THREE.Scene();
   scene.environment = environment;
-  scene.environmentIntensity = 1.04;
+  scene.environmentIntensity = .95;
   scene.background = new THREE.Color(0x0c1823);
   scene.fog = new THREE.FogExp2(0x0c1823, .052);
   const platform = new THREE.Group();
   const engineStand = new THREE.Group();
   engineStand.visible = false;
-  scene.add(platform, engineStand, new THREE.HemisphereLight(0xd8eef6, 0x3b4b51, 2.09));
-  const key = new THREE.DirectionalLight(0xffe0b5, 3.0);
+  scene.add(platform, engineStand, new THREE.HemisphereLight(0xd8eef6, 0x3b4b51, 1.58));
+  const key = new THREE.DirectionalLight(0xffe7c5, 2.78);
   key.position.set(-5, 7, -3);
-  const fill = new THREE.DirectionalLight(0x8ec8ff, 1.8);
+  const fill = new THREE.DirectionalLight(0x8ec8ff, 1.48);
   fill.position.set(6, 2, 4);
-  scene.add(key, fill);
+  const edge = new THREE.DirectionalLight(0xf4ebde, 1.16);
+  edge.position.set(-4, 2.5, 7);
+  scene.add(key, fill, edge);
   const stage = new THREE.Mesh(new THREE.CylinderGeometry(3.38, 3.38, .20, 64), new THREE.MeshStandardMaterial({ color: 0x203745, metalness: .3, roughness: .66 }));
   stage.position.y = -.105;
   const marker = new THREE.Mesh(new THREE.RingGeometry(3.11, 3.126, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x40baa6 }));
@@ -174,6 +205,19 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
     tabs.append(button);
   }
   modelMenu.addEventListener('change', () => switchModel(modelMenu.value));
+  const angles = [-.54,-Math.PI/2,-Math.PI+.45];
+  words.views.forEach((name,index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = name;
+    button.addEventListener('click', () => {
+      orbit.checked = false;
+      goalYaw = angles[index] + Math.round((yaw-angles[index])/(Math.PI*2))*Math.PI*2;
+      goalPitch = .252;
+      requestRender();
+    });
+    find('.workshop-views').append(button);
+  });
 
   function switchModel(id) {
     if (id === setup.model) return;
@@ -197,6 +241,7 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
     [...tabs.children].forEach((button, index) => button.setAttribute('aria-pressed', String(index === tab)));
     engineTools.hidden = tab !== sections.length - 1;
     for (const key of sections[tab]) {
+      if (!raceOptionAvailable(modelFor(setup.model), key)) continue;
       const label = document.createElement('label');
       label.textContent = words.labels[key];
       let control;
@@ -210,7 +255,8 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
         }
       } else {
         control = document.createElement('input');
-        control.type = key === 'number' ? 'number' : 'color';
+        control.type = key === 'number' ? 'number' : key === 'plateText' ? 'text' : 'color';
+        if (key === 'plateText') control.maxLength = 8;
         if (key === 'number') {
           control.min = '0';
           control.max = '99';
@@ -224,7 +270,8 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
         drafts.set(setup.model, setup);
         status.textContent = '';
         dirty = true;
-        updateInduction();
+        if (key === 'plateText' && control.value !== setup.plateText) control.value = setup.plateText;
+        updateDependencies();
         renderSpecs();
         requestRender();
       });
@@ -232,9 +279,11 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
       label.append(control);
       fields.append(label);
     }
-    updateInduction();
+    updateDependencies();
   }
-  function updateInduction() {
+  function updateDependencies() {
+    const plate = fields.querySelector('[name=plateText]');
+    if (plate) plate.disabled = setup.plateStyle === 'off';
     const induction = fields.querySelector('[name=induction]');
     if (!induction) return;
     induction.disabled = raceEngineKey(setup) === 'electric';
@@ -327,7 +376,7 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
   }
 
   display.addEventListener('pointerdown', event => {
-    if (event.target.closest('label') || event.button !== 0 || pointer) return;
+    if (event.target.closest('label,button') || event.button !== 0 || pointer) return;
     orbit.checked = false;
     pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
     display.setPointerCapture(event.pointerId);
