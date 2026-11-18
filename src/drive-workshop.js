@@ -172,8 +172,24 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
   const stage = new THREE.Mesh(new THREE.CylinderGeometry(3.38, 3.38, .20, 64), new THREE.MeshStandardMaterial({ color: 0x203745, metalness: .3, roughness: .66 }));
   stage.position.y = -.105;
   const marker = new THREE.Mesh(new THREE.RingGeometry(3.11, 3.126, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x40baa6 }));
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 35).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x06131b, opacity: .40, transparent: true, depthWrite: false }));
-  shadow.scale.set(1.25, 1, 2.27);
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2,2).rotateX(-Math.PI/2), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, uniforms: { axleContact: { value: new THREE.Vector2(.54,.56) } },
+    vertexShader: /* glsl */`
+      varying vec2 floorUv;
+      void main() { floorUv = uv * 2. - 1.; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }
+    `,
+    fragmentShader: /* glsl */`
+      varying vec2 floorUv;
+      uniform vec2 axleContact;
+      void main() {
+        float base = 1. - smoothstep(.26,1.,length(floorUv));
+        vec2 contactOffset = (abs(floorUv)-axleContact) / vec2(.138,.114);
+        float contact = exp(-dot(contactOffset,contactOffset)*2.2);
+        gl_FragColor = vec4(.014,.032,.041,base*.52+contact*.24);
+        #include <colorspace_fragment>
+      }
+    `,
+  }));
   shadow.position.y = .005;
   marker.position.y = .004;
   const grid = new THREE.GridHelper(44, 44, 0x27505c, 0x1d3543);
@@ -298,6 +314,7 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
   function showEngine(value) {
     inspecting = value;
     platform.visible = !value;
+    shadow.visible = !value;
     engineStand.visible = value;
     inspect.setAttribute('aria-pressed', String(value));
     inspect.textContent = value ? words.showCar : words.inspect;
@@ -320,6 +337,9 @@ export function openRaceWorkshop({ renderer, environment, language, active, play
     model.view.position.y = artwork.model.stance;
     model.view.add(...model.wheels);
     platform.add(model.view);
+    const spec = artwork.model;
+    shadow.scale.set(spec.width*1.68,1,spec.depth*1.23);
+    shadow.material.uniforms.axleContact.value.set(spec.axle/shadow.scale.x,spec.length/shadow.scale.z);
   }
   function persist() {
     const build = normalizeRaceBuild(setup);

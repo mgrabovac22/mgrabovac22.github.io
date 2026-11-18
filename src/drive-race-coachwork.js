@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { crossSection, loftShell, vehiclePiece as part } from './drive-vehicle-art.js';
+import { loftShell, vehiclePiece as part } from './drive-vehicle-art.js';
+import { silhouettes } from './drive-race-silhouettes.js';
 
 const box = new THREE.BoxGeometry();
 const circle = new THREE.CylinderGeometry(.5, .5, 1, 16);
@@ -16,34 +17,79 @@ function trace(body, material, points, radius) {
   body.add(new THREE.Mesh(geometry, material));
 }
 
+function curveValue(rows, last, distance, column) {
+  const a = rows[last-1], b = rows[last];
+  const length = b[0] - a[0];
+  const slope = (b[column] - a[column]) / length;
+  function joined(left, right) {
+    return left * right > 0 ? 2 * left * right / (left + right) : 0;
+  }
+  const before = rows[last-2], after = rows[last+1];
+  const start = before ? joined(slope,(a[column]-before[column])/(a[0]-before[0])) : slope;
+  const end = after ? joined(slope,(after[column]-b[column])/(after[0]-b[0])) : slope;
+  const t = (distance-a[0])/length;
+  return THREE.MathUtils.lerp(a[column],b[column],t*t*(3-2*t)) +
+    length * (start*t*(1-t)**2-end*t*t*(1-t));
+}
+
 function bodyDimensions(model, z) {
-  const { shape, width, length, radius, depth } = model;
-  const nose = THREE.MathUtils.smoothstep(-z, length - .24, depth);
-  const tail = THREE.MathUtils.smoothstep(z, length - .20, depth);
-  const half = width * (shape.shoulders - nose * (shape.shoulders - shape.nose) - tail * (shape.shoulders - shape.tail));
+  const { width, length, radius, depth } = model;
+  const { body, crown } = silhouettes[model.id];
+  const normalized = THREE.MathUtils.clamp(z / depth, -1, 1);
+  const upper = Math.max(1, body.findIndex(([distance]) => distance >= normalized));
+  const half = width * curveValue(body,upper,normalized,1);
+  const high = curveValue(body,upper,normalized,2);
   const fromAxle = Math.abs(Math.abs(z) - length);
-  const clearance = radius + .072;
+  const clearance = radius + .078;
   const arc = Math.sqrt(Math.max(0, clearance ** 2 - fromAxle ** 2));
-  const bottom = -.25;
-  const arch = Math.max(bottom, -.349 + arc);
-  const high = THREE.MathUtils.lerp(shape.hood, shape.deck, THREE.MathUtils.smoothstep(z, -.50, depth - .17));
-  return [z, half, arch, Math.max(arch + .09, high - nose * .065 - tail * .030)];
+  const arch = Math.max(-.249, radius - model.stance + arc);
+  return [z, half, arch, Math.max(arch + .087, high), crown];
 }
 
-function bodySection([, w, arch, high], square) {
-  const shoulder = square ? .931 : .864;
+function wrapEnd(model, z, x, width) {
+  const end = silhouettes[model.id].ends[z < 0 ? 0 : 1];
+  const fade = THREE.MathUtils.smoothstep(Math.abs(z), model.depth - .77, model.depth);
+  return z - Math.sign(z) * end * fade * (Math.abs(x) / width) ** 2;
+}
+
+export function bodySurfaceHeight(model, z) {
+  if (model.id === 'formula') return .14;
+  const [, , , shoulder, crown] = bodyDimensions(model,z);
+  return shoulder + crown;
+}
+
+function bodySection([z, w, arch, high, crown], model) {
+  const { belt } = silhouettes[model.id];
+  const opening = model.type === 'roadster'
+    ? THREE.MathUtils.smoothstep(z,-.60,-.34)*(1-THREE.MathUtils.smoothstep(z,.57,.91)) : 0;
   const bank = [
-    [0,-.25], [w * .68,-.254], [w * .90,arch], [w * .971,arch + .025],
-    [w, THREE.MathUtils.lerp(arch, high, .63)], [w * .987, high - .027],
-    [w * shoulder, high], [0, high + .021],
+    [0,-.254], [w * .66,-.254], [w * .893,arch], [w * .968,arch + .023],
+    [w, THREE.MathUtils.lerp(arch, high, .61)], [w * .989, high - .024],
+    [w * belt, high], [w * .45, high + crown * .66 - opening*.081], [0, high + crown - opening*.135],
   ];
-  return [...bank, ...bank.slice(1,-1).reverse().map(([x, y]) => [-x,y])];
+  return [...bank, ...bank.slice(1,-1).reverse().map(([x, y]) => [-x,y])]
+    .map(([x, y]) => [x, y, wrapEnd(model, z, x, w)]);
 }
 
-function sidePoint(model, side, z, amount, gap = .008) {
+function deckPoint(model, z, across, offset = .008) {
+  const section = bodyDimensions(model,z);
+  const outline = bodySection(section,model);
+  const x = across * section[1];
+  let y = outline[8][1];
+  for (let index=8;index>5;index--) {
+    const [left, low] = outline[index];
+    const [right, high] = outline[index-1];
+    if (Math.abs(x)>right) continue;
+    y = THREE.MathUtils.lerp(low,high,THREE.MathUtils.inverseLerp(left,right,Math.abs(x)));
+    break;
+  }
+  return [x,y+offset,wrapEnd(model,z,x,section[1])];
+}
+
+export function sidePoint(model, side, z, amount, gap = .008) {
   const section = bodyDimensions(model, z);
   const [, , arch, high] = section;
-  const outline = bodySection(section, model.type === 'muscle' || model.type === 'touring');
+  const outline = bodySection(section, model);
   const y = THREE.MathUtils.lerp(arch + .024, high - .028, amount);
   for (let index = 4; index <= 5; index++) {
     const [x0,y0] = outline[index-1];
@@ -54,69 +100,157 @@ function sidePoint(model, side, z, amount, gap = .008) {
 }
 
 function bodySkin(body, model, paint, carbon) {
-  const { depth, length, radius, width, type } = model;
-  const clearance = radius + .072;
-  const stations = [-depth, -depth + .10, -depth + .24, -.62, .09, .62, depth - .18, depth - .083, depth];
+  const { depth, length, radius, width } = model;
+  const clearance = radius + .078;
+  const stations = silhouettes[model.id].body.map(([z]) => z * depth);
+  stations.push(-depth+.063, -depth+.17, depth-.16, depth-.063);
   for (const axle of [-length, length]) for (const t of [-1.07,-.85,-.55,0,.55,.85,1.07]) {
     stations.push(axle + t * clearance);
   }
   const sections = [...new Set(stations)].filter(z => Math.abs(z) <= depth).sort((a, b) => a - b);
-  loftShell(body, paint, sections.map(z => bodyDimensions(model,z)),
-    data => bodySection(data, type === 'muscle' || type === 'touring'), 2);
-  part(body, carbon, width * 1.56, .073, depth * 1.50, 0, -.259, 0, box);
+  loftShell(body, paint, sections.map(z => bodyDimensions(model,z)), data => bodySection(data, model), 2);
+  part(body, carbon, width * 1.56, .068, depth * 1.47, 0, -.246, 0, box);
+}
+
+function panelLines(body, model, { bucket, paint, trim }) {
+  const [screen] = silhouettes[model.id].cabin;
+  const front = -model.depth + .19, back = screen - .14;
+  const corners = [[front+.09,-.56],[front+.022,-.36],[front,0],[front+.022,.36],[front+.09,.56]];
+  trace(body,bucket,corners.map(([z,x])=>deckPoint(model,z,x,.004)),.006);
+  for (const side of [-1,1]) {
+    trace(body,bucket,[[front+.09,.56],[front+.28,.57],[(front+back)*.5,.58],[back,.62]]
+      .map(([z,x])=>deckPoint(model,z,side*x,.004)),.006);
+  }
+  if (model.type==='prototype') {
+    const tail = silhouettes[model.id].cabin[3];
+    const base = bodySurfaceHeight(model,tail);
+    loftShell(body,paint,[[tail-.17,.029,base-.017,base+.163],[tail+.28,.041,base-.018,base+.231],
+      [model.depth-.22,.029,base-.035,base+.120]],
+    ([,w,low,high])=>[[-w,low],[w,low],[w*.49,high],[-w*.49,high]],3);
+  }
+  if (model.type==='rally') {
+    for (const side of [-1,1]) {
+      const pos = side * (model.axle + .132);
+      part(body,trim,.184,.191,.033,pos,-.202,model.length+.37,box).rotation.x = -.11;
+    }
+  }
+}
+
+function gridSurface(body, material, rows, columns, at, reverse = false) {
+  const vertices = [], uv = [], triangles = [];
+  for (let row = 0; row <= rows; row++) for (let column = 0; column <= columns; column++) {
+    const s = row / rows, t = column / columns;
+    vertices.push(...at(s, t));
+    uv.push(t, s);
+    if (row === rows || column === columns) continue;
+    const a = row * (columns + 1) + column;
+    const b = a + 1, c = a + columns + 1, d = c + 1;
+    if (reverse) triangles.push(a, b, c, c, b, d);
+    else triangles.push(a, c, b, c, d, b);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setIndex(triangles);
+  geometry.computeVertexNormals();
+  geometry.userData.vehicleOwned = true;
+  body.add(new THREE.Mesh(geometry, material));
+}
+
+function greenhouse(body, model, build, { glass, paint, carbon, accent, trim, bucket }) {
+  const { roof, width, id, type } = model;
+  const { cabin, roof: roofScale, glass: glassWidth } = silhouettes[id];
+  const [nose, approach, departure, tail] = cabin;
+  const half = width * glassWidth;
+  const [front, middle, back] = roofScale.map(value => value * half);
+  const center = (approach + departure) * .5;
+  const topRake = type === 'muscle' ? .113 : type === 'rally' ? .010 : .031;
+  const bodyHeight = z => {
+    const [, , , belt, crown] = bodyDimensions(model, z);
+    return belt + crown * .53;
+  };
+  const rows = [
+    [nose, half * .98, half * .87, bodyHeight(nose) + .059],
+    [approach, half, front, roof],
+    [center, half * .976, middle, roof + .024],
+    [departure, half * .931, back, roof - topRake],
+    [tail, half * .802, half * .666, bodyHeight(tail) + .034],
+  ];
+  function cabinAt(z) {
+    const stop = THREE.MathUtils.clamp(z, nose, tail);
+    const last = Math.max(1, rows.findIndex(row => row[0] >= stop));
+    const a = rows[last - 1], b = rows[last];
+    const t = THREE.MathUtils.inverseLerp(a[0], b[0], stop);
+    const eased = t * .58 + THREE.MathUtils.smoothstep(t, 0, 1) * .42;
+    const values = a.slice(1).map((value, i) => THREE.MathUtils.lerp(value, b[i+1], eased));
+    return [values[0], values[1], bodyHeight(z) - .033, values[2]];
+  }
+  function onTop(z, across, raise = 0) {
+    const [, r, bottom, top] = cabinAt(z);
+    const arc = THREE.MathUtils.smoothstep(top - bottom, .04, .28) * .029;
+    return [r * across, top + (1 - across * across) * arc + raise, z];
+  }
+  function onSide(side, z, height, offset = 0) {
+    const [base, top, sill, high] = cabinAt(z);
+    const bulge = Math.sin(height * Math.PI) * .022;
+    return [side * (THREE.MathUtils.lerp(base, top, height) + bulge + offset), THREE.MathUtils.lerp(sill, high, height), z];
+  }
+  const cap = build.roof === 'black' ? bucket : build.roof === 'carbon' || build.roof === 'scoop' ? carbon : paint;
+  for (const [from, to, material] of [[nose,approach,glass],[approach,departure,cap],[departure,tail,glass]]) {
+    gridSurface(body, material, 12, 9, (s,t) => onTop(THREE.MathUtils.lerp(from,to,s), t*2-1));
+  }
+  const pillar = type === 'rally' ? center + .04 : center + (departure-center)*.22;
+  const rearPillar = type === 'muscle' ? .43 : type === 'rally' ? .17 : .23;
+  const bands = [
+    [nose,nose+.136,paint],[nose+.136,pillar-.045,glass],[pillar-.045,pillar+.05,trim],
+    [pillar+.05,tail-rearPillar,glass],[tail-rearPillar,tail,paint],
+  ];
+  for (const side of [-1,1]) {
+    for (const [from, to, material] of bands) {
+      gridSurface(body, material, Math.max(3, Math.ceil((to-from)*9)), 6,
+        (s,t)=>onSide(side,THREE.MathUtils.lerp(from,to,s),t),side>0);
+    }
+    const seam = [nose+.078, approach-.11, approach, center, departure, tail-.068];
+    trace(body,trim,seam.map(z=>onSide(side,z,1,.006)),.009);
+    trace(body,trim,seam.map(z=>onSide(side,z,.077,.009)),.010);
+    const footZ = nose+(approach-nose)*.23;
+    trace(body,bucket,[onTop(footZ,side*.79,.015),onTop(footZ+.071,side*.55,.021),onTop(footZ+.134,side*.16,.016)],.012);
+  }
+  if (build.roof === 'scoop') {
+    const inlet = Math.max(.47, departure - approach);
+    const top = onTop(center,0)[1];
+    part(body,carbon,.56,.119,inlet*.67,0,top+.056,center);
+    part(body,bucket,.43,.060,.032,0,top+.047,center-inlet*.326,box);
+    part(body,accent,.36,.016,.039,0,top+.115,center-.064);
+  }
+  const mirror = onSide(1, nose+.231, .32);
+  return { x: mirror[0] - .006, y: mirror[1], z: mirror[2] };
 }
 
 function windshield(body, model, build, surfaces) {
-  const { shape, type, width, roof } = model;
-  const { glass, paint, carbon, accent, trim, bucket } = surfaces;
-  const [nose, approach, departure, tail] = shape.cabin;
-  const half = width * shape.glass;
-  const base = shape.hood * .47 + shape.deck * .53 - .032;
-  if (type === 'roadster') {
-    const screen = part(body, glass, half * 1.85, .31, .042, 0, base + .164, approach - .12);
-    screen.rotation.x = -.30;
-    trace(body, trim, [[-half*.89,base+.286,approach-.147],[0,base+.317,approach-.164],[half*.89,base+.286,approach-.147]], .018);
-    for (const side of [-1,1]) {
-      part(body, bucket, .34, .282, .29, side*.29, base+.128, .28);
-      part(body, accent, .217, .176, .066, side*.29, base+.32, .35);
-      part(body, trim, .29, .27, .064, side*.29, base+.216, .43, ring);
-    }
-  } else {
-    const square = type === 'muscle' || type === 'rally' || type === 'touring';
-    const taper = square ? .86 : .77;
-    const middle = (approach + departure) / 2;
-    const endRoof = roof - (type === 'muscle' ? .09 : .027);
-    loftShell(body, glass, [
-      [nose,half * 1.02,base,base+.045], [approach,half,base,roof], [middle,half*.98,base,roof+.013],
-      [departure,half*.93,base,endRoof], [tail,half*.84,base,Math.max(base+.023,shape.deck+.021)],
-    ], ([,w,bottom,top]) => crossSection(w,bottom,top,taper), 5);
-    const topSkin = build.roof === 'black' ? bucket : build.roof === 'carbon' || build.roof === 'scoop' ? carbon : paint;
-    const cap = [
-      [approach-.014, half*taper*.985, roof+.002], [middle, half*taper*.986, roof+.023],
-      [departure+.025, half*taper*.929, endRoof+.003],
-    ];
-    loftShell(body, topSkin, cap, ([,w,high]) => crossSection(w,high-.007,high+.020,.945), 6);
-    for (const side of [-1,1]) {
-      trace(body, trim, [
-        [side*half*.969,base+.072,nose+.064], [side * half*taper,roof+.008,approach+.014],
-        [side*half*taper*.955,roof+.023,middle], [side*half*taper*.933,endRoof+.007,departure],
-        [side*half*.81,Math.max(base+.036,shape.deck+.022),tail-.064],
-      ], .015);
-      trace(body, trim, [[side*half*.983,base+.058,nose+.085],
-        [side*half*.988,base+.067,middle],[side*half*.81,base+.061,tail-.079]], .012);
-      if (departure - approach > .57) {
-        const z = middle + (departure - middle) * .37;
-        trace(body, bucket, [[side*half*.952,base+.071,z],[side*half*.902,base+(roof-base)*.56,z+.02],
-          [side*half*taper*.961,roof-.004,z+.058]], .025);
-      }
-    }
-    if (build.roof === 'scoop') {
-      part(body, carbon, .60, .127, Math.max(.46, departure-approach) * .66, 0, roof+.096, middle);
-      part(body, bucket, .46, .063, .033, 0, roof+.092, middle-Math.max(.46, departure-approach)*.322, box);
-      part(body, accent, .37, .019, .063, 0, roof+.144, middle-.08);
-    }
+  if (model.type !== 'roadster') return greenhouse(body, model, build, surfaces);
+  const { glass, accent, trim, bucket } = surfaces;
+  const half = model.width * silhouettes[model.id].glass;
+  const z = silhouettes[model.id].cabin[0];
+  const [, , , belt, crown] = bodyDimensions(model, z);
+  const base = belt + crown * .41;
+  function screen(across, height) {
+    return [across * half * (1 - height * .077),
+      base + height * (.319 - Math.abs(across) ** 2 * .063),
+      z + height * .168 + across * across * .116];
   }
-  return { x: half, y: base + .14, z: nose + .21 };
+  gridSurface(body, glass, 6, 12, (height,s) => screen(s*2-1,height));
+  const points = [-1,-.72,-.36,0,.36,.72,1];
+  for (const height of [0,1]) trace(body,trim,points.map(x => screen(x,height)),.018);
+  for (const side of [-1,1]) {
+    trace(body,trim,[0,.36,.68,1].map(value => screen(side,value)),.014);
+    part(body,bucket,.356,.134,.576,side*.28,base-.070,.28);
+    const rest = part(body,bucket,.320,.317,.116,side*.28,base+.061,.49);
+    rest.rotation.x = -.19;
+    part(body,accent,.196,.121,.077,side*.28,base+.217,.53);
+    part(body,trim,.274,.245,.091,side*.28,base+.188,.63,ring);
+  }
+  return { x: half * .93, y: base+.134, z: z+.198 };
 }
 
 export function fitMirrors(body, build, { x, y, z }, { carbon, bucket, trim, accent, alloy }) {
@@ -134,26 +268,46 @@ export function fitMirrors(body, build, { x, y, z }, { carbon, bucket, trim, acc
 }
 
 function sideDetails(body, model, build, { trim, bucket, paint, alloy }) {
+  const { cabin, doors } = silhouettes[model.id];
+  const from = Math.max(-model.length + model.radius + .12, cabin[0]-.085);
+  const to = Math.min(model.length - model.radius - .12, cabin[2]+.20);
   for (const sign of [-1,1]) {
-    const from = Math.max(-model.length + model.radius + .12, model.shape.cabin[0]-.085);
-    const to = Math.min(model.length - model.radius - .12, model.shape.cabin[2]+.20);
-    const handle = part(body, trim, .029, .046, .172, ...sidePoint(model, sign, to-.18, .77, .018));
-    handle.rotation.y = sign*.089;
-    const lower = [[from,.94],[from+.014,.52],[from+.071,.19],[from+.132,.13],
-      [to-.14,.13],[to-.054,.19],[to-.012,.53],[to,.94]];
-    trace(body, bucket, lower.map(([z,y]) => sidePoint(model,sign,z,y)), .008);
+    for (let door = 0; door < doors; door++) {
+      const a = THREE.MathUtils.lerp(from,to,door/doors)+.015;
+      const b = THREE.MathUtils.lerp(from,to,(door+1)/doors)-.018;
+      const handle = part(body, trim, model.type === 'electric' ? .015 : .03, .039, .141,
+        ...sidePoint(model,sign,b-.119,.78,.015));
+      handle.rotation.y = sign*.079;
+      const lower = [[a,.96],[a+.012,.51],[a+.042,.20],[a+.080,.13],
+        [b-.079,.13],[b-.042,.20],[b-.012,.53],[b,.96]];
+      trace(body,bucket,lower.map(([z,y])=>sidePoint(model,sign,z,y)),.007);
+    }
+    if (['gt','prototype','hyper','attack'].includes(model.type)) {
+      const inlet = model.length - model.radius - .20;
+      gridSurface(body,bucket,7,3,(s,t)=>{
+        const high = THREE.MathUtils.lerp(.42,.76,s);
+        return sidePoint(model,sign,inlet-.40+s*.43,THREE.MathUtils.lerp(.25,high,t),.012);
+      },sign > 0);
+      for (let slat = 0; slat < 3; slat++) {
+        const z = inlet - .05 - slat*.094;
+        trace(body,trim,[sidePoint(model,sign,z,.31,.019),sidePoint(model,sign,z+.052,.55,.019)],.009);
+      }
+    }
     if (sign > 0) {
       const panelZ = model.length * .68;
       part(body, trim, .112,.014,.112,...sidePoint(model,1,panelZ,.87,.011),circle).rotation.z = Math.PI/2;
     }
-    if (build.fenders !== 'stock') {
-      for (const axle of [-model.length, model.length]) {
-        const rim = model.radius + .08;
-        const points = Array.from({ length: 9 }, (_, i) => {
-          const angle = -.23 + i * (Math.PI + .46) / 8;
-          const z = axle + Math.cos(angle)*rim;
-          return [sign*(bodyDimensions(model,z)[1]+.019), -.34 + Math.sin(angle)*rim, z];
-        });
+    for (const axle of [-model.length, model.length]) {
+      const rim = model.radius + .078;
+      const hub = model.radius - model.stance;
+      const points = Array.from({ length: 9 }, (_, i) => {
+        const angle = i * Math.PI / 8;
+        const z = axle + Math.cos(angle)*rim;
+        const y = Math.max(-.247, hub + Math.sin(angle)*rim);
+        return [sign*(bodyDimensions(model,z)[1]+.014), y, z];
+      });
+      trace(body,bucket,points.map(([x,y,z])=>[x-sign*.056,y-.018,z]),.017);
+      if (build.fenders !== 'stock') {
         trace(body, build.fenders === 'gt' ? trim : paint, points, build.fenders === 'flared' ? .039 : .058);
         if (build.fenders === 'riveted') for (const [x,y,z] of points.slice(1,-1)) {
           part(body, alloy, .026,.024,.024,x+sign*.045,y+.010,z,box);
@@ -163,77 +317,130 @@ function sideDetails(body, model, build, { trim, bucket, paint, alloy }) {
   }
 }
 
+function fasciaPoint(model, end, across, y, inset) {
+  const z = end * model.depth;
+  const [, half] = bodyDimensions(model,z);
+  return [across * half, y, wrapEnd(model,z,across * half,half) + end * inset];
+}
+
+function fasciaBand(body, material, model, end, from, to, yRange, offset = .017) {
+  const left = Math.min(from,to), right = Math.max(from,to);
+  gridSurface(body, material, 13, 2,(s,t)=>{
+    const across = THREE.MathUtils.lerp(left,right,s);
+    const [bottom,top] = yRange(across);
+    return fasciaPoint(model,end,across,THREE.MathUtils.lerp(bottom,top,t),offset);
+  },end<0);
+}
+
 function bumpers(body, model, build, { paint, bucket, carbon, trim }) {
-  const { depth:d, width:w, shape, type } = model;
-  const frontY = type === 'muscle' ? .105 : shape.hood * .30;
-  const style = build.frontBumper;
-  part(body, type==='muscle' ? trim : paint, w*1.81, .129, .166, 0, -.120, -d + .007);
-  const width = style === 'track' ? 1.64 : style === 'split' ? 1.39 : type === 'muscle' ? 1.09 : 1.12;
-  part(body, bucket, w*width, style==='track'?.255:.158, .075, 0, frontY, -d-.011);
-  if (style !== 'stock' || type === 'muscle') {
-    const bars = style === 'mesh' ? 5 : 3;
-    for (let i=0;i<bars;i++) part(body, trim, w*width*.91, .014, .021, 0, frontY+(i-(bars-1)/2)*.036, -d-.051, box);
-    if (style === 'mesh') for (let i=-5;i<=5;i++) part(body, trim, .010, .157,.018, i*w*width*.079,frontY,-d-.052,box);
-    if (style === 'split') part(body, paint, .079,.174,.104, 0,frontY,-d-.048);
-    if (style === 'track') for (const side of [-1,1]) part(body, carbon, .22,.075,.22,side*w*.88,-.13,-d-.044).rotation.z=side*.34;
+  const { depth, width, type } = model;
+  const [, , , peak] = bodyDimensions(model,-depth);
+  const modern = ['gt','hyper','prototype','attack','electric'].includes(type);
+  const front = build.frontBumper;
+  const bars = front === 'mesh' ? 4 : type === 'muscle' ? 3 : 2;
+  const center = front === 'track' ? .83 : type === 'electric' && front === 'stock' ? .42 : .64;
+  const portTop = type === 'muscle' ? .167 : Math.min(peak-.035, .052);
+  const lip = type === 'muscle' ? trim : paint;
+  const split = front === 'split' || front === 'stock' && type === 'hyper';
+
+  fasciaBand(body,lip,model,-1,-.96,.96,x=>[-.210+.025*x*x,-.143+.020*x*x],.043);
+  fasciaBand(body,bucket,model,-1,-center,center,x=>[-.138+.041*Math.abs(x),portTop-.052*Math.abs(x)],.033);
+  if (split) fasciaBand(body,paint,model,-1,-.063,.063,()=>[-.142,portTop+.021],.047);
+
+  for (let i=0;i<bars;i++) {
+    const y = THREE.MathUtils.lerp(-.109,portTop-.028,i/Math.max(1,bars-1));
+    const bound = center*.91;
+    if (split) {
+      for (const sign of [-1,1]) fasciaBand(body,trim,model,-1,sign*.070,sign*bound,()=>[y,y+.012],.042);
+    } else fasciaBand(body,trim,model,-1,-bound,bound,()=>[y,y+.012],.041);
   }
-  const back = build.rearBumper;
-  part(body, type==='muscle' ? trim : paint, w*1.74,.109,.153,0,-.095,d+.006);
-  part(body, carbon, w*(back==='stock'?1.40:1.79), back==='gt' || back==='vertical' ? .205 : .136, .34, 0,-.154,d-.032);
-  const fins = back === 'gt' ? 5 : back === 'vertical' ? 7 : back === 'road' ? 3 : 0;
+  if (front === 'mesh') for (let i=-5;i<=5;i++) {
+    const across = i*center*.167;
+    fasciaBand(body,trim,model,-1,across-.009,across+.009,()=>[-.105,portTop-.028],.044);
+  }
+  if (modern || front === 'track') for (const side of [-1,1]) {
+    const lower = x => -.131 + .185 * Math.abs(Math.abs(x)-.83);
+    fasciaBand(body,bucket,model,-1,side*.69,side*.918,x=>[lower(x),lower(x)+.08],.043);
+    if (front==='track') {
+      const [x,y,z] = fasciaPoint(model,-1,side*.94,-.171,.073);
+      part(body,carbon,.181,.069,.194,x,y,z).rotation.z = side*.24;
+    }
+  }
+
+  const rear = build.rearBumper;
+  fasciaBand(body,lip,model,1,-.93,.93,x=>[-.137+.015*x*x,-.071+.017*x*x],.049);
+  fasciaBand(body,carbon,model,1,-.87,.87,x=>[-.222+.029*x*x,-.114+.019*x*x],.038);
+  const fins = rear === 'gt' ? 5 : rear === 'vertical' ? 7 : rear === 'road' ? 3 : 0;
   for (let i=0;i<fins;i++) {
-    part(body, back==='road' ? trim : bucket,.035,back==='vertical'?.198:.146,.37,
-      (i-(fins-1)/2)*w*.211,-.189,d+.043,box).rotation.x = -.13;
+    const across = (i-(fins-1)/2)*.211;
+    const [x,y,z] = fasciaPoint(model,1,across,-.184,.017);
+    part(body,rear==='road' ? trim : bucket,.034,rear==='vertical'?.203:.144,.29,x,y,z,box).rotation.x = -.117;
   }
 }
 
 function lenses(body, model, build, { lamp, brakeLamp, bucket, trim }) {
-  const { depth:d, width:w, shape, type }=model;
+  const { depth, type }=model;
+  const [, , , brow] = bodyDimensions(model,-depth);
+  const [, , , tail] = bodyDimensions(model,depth);
   const wideRear = type === 'electric' || build.taillights === 'bar';
-  const tailY = Math.max(.058,shape.deck-.093);
+  const rearLight = build.taillights === 'smoke' ? smokeLens : brakeLamp;
+  const tailY = tail - .069;
   if (wideRear) {
-    part(body,bucket,w*1.51,.105,.061,0,tailY,d+.017);
-    part(body,brakeLamp,w*1.46,.031,.024,0,tailY+.014,d+.050,box);
+    fasciaBand(body,darkLens,model,1,-.845,.845,()=>[tailY-.054,tailY+.032],.027);
+    fasciaBand(body,rearLight,model,1,-.805,.805,()=>[tailY-.014,tailY+.013],.034);
   }
   for (const side of [-1,1]) {
-    const frontY = Math.max(.065,shape.hood*.71);
-    const round = build.headlights==='halo' || build.headlights==='stock' && type==='muscle';
+    const round = build.headlights === 'halo' || build.headlights === 'stock' && ['muscle','roadster'].includes(type);
     if (round) {
-      for (const offset of [.59,.82]) {
-        const x = side * w * shape.nose * offset;
-        part(body,bucket,.208,.058,.208,x,frontY,-d-.013,circle).rotation.x=Math.PI/2;
-        part(body,build.headlights==='halo' ? lamp : trim,.169,.169,.112,x,frontY,-d-.038,ring);
-        part(body,clearLens,.128,.033,.128,x,frontY,-d-.049,circle).rotation.x=Math.PI/2;
-        part(body,lamp,.091,.028,.091,x,frontY,-d-.066,circle).rotation.x=Math.PI/2;
+      for (const across of type === 'roadster' && build.headlights === 'stock' ? [.761] : [.601,.815]) {
+        const [x,y,z] = fasciaPoint(model,-1,side*across,brow-.063,.025);
+        const angle = Math.PI/2;
+        const housing = type === 'muscle' || type === 'roadster' ? .208 : .157;
+        part(body,bucket,housing,.070,housing,x,y,z,circle).rotation.x=angle;
+        part(body,build.headlights==='halo'?lamp:trim,housing*.78,housing*.78,.082,x,y,z-.046,ring);
+        part(body,clearLens,housing*.71,.020,housing*.71,x,y,z-.052,circle).rotation.x=angle;
+        part(body,lamp,housing*.49,.026,housing*.49,x,y,z-.066,circle).rotation.x=angle;
       }
     } else {
-      const x = side*w*shape.nose*.71;
-      const scale = w*(type==='electric' ? .52 : .389);
-      part(body,darkLens,scale+.062,.151,.101,x,frontY,-d+.010);
-      part(body,clearLens,scale,.112,.048,x,frontY,-d-.046);
-      if (build.headlights==='projector') {
-        for (const p of [-.21,.21]) part(body,lamp,.089,.049,.089,x+p*scale,frontY-.013,-d-.065,circle).rotation.x=Math.PI/2;
+      const sweep = type === 'hyper' ? .199 : type === 'touring' || type === 'rally' ? .038 : .096;
+      const edgeY = x => brow - .125 + (Math.abs(x)-.47) * sweep;
+      fasciaBand(body,darkLens,model,-1,side*.467,side*.918,x=>[edgeY(x),edgeY(x)+.106],.024);
+      fasciaBand(body,clearLens,model,-1,side*.493,side*.896,x=>[edgeY(x)+.017,edgeY(x)+.091],.033);
+      if (build.headlights === 'projector') {
+        for (const across of [.64,.805]) {
+          const [x,y,z] = fasciaPoint(model,-1,side*across,edgeY(across)+.046,.044);
+          part(body,lamp,.062,.023,.062,x,y,z,circle).rotation.x=Math.PI/2;
+        }
       } else {
-        const blade = build.headlights==='blade';
-        part(body,lamp,scale*.94,blade?.022:.042,.027,x,frontY+.018,-d-.070,box).rotation.z=side*(blade?.15:.025);
-        if (blade) part(body,lamp,scale*.72,.014,.022,x,frontY-.016,-d-.067,box).rotation.z=side*.15;
+        const blade = build.headlights === 'blade' || build.headlights === 'stock' && type === 'hyper';
+        fasciaBand(body,lamp,model,-1,side*.505,side*.889,
+          x=>[edgeY(x)+.067,edgeY(x)+(blade?.080:.090)],.042);
+        if (blade) fasciaBand(body,lamp,model,-1,side*.557,side*.876,x=>[edgeY(x)+.031,edgeY(x)+.043],.044);
+      }
+      if (type === 'rally') {
+        const [x,y,z] = fasciaPoint(model,-1,side*.826,-.103,.054);
+        part(body,lamp,.086,.034,.086,x,y,z,circle).rotation.x=Math.PI/2;
       }
     }
+
     if (wideRear) continue;
-    const x = side*w*shape.tail*.64;
-    const light = build.taillights==='smoke' ? smokeLens : brakeLamp;
-    part(body,darkLens,w*.60,.131,.065,x,tailY,d+.020);
-    if (build.taillights==='pixel') {
-      for (let i=-2;i<=2;i++) part(body,light,.068,.055,.028,x+i*w*.096,tailY,d+.059,box);
+    const taper = x => tailY + .041 * (Math.abs(x) - .65);
+    fasciaBand(body,darkLens,model,1,side*.442,side*.912,x=>[taper(x)-.051,taper(x)+.044],.037);
+    if (build.taillights === 'pixel') {
+      for (let i=0;i<5;i++) {
+        const x = .474 + i*.082;
+        fasciaBand(body,rearLight,model,1,side*x,side*(x+.059),at=>[taper(at)-.023,taper(at)+.024],.045);
+      }
     } else {
-      part(body,light,w*.542,.077,.043,x,tailY,d+.058);
-      part(body,brakeLamp,w*.472,.018,.021,x,tailY+.013,d+.083,box);
+      fasciaBand(body,rearLight,model,1,side*.467,side*.892,x=>[taper(x)-.030,taper(x)+.027],.044);
+      fasciaBand(body,brakeLamp,model,1,side*.495,side*.878,x=>[taper(x)+.012,taper(x)+.027],.052);
     }
   }
 }
 
 export function coachwork(body, model, build, surfaces) {
   bodySkin(body,model,surfaces.paint,surfaces.carbon);
+  panelLines(body,model,surfaces);
   const mirrors = windshield(body,model,build,surfaces);
   fitMirrors(body,build,mirrors,surfaces);
   sideDetails(body,model,build,surfaces);

@@ -134,12 +134,13 @@ export function batchVehicleParts(group, castShadow = true) {
 }
 
 function shell(parent, material, sections, cross, stepsPerSection = 5) {
-  const rings = cross(sections[0]).length;
+  const profiles = sections.map(cross);
+  const rings = profiles[0].length;
   const steps = (sections.length - 1) * stepsPerSection;
   const tracks = Array.from({ length: rings }, (_, index) => new THREE.CatmullRomCurve3(
-    sections.map(section => {
-      const [x, y] = cross(section)[index];
-      return new THREE.Vector3(x, y, section[0]);
+    profiles.map((profile, row) => {
+      const [x, y, z = sections[row][0]] = profile[index];
+      return new THREE.Vector3(x, y, z);
     }), false, 'centripetal').getPoints(steps));
   const vertices = [];
   const indices = [];
@@ -577,5 +578,4 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
   return wheel;
 }
 
-export { formula as buildFormulaBody, paint as vehiclePaint, piece as vehiclePiece, profile as crossSection,
-  shell as loftShell, carbon as vehicleCarbon };
+export { formula as buildFormulaBody, paint as vehiclePaint, piece as vehiclePiece, shell as loftShell, carbon as vehicleCarbon };

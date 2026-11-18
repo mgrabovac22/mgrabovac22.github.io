@@ -1,30 +1,21 @@
 const formula = { mass: 770, axle: .93, length: 1.45, radius: .337, rest: .22, stance: .67,
   power: 8100, stiffness: 60, max: 52, steer: .55, width: .96, depth: 2.28, roof: .68, grip: 6.8, color: 0xc73830 };
 
-function model(id, name, type, setup, shape) {
-  return { id, name, type, ...formula, ...setup, shape };
+function model(id, name, type, setup) {
+  return { id, name, type, ...formula, ...setup };
 }
 
 export const raceModels = [
-  model('formula', 'Apex Formula', 'formula', {}, null),
-  model('vela', 'Vela GT', 'gt', { color: 0x4f87a9, mass: 1170, power: 10700, max: 49, axle: .92, radius: .365, depth: 2.36, roof: .79, steer: .51 },
-    { nose: .76, tail: .88, shoulders: 1.09, hood: .25, deck: .33, cabin: [-.83,-.37,.32,1.18], glass: .72 }),
-  model('meridian', 'Meridian LMP', 'prototype', { color: 0xc2dadd, mass: 905, power: 9500, max: 54, width: 1.02, length: 1.53, roof: .57, stance: .63, grip: 7.2 },
-    { nose: .94, tail: .97, shoulders: 1.06, hood: .11, deck: .25, cabin: [-.44,-.12,.32,1.24], glass: .47 }),
-  model('vector', 'Vector Touring', 'touring', { color: 0xd5ae59, mass: 1300, power: 10800, max: 47, radius: .375, roof: .98, stance: .72, grip: 6.4 },
-    { nose: .92, tail: .94, shoulders: 1.00, hood: .35, deck: .43, cabin: [-.93,-.60,.57,1.16], glass: .81 }),
-  model('coast', 'Coast Roadster', 'roadster', { color: 0x4b9d89, mass: 940, power: 8500, max: 46, width: .86, axle: .83, length: 1.32, depth: 2.13, radius: .33, roof: .60, steer: .59 },
-    { nose: .71, tail: .76, shoulders: 1.09, hood: .23, deck: .27, cabin: [-.64,-.37,.40,.83], glass: .72 }),
-  model('vortex', 'Vortex Hyper', 'hyper', { color: 0x8779ca, mass: 1210, power: 12700, max: 57, width: 1.01, axle: .99, depth: 2.43, roof: .66, grip: 7.0 },
-    { nose: .62, tail: .92, shoulders: 1.09, hood: .13, deck: .31, cabin: [-.79,-.29,.31,1.28], glass: .63 }),
-  model('atlas', 'Atlas V8 Muscle', 'muscle', { color: 0xbe5740, mass: 1470, power: 13200, max: 50, axle: .98, length: 1.54, depth: 2.47, radius: .365, roof: .88, steer: .49 },
-    { nose: .985, tail: .97, shoulders: 1.04, hood: .36, deck: .34, cabin: [-.34,-.04,.72,1.49], glass: .76 }),
-  model('kestrel', 'Kestrel S', 'rally', { color: 0xe4e2d2, mass: 1120, power: 10100, max: 45, width: .91, axle: .87, length: 1.24, depth: 1.99, radius: .36, roof: 1.06, stance: .72, stiffness: 50, steer: .60 },
-    { nose: .86, tail: .95, shoulders: 1.11, hood: .31, deck: .64, cabin: [-.82,-.48,.93,1.48], glass: .83 }),
-  model('ion', 'Ion R', 'electric', { color: 0x385a93, mass: 1460, power: 13900, max: 51, length: 1.54, depth: 2.39, radius: .37, roof: .85, steer: .50 },
-    { nose: .81, tail: .88, shoulders: 1.04, hood: .28, deck: .38, cabin: [-1.07,-.49,.35,1.37], glass: .77 }),
-  model('summit', 'Summit TA', 'attack', { color: 0x697873, mass: 1060, power: 10500, max: 51, width: .99, axle: .98, radius: .35, roof: .91, grip: 7.1 },
-    { nose: .84, tail: .94, shoulders: 1.13, hood: .25, deck: .39, cabin: [-.75,-.30,.50,1.24], glass: .78 }),
+  model('formula', 'Apex Formula', 'formula', {}),
+  model('vela', 'Vela GT', 'gt', { color: 0x4f87a9, mass: 1170, power: 10700, max: 49, axle: .92, radius: .365, depth: 2.36, roof: .79, steer: .51 }),
+  model('meridian', 'Meridian LMP', 'prototype', { color: 0xc2dadd, mass: 905, power: 9500, max: 54, width: 1.02, length: 1.53, roof: .57, stance: .63, grip: 7.2 }),
+  model('vector', 'Vector Touring', 'touring', { color: 0xd5ae59, mass: 1300, power: 10800, max: 47, radius: .375, roof: .98, stance: .72, grip: 6.4 }),
+  model('coast', 'Coast Roadster', 'roadster', { color: 0x4b9d89, mass: 940, power: 8500, max: 46, width: .86, axle: .83, length: 1.32, depth: 2.13, radius: .33, roof: .60, steer: .59 }),
+  model('vortex', 'Vortex Hyper', 'hyper', { color: 0x8779ca, mass: 1210, power: 12700, max: 57, width: 1.01, axle: .99, depth: 2.43, roof: .66, grip: 7.0 }),
+  model('atlas', 'Atlas V8 Muscle', 'muscle', { color: 0xbe5740, mass: 1470, power: 13200, max: 50, axle: .98, length: 1.54, depth: 2.47, radius: .365, roof: .88, steer: .49 }),
+  model('kestrel', 'Kestrel S', 'rally', { color: 0xe4e2d2, mass: 1120, power: 10100, max: 45, width: .91, axle: .87, length: 1.24, depth: 1.99, radius: .36, roof: 1.06, stance: .72, stiffness: 50, steer: .60 }),
+  model('ion', 'Ion R', 'electric', { color: 0x385a93, mass: 1460, power: 13900, max: 51, length: 1.54, depth: 2.39, radius: .37, roof: .85, steer: .50 }),
+  model('summit', 'Summit TA', 'attack', { color: 0x697873, mass: 1060, power: 10500, max: 51, width: .99, axle: .98, radius: .35, roof: .91, grip: 7.1 }),
 ];
 
 const models = new Map(raceModels.map(car => [car.id, car]));

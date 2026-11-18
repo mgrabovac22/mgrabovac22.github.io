@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { batchVehicleParts, buildFormulaBody, buildWheel, vehicleCarbon as carbon, vehiclePaint, vehiclePiece as part } from './drive-vehicle-art.js';
 import { normalizeRaceBuild, raceOptions, raceSpec, raceWheelWidth } from './drive-race-build.js';
-import { coachwork, fitFormulaTail, fitMirrors } from './drive-race-coachwork.js';
+import { bodySurfaceHeight, coachwork, fitFormulaTail, fitMirrors, sidePoint } from './drive-race-coachwork.js';
 
 const shapeBox = new THREE.BoxGeometry();
 const plate = new THREE.PlaneGeometry();
@@ -70,8 +70,8 @@ function primaryPaint(build, model, color) {
 
 function aero(body, model, build, paint, accent) {
   const { width, depth, type } = model;
-  const deck = model.shape?.deck ?? .14, hood = model.shape?.hood ?? .14;
   const rear = depth - .29;
+  const deck = bodySurfaceHeight(model,rear), hood = bodySurfaceHeight(model,-depth*.55);
   const fitted = { carbon, body: paint, accent, alloy };
   const wing = build.wing === 'stock'
     ? type === 'formula' ? (build.wingFinish === 'stock' ? 'none' : 'club')
@@ -82,6 +82,7 @@ function aero(body, model, build, paint, accent) {
     const height = deck + lift;
     const skin = fitted[build.wingFinish] ?? (wing === 'ducktail' ? paint : carbon);
     part(body, skin, width * span * 2, .073, chord, 0, height, rear).rotation.x = -.19;
+    if (wing === 'ducktail') part(body,skin,width*span*1.89,.087,.188,0,deck+.024,rear-.034);
     if (lift > .15) for (const side of [-1, 1]) {
       const rake = wing === 'swan' ? .24 : -.061;
       const foot = deck - .12, rise = height - foot;
@@ -141,8 +142,8 @@ function aero(body, model, build, paint, accent) {
   const outlets = build.exhaust === 'quad' ? [-.69,-.49,.49,.69] : build.exhaust === 'twin' ? [-.59,.59]
     : build.exhaust === 'angled' ? [-.77,.77] : build.exhaust === 'center' ? [0]
       : type === 'formula' ? (build.tipFinish === 'steel' ? [] : [0]) : type === 'electric' ? [] : [-.55,.55];
-  const longTip = Boolean(model.shape && build.rearBumper !== 'stock');
-  const tailMount = model.shape ? (longTip ? .152 : .083) : -.155;
+  const longTip = type !== 'formula' && build.rearBumper !== 'stock';
+  const tailMount = type === 'formula' ? -.155 : longTip ? .142 : build.exhaust === 'stock' ? -.021 : .057;
   for (const x of outlets) {
     const tip = part(body, tipMetal, x === 0 ? .22 : .114, longTip ? .34 : .25, .109, x * width, -.09, depth + tailMount, pipe);
     tip.rotation.x = Math.PI / 2;
@@ -163,8 +164,8 @@ function numberPlate(body, model, value) {
   map.colorSpace = THREE.SRGBColorSpace;
   const material = new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: .32 });
   for (const side of [-1, 1]) {
-    const x = side * model.width * (model.id === 'formula' ? .79 : model.shape.shoulders);
-    part(body, material, .42, .37, 1, x, model.id === 'formula' ? .099 : .136, .06, plate).rotation.y = side * Math.PI / 2;
+    const [x,y,z] = model.id === 'formula' ? [side * model.width * .79,.099,.06] : sidePoint(model,side,.06,.58,.014);
+    part(body, material, .42, .37, 1, x,y,z,plate).rotation.y = side * Math.PI / 2;
   }
   return material;
 }
@@ -187,7 +188,7 @@ function registrationPlate(body, model, build) {
   const map = new THREE.CanvasTexture(board);
   map.colorSpace = THREE.SRGBColorSpace;
   const material = new THREE.MeshBasicMaterial({ map });
-  const y = Math.max(.015, model.shape.deck * .31), z = model.depth + .078;
+  const y = Math.max(.015, bodySurfaceHeight(model,model.depth) * .29), z = model.depth + .078;
   part(body, bucket, .63,.211,.042,0,y,z,shapeBox);
   part(body, material, .592,.174,1,0,y,z+.024,plate);
   return material;
@@ -200,6 +201,7 @@ export function createRaceArtwork(input) {
   const primary = primaryPaint(build, model, build.paint);
   const accent = vehiclePaint(build.accent);
   const glass = vehiclePaint(glassColors[build.glass]);
+  if (model.type === 'roadster') glass.side = THREE.DoubleSide;
   const rim = new THREE.MeshStandardMaterial({ color: build.rimColor, metalness: .77, roughness: .32 });
   const caliper = new THREE.MeshStandardMaterial({ color: build.caliper, metalness: .38, roughness: .39 });
   const lamp = new THREE.MeshStandardMaterial({ color: lampColors[build.lights], emissive: lampColors[build.lights], emissiveIntensity: .64 });
