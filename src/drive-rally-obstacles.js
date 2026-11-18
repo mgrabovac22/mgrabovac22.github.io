@@ -16,7 +16,7 @@ function place(point, lateral, y, along) {
   return [point.x + point.tx * along + point.nx * lateral, y, point.z + point.tz * along + point.nz * lateral];
 }
 
-function deck(parent, world, point, lateral, width, profile) {
+export function timberDeck(parent, world, point, lateral, width, profile) {
   const platform = new THREE.Group();
   platform.position.set(...place(point, lateral, 0, 0));
   platform.rotation.y = point.yaw;
@@ -92,7 +92,7 @@ function postMarker(add, point, lateral, along) {
 }
 
 function bridge(parent, world, add, props, point, lateral, width, length, height) {
-  deck(parent, world, point, lateral, width, [
+  timberDeck(parent, world, point, lateral, width, [
     [-length - 6, -.09], [-length - 2, .27], [-length, height], [length, height], [length + 2, .27], [length + 6, -.09],
   ]);
   for (let along = -length + .4; along < length; along += 3.1) {
@@ -119,11 +119,11 @@ export function buildRallyObstacles(parent, world, route, add, props) {
     const point = route.sample(meters);
     const lip = -gap / 2;
     const land = gap / 2;
-    deck(parent, world, point, 0, width, [
+    timberDeck(parent, world, point, 0, width, [
       [lip - 18, -.08], [lip - 14, .10], [lip - 10, height * .23], [lip - 5, height * .57],
       [lip - 2, height * .81], [lip, height],
     ]);
-    deck(parent, world, point, 0, width + .45, [
+    timberDeck(parent, world, point, 0, width + .45, [
       [land, .75], [land + 3, 1.10], [land + 7, 1.04], [land + 14, .35], [land + 18, -.08],
     ]);
     for (const side of [-1, 1]) postMarker(add, point, side * (width / 2 + .40), lip - 19.2);

@@ -3,11 +3,13 @@ import { Body, Box, RaycastResult, Vec3 } from 'cannon-es';
 import { breakCrate, crateCollision, createCourseCrateSweep, createCrate, restoreCrate } from './drive-crates.js';
 import { makeBatches } from './drive-city.js';
 import { buildRallyObstacles } from './drive-rally-obstacles.js';
-import { buildRallyTerrain, rallyBridges, rallyJumps, waterline } from './drive-rally-terrain.js';
+import { buildRallyTerrain, castleBridges, rallyBridges, rallyJumps, waterline } from './drive-rally-terrain.js';
 import { buildRallyScenery } from './drive-rally-scenery.js';
 import { createRallyProps } from './drive-rally-props.js';
 import { buildRaceDistrict, buildRaceFence, createRaceGrid } from './drive-race.js';
 import { createRallyHunt, rallyHuntSites } from './drive-rally-hunt.js';
+import { buildIslandCastle } from './drive-island-castle.js';
+import { createCastleQuests } from './drive-castle-quests.js';
 export { RallyPhysicsWorld } from './drive-rally-props.js';
 
 const layouts = {
@@ -256,13 +258,15 @@ function buildRally(parent, world, route, add, rand, stops) {
   });
   buildRallyObstacles(parent, world, route, add, props);
   const sites = rallyHuntSites(route);
-  const huntPoints = [...Object.values(sites.stops), ...Object.values(sites.runes), ...sites.gates];
+  const huntPoints = [...Object.values(sites.stops), ...Object.values(sites.runes), ...sites.gates, ...castleBridges.map(bridge => bridge.outer)];
   const keepClear = (x, z) => huntPoints.some(point =>
     Math.hypot(point.x - x, point.z - z) < 4);
   const surroundings = buildRallyScenery(parent, props, route, terrain, add, rand, stops, signMaterial, keepClear);
   props.commit();
   const hunt = createRallyHunt(parent, world, route, terrain, sites);
-  return { terrain, wave, props, hunt, ...surroundings };
+  const castle = buildIslandCastle(parent, world, add, terrain);
+  const quests = createCastleQuests(parent, route);
+  return { terrain, wave, props, hunt, castle, quests, ...surroundings };
 }
 
 export function createCourse(scene, world, kind, stops = new Map()) {
@@ -318,7 +322,7 @@ export function createCourse(scene, world, kind, stops = new Map()) {
   let closest = { point: start, meters: 0, offset: 0 };
   let depth = 0;
   return {
-    route, start, grid, hunt: island?.hunt,
+    route, start, grid, hunt: island?.hunt, castleQuests: island?.quests,
     sync(position) {
       closest = route.locate(position);
       if (island) {
@@ -338,6 +342,8 @@ export function createCourse(scene, world, kind, stops = new Map()) {
         island.animate(motion ? time : 0, position);
         island.props.update(dt, motion);
         island.hunt.render(time, dt, motion, position);
+        island.quests.render(time, dt, motion, position);
+        island.castle.animate(motion ? time : 0, island.quests.flowing, motion);
       }
       for (const [index, ripple] of ripples.entries()) {
         ripple.visible = motion && depth > .02 && position.y < .88 && speed > .55;
@@ -366,6 +372,7 @@ export function createCourse(scene, world, kind, stops = new Map()) {
       for (const crate of crates) restoreCrate(world, crate);
       island?.props.reset(start);
       island?.hunt.cancelTrail();
+      island?.quests.cancelTrail();
     },
     safeLanding(x, z) {
       const { point, meters } = route.locate({ x, z });
@@ -397,6 +404,9 @@ export function createCourse(scene, world, kind, stops = new Map()) {
       if (!world.raycastClosest(rayStart, rayEnd, { collisionFilterMask: 1, skipBackfaces: true }, groundHit)) return null;
       return groundHit.hitNormalWorld.y > .62 && groundHit.hitPointWorld.y > waterline - .17 ? groundHit.hitPointWorld.y : null;
     },
-    offCourse(position) { return island ? depth > 1.08 && position.y < .27 : closest.offset > 13.8; },
+    offCourse(position, onFoot = false) {
+      if (!island) return closest.offset > 13.8;
+      return (!onFoot && island.castle.contains(position)) || depth > 1.08 && position.y < .27;
+    },
   };
 }

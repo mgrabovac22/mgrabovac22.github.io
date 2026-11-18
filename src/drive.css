@@ -70,6 +70,8 @@ button:disabled { opacity: .6; cursor: default; }
 #hunt-log::backdrop { background: #071917bd; }
 #hunt-log form { display: flex; justify-content: flex-end; }
 #hunt-log h2 { margin: .22rem 0 .65rem; }
+.hunt-campaign { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .72rem; margin: 0 0 .65rem; font-size: .83rem; }
+.hunt-campaign select { flex: 1; min-height: 40px; padding: .3rem .5rem; color: #fff4db; background: #1f4942; border: 1px solid #c3af7d; border-radius: .3rem; font: inherit; }
 #hunt-map { display: block; box-sizing: border-box; width: 100%; height: auto; border: 1px solid #b3a27370; border-radius: .32rem; }
 #hunt-stops { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.7rem; padding: 0 0 0 1.3rem; font-size: .84rem; }
 #hunt-stops li[aria-current] { color: #f6d88c; font-weight: 750; }

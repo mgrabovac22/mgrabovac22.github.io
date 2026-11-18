@@ -2,6 +2,17 @@ import * as THREE from 'three';
 import { Body, Heightfield, Vec3 } from 'cannon-es';
 
 export const waterline = -.37;
+export const castleIsland = { x: 0, z: 0, width: 48, length: 42 };
+export const castleBridges = [
+  { outer: { x: 84, z: 6 }, inner: { x: 43, z: 6 } },
+  { outer: { x: -94, z: 6 }, inner: { x: -43, z: 6 } },
+  { outer: { x: 8, z: -87 }, inner: { x: 8, z: -38 } },
+  { outer: { x: 8, z: 86 }, inner: { x: 8, z: 38 } },
+];
+
+export function castleIslandDistance(x, z) {
+  return Math.hypot(x / castleIsland.width, z / castleIsland.length);
+}
 export const rallyJumps = [
   { meters: 111, width: 10.9, height: 2.20, gap: 5.8 },
   { meters: 275, width: 8.6, height: 2.55, gap: 6.6 },
@@ -53,6 +64,9 @@ export function buildRallyTerrain(parent, world, route) {
       const taper = smooth(across, -64, -49) * (1 - smooth(across, 38, 49));
       height = Math.min(height, floor * depth * taper * (1 - smooth(bank, width * .39, width + 6)));
     }
+    const island = castleIslandDistance(x, z);
+    const bay = Math.sin(x * .17 + z * .14) * .026 + Math.cos(x * .093 - z * .067) * .044;
+    height = Math.max(height, floor * smooth(island + bay, .91, 1.17));
     return { height, lateral };
   }
 

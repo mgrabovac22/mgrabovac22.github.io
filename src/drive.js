@@ -318,7 +318,7 @@ async function boot() {
   let position = car.chassis.position;
   let walking = false;
   let dryFooting = null;
-  const huntHud = bindHuntHud(course?.hunt, copy.hunt, {
+  const huntHud = bindHuntHud(course?.hunt, course?.castleQuests, copy.hunt, copy.castle, {
     game, announce, setPaused, rewardCoins, position: () => position,
     canPlay: () => started && !stopped && !graphicsLost,
     parkedPosition: () => car.chassis.position,
@@ -711,7 +711,7 @@ async function boot() {
       yaw = safeYaw;
       launched = false;
       tippedFor = 0;
-      announce(rescue && mapKind === 'rally' ? t.waterRecovery : t.recovered);
+    announce(rescue && mapKind === 'rally' ? t.waterRecovery : t.recovered);
     }
   }
   function shoot() {
@@ -783,9 +783,10 @@ async function boot() {
       recovery(dt);
       if (exitRequested && speed < 4 && canExitHeight()) exitVehicle();
     } else if (course) {
-      if (course.offCourse(position) || position.y < -2) {
+      if (course.offCourse(position, true) || position.y < -2) {
         player.place(dryFooting.x, dryFooting.y, dryFooting.z, lookYaw);
         course.hunt.cancelTrail();
+        course.castleQuests.cancelTrail();
         announce(t.waterRecovery);
       } else if (time >= hudAt) {
         const level = course.walkSurface(position.x, position.z, position.y);

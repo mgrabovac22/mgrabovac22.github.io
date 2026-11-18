@@ -7,12 +7,12 @@
   <meta name="description" content="Drive through a city and explore my work, education and projects on overhead signs.">
   <link rel="icon" href="./art/mark.svg" type="image/svg+xml">
   <title>Night Shift — Marin Grabovac</title>
-  <script type="module" crossorigin src="./site-assets/drive-QbIO1PyF.js"></script>
+  <script type="module" crossorigin src="./site-assets/drive-CykolrS6.js"></script>
   <link rel="modulepreload" crossorigin href="./site-assets/preload-helper-DIbePYYx.js">
   <link rel="modulepreload" crossorigin href="./site-assets/three-CWPjJtKJ.js">
-  <link rel="modulepreload" crossorigin href="./site-assets/drive-player-nH8_OCri.js">
+  <link rel="modulepreload" crossorigin href="./site-assets/drive-rally-terrain-Ic2DaOjQ.js">
   <link rel="modulepreload" crossorigin href="./site-assets/story-R7dcc0_A.js">
-  <link rel="stylesheet" crossorigin href="./site-assets/drive-Bot5RZGn.css">
+  <link rel="stylesheet" crossorigin href="./site-assets/drive-D_XjX_L9.css">
 </head>
 <body>
   <main id="game" aria-labelledby="drive-title">
@@ -35,13 +35,17 @@
       </div>
     </header>
     <aside id="hunt-hud" hidden>
-      <button id="hunt-open" type="button" aria-haspopup="dialog" aria-controls="hunt-log"><span data-game-copy="treasureHunt">Treasure hunt</span><b id="hunt-count">0 / 4</b></button>
+      <button id="hunt-open" type="button" aria-haspopup="dialog" aria-controls="hunt-log"><span id="hunt-active-title" data-game-copy="treasureHunt">Treasure hunt</span><b id="hunt-count">0 / 4</b></button>
       <div class="hunt-objective"><span id="hunt-next"></span><span id="hunt-arrow" aria-hidden="true"><span>▲</span></span><span id="hunt-distance"></span></div>
     </aside>
     <button id="hunt-action" type="button" hidden></button>
     <dialog id="hunt-log" aria-labelledby="hunt-title">
       <form method="dialog"><button data-copy="close">Close</button></form>
       <h2 id="hunt-title" data-game-copy="treasureHunt">Treasure hunt</h2>
+      <label class="hunt-campaign"><span data-game-copy="questRoute">Quest route</span><select id="hunt-campaign">
+        <option value="beach" data-game-copy="treasureHunt">Treasure hunt</option>
+        <option value="castle" data-game-copy="castleQuests">Castle quests</option>
+      </select></label>
       <canvas id="hunt-map" width="470" height="290" aria-hidden="true"></canvas>
       <ol id="hunt-stops"></ol>
       <p id="hunt-instructions"></p>

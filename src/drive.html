@@ -29,13 +29,17 @@
       </div>
     </header>
     <aside id="hunt-hud" hidden>
-      <button id="hunt-open" type="button" aria-haspopup="dialog" aria-controls="hunt-log"><span data-game-copy="treasureHunt">Treasure hunt</span><b id="hunt-count">0 / 4</b></button>
+      <button id="hunt-open" type="button" aria-haspopup="dialog" aria-controls="hunt-log"><span id="hunt-active-title" data-game-copy="treasureHunt">Treasure hunt</span><b id="hunt-count">0 / 4</b></button>
       <div class="hunt-objective"><span id="hunt-next"></span><span id="hunt-arrow" aria-hidden="true"><span>▲</span></span><span id="hunt-distance"></span></div>
     </aside>
     <button id="hunt-action" type="button" hidden></button>
     <dialog id="hunt-log" aria-labelledby="hunt-title">
       <form method="dialog"><button data-copy="close">Close</button></form>
       <h2 id="hunt-title" data-game-copy="treasureHunt">Treasure hunt</h2>
+      <label class="hunt-campaign"><span data-game-copy="questRoute">Quest route</span><select id="hunt-campaign">
+        <option value="beach" data-game-copy="treasureHunt">Treasure hunt</option>
+        <option value="castle" data-game-copy="castleQuests">Castle quests</option>
+      </select></label>
       <canvas id="hunt-map" width="470" height="290" aria-hidden="true"></canvas>
       <ol id="hunt-stops"></ol>
       <p id="hunt-instructions"></p>
