@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Body, Box, RaycastVehicle, Vec3 } from 'cannon-es';
 import { createPerson } from './drive-people.js';
-import { buildUtilityBody, buildWheel } from './drive-vehicle-art.js';
+import { buildCityWheel, buildUtilityBody, buildWheel, fitBikeHelmet } from './drive-vehicle-art.js';
 import { crateGroup } from './drive-crates.js';
 import { modelFor, raceWheelWidth } from './drive-race-build.js';
 
@@ -20,31 +20,68 @@ const up = new Vec3(0, 1, 0);
 const forward = new Vec3(0, 0, -1);
 const idle = { forward: false, reverse: false, left: false, right: false, brake: true };
 
+function mountBikeRider(body, { fork, grip }) {
+  const { view, parts } = createPerson(body, 5, true);
+  const [torso, head] = parts;
+  view.scale.setScalar(.84);
+  view.rotation.y = Math.PI;
+  view.position.set(0, -.371, .226);
+  torso.rotation.x = .86;
+  head.rotation.x = -.73;
+  fitBikeHelmet(head);
+
+  const down = new THREE.Vector3(0,-1,0);
+  const target = new THREE.Vector3();
+  const line = new THREE.Vector3();
+  const elbow = new THREE.Vector3();
+  const bend = new THREE.Vector3();
+  const relative = new THREE.Quaternion();
+  // Solve the two segments in torso space without changing their lengths.
+  function poseLimb(upper, lower, lowerLength) {
+    const upperLength = lower.position.length();
+    line.copy(target).sub(upper.position);
+    const reach = THREE.MathUtils.clamp(line.length(), Math.abs(upperLength-lowerLength)+.001, upperLength+lowerLength-.001);
+    line.normalize();
+    const along = (upperLength**2 - lowerLength**2 + reach**2)/(2*reach);
+    bend.addScaledVector(line, -bend.dot(line)).normalize();
+    elbow.copy(line).multiplyScalar(along).addScaledVector(bend, Math.sqrt(Math.max(0,upperLength**2-along**2)));
+    upper.quaternion.setFromUnitVectors(down,line.copy(elbow).normalize());
+    relative.copy(upper.quaternion).invert();
+    line.copy(target).sub(upper.position).sub(elbow).applyQuaternion(relative).normalize();
+    lower.quaternion.setFromUnitVectors(down,line);
+  }
+  for (const i of [0,1]) {
+    const side = i===0 ? 1 : -1;
+    torso.worldToLocal(body.localToWorld(target.set(side*.275,-.057,.294)));
+    bend.set(-side*.63,-.26,1);
+    poseLimb(parts[6+i], parts[8+i], .368);
+  }
+  let previousSteering = NaN;
+  function followBars(steering) {
+    if (Math.abs(previousSteering-steering)<.001) return;
+    previousSteering = steering;
+    for (const i of [0,1]) {
+      const side = i===0 ? 1 : -1;
+      target.copy(grip);
+      target.x *= side;
+      torso.worldToLocal(fork.localToWorld(target));
+      bend.set(-side*.44,-1,-.06);
+      poseLimb(parts[2+i], parts[4+i], .259);
+    }
+  }
+  followBars(0);
+  return { view, followBars };
+}
+
 export function createUtilityVehicle(scene, world, kind, artwork) {
   const p = artwork?.model ?? (kind === 'formula' ? modelFor(kind) : presets[kind]);
   const openWheel = p.id === 'formula';
   const bike = kind === 'bike';
   const race = artwork?.instantiate();
   const body = race?.view ?? new THREE.Group();
-  const { equipment, pilot } = race ? {} : buildUtilityBody(body, kind, p);
-  let rider = pilot;
-  if (bike) {
-    const { view, parts } = createPerson(body, 5, true);
-    rider = view;
-    rider.scale.setScalar(.84);
-    rider.rotation.y = Math.PI;
-    rider.position.set(0, -.34, .45);
-    parts[0].rotation.x = -.37;
-    parts[1].rotation.x = .26;
-    for (const side of [0, 1]) {
-      parts[2 + side].rotation.x = -1.13;
-      parts[2 + side].rotation.z = (side ? 1 : -1) * .34;
-      parts[4 + side].rotation.x = -.58;
-      parts[6 + side].rotation.x = -1.12;
-      parts[6 + side].rotation.z = (side ? 1 : -1) * .22;
-      parts[8 + side].rotation.x = 1.58;
-    }
-  }
+  const { equipment, pilot, frontFork } = race ? {} : buildUtilityBody(body, kind, p);
+  const bikeRider = frontFork ? mountBikeRider(body, frontFork) : null;
+  const rider = bikeRider?.view ?? pilot;
   scene.add(body);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({
     color: 0x0a1419, opacity: .29, transparent: true, depthWrite: false,
@@ -81,8 +118,9 @@ export function createUtilityVehicle(scene, world, kind, artwork) {
         dampingRelaxation: 3.8, dampingCompression: 5.5, maxSuspensionTravel: p.rest * .77,
         rollInfluence: .06, frictionSlip: p.grip ?? (kind === 'buggy' ? 4.2 : bike ? 4.4 : 5.1),
       });
-      const width = kind === 'monster' ? .66 : bike ? .20 : openWheel ? raceWheelWidth(p, z) : .34;
-      const wheel = race?.wheels[wheels.length] ?? (kind === 'tank' ? null : buildWheel(p.radius, width, bike ? 5 : 7, side, !openWheel, kind === 'buggy'));
+      const width = openWheel ? raceWheelWidth(p, z) : .34;
+      const wheel = race?.wheels[wheels.length] ?? (kind === 'tank' ? null :
+        buildCityWheel(kind, p.radius, side, z<0) ?? buildWheel(p.radius, width, 7, side, !openWheel, kind === 'buggy'));
       if (wheel) scene.add(wheel);
       wheels.push(wheel);
     }
@@ -180,6 +218,12 @@ export function createUtilityVehicle(scene, world, kind, artwork) {
       if (progress >= 1) recovery = null;
     }
     if (rider) rider.visible = occupied;
+    if (frontFork) {
+      const { steering, suspensionLength } = rig.wheelInfos[0];
+      frontFork.fork.rotation.y = steering;
+      frontFork.slider.position.y = p.rest - suspensionLength;
+      if (occupied) bikeRider.followBars(steering);
+    }
     shadow.position.set(body.position.x, .092, body.position.z);
     shadow.material.opacity = .29 / Math.max(1, 1 + body.position.y - p.stance);
     inverse.copy(chassis.quaternion).invert();

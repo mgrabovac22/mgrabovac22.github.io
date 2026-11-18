@@ -56,6 +56,15 @@ const lensDot = new THREE.SphereGeometry(.5, 9, 6);
 const steeringWheel = new THREE.TorusGeometry(.116, .019, 6, 17);
 const whitewall = new THREE.TorusGeometry(.5, .027, 5, 28).rotateY(Math.PI / 2);
 const wheelSpoke = new THREE.BoxGeometry();
+const trimBlock = new RoundedBoxGeometry(1, 1, 1, 1, .12);
+const bolt = new THREE.CylinderGeometry(.5, .5, 1, 6);
+const lensRing = new THREE.TorusGeometry(.5, .044, 6, 24);
+const signal = new THREE.MeshStandardMaterial({ color: 0xd78a2b, emissive: 0xc96314, emissiveIntensity: .40, roughness: .27 });
+const blackGlass = new THREE.MeshPhysicalMaterial({ color: 0x17282e, metalness: .30, roughness: .17, clearcoat: .95 });
+const ivory = new THREE.MeshStandardMaterial({ color: 0xdcd9bf, roughness: .39, metalness: .21 });
+const redEnamel = new THREE.MeshStandardMaterial({ color: 0x9a3023, roughness: .36, metalness: .26 });
+const plateFace = new THREE.PlaneGeometry();
+const plates = new Map();
 
 function paint(color) {
   return new THREE.MeshPhysicalMaterial({ color, clearcoat: .74, clearcoatRoughness: .19, metalness: .53, roughness: .29 });
@@ -100,6 +109,49 @@ function spring(body, start, end) {
   }
   const coil = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 44, .020, 5);
   body.add(new THREE.Mesh(coil, accent));
+}
+
+function fastener(parent, material, diameter, x, y, z, face = 'z') {
+  const head = piece(parent, material, diameter, .018, diameter, x, y, z, bolt);
+  if (face === 'x') head.rotation.z = Math.PI / 2;
+  if (face === 'z') head.rotation.x = Math.PI / 2;
+}
+
+function lightProjector(parent, diameter, x, y, z) {
+  piece(parent, trim, diameter * 1.09, .058, diameter * 1.09, x, y, z, cylinder).rotation.x = Math.PI / 2;
+  piece(parent, headlamp, diameter, diameter, .03, x, y, z - .038, lensRing);
+  piece(parent, blackGlass, diameter * .79, .028, diameter * .79, x, y, z - .023, cylinder).rotation.x = Math.PI / 2;
+  piece(parent, headlamp, diameter * .46, diameter * .39, .039, x, y, z - .044, lensDot);
+}
+
+function license(parent, id, width, height, y, z, pitch = 0) {
+  if (!plates.has(id) && typeof document !== 'undefined') {
+    const board = document.createElement('canvas');
+    board.width = 128;
+    board.height = 48;
+    const ink = board.getContext('2d');
+    ink.fillStyle = '#e0e5de';
+    ink.fillRect(0, 0, 128, 48);
+    ink.fillStyle = '#375777';
+    ink.fillRect(0, 0, 16, 48);
+    ink.fillStyle = '#182631';
+    ink.font = 'bold 25px monospace';
+    ink.textAlign = 'center';
+    ink.textBaseline = 'middle';
+    ink.fillText(id, 71, 25, 102);
+    const map = new THREE.CanvasTexture(board);
+    map.colorSpace = THREE.SRGBColorSpace;
+    plates.set(id, new THREE.MeshStandardMaterial({ map, roughness: .64 }));
+  }
+  piece(parent, plates.get(id) ?? ivory, width, height, 1, 0, y, z, plateFace).rotation.x = pitch;
+}
+
+export function fitBikeHelmet(head) {
+  head.layers.disableAll();
+  piece(head, satin, .243, .262, .286, 0, .123, -.012, helmet);
+  piece(head, blackGlass, .215, .095, .176, 0, .146, .068, helmet);
+  piece(head, carbon, .188, .089, .162, 0, .059, .063, helmet);
+  piece(head, braking, .069, .015, .019, 0, .095, -.151, trimBlock);
 }
 
 // Bake only fixed pieces together. Turret, nozzle, wheels and rider retain their pivots.
@@ -170,35 +222,95 @@ function profile(width, bottom, top, taper = .81) {
     [-width * taper, top], [-width, top - (top - bottom) * .16], [-width * .99, bottom * .55 + top * .45], [-width * .84, bottom]];
 }
 
-function bike(body, color) {
-  shell(body, color, [[-.86, .13, .23, .38], [-.67, .25, .17, .53], [-.35, .29, .14, .55],
-    [-.04, .22, .17, .51], [.22, .16, .25, .43], [.43, .17, .29, .42]], ([, w, y, h]) => profile(w, y, h));
-  shell(body, trim, [[.12, .14, .43, .47], [.43, .25, .42, .52], [.85, .21, .43, .56], [1.21, .10, .38, .47]],
-    ([, w, y, h]) => profile(w, y, h, .91));
-  piece(body, hub, .46, .41, .64, 0, .09, .07);
-  piece(body, lens, .34, .26, .06, 0, .71, -.77).rotation.x = -.35;
-  piece(body, headlamp, .29, .09, .054, 0, .43, -.858);
-  piece(body, braking, .25, .057, .06, 0, .44, 1.21);
-  piece(body, trim, .29, .075, .034, 0, .25, 1.29);
-  shell(body, color, [[-1.45, .099, .11, .135], [-1.32, .119, .24, .27], [-1.12, .119, .29, .33], [-.91, .099, .21, .24]],
-    ([, w, y, h]) => profile(w, y, h, .92));
-  piece(body, satin, .105, .066, .177, .016, .615, -.53);
+function bike(body, color, p) {
+  const roundedProfile = ([, w, low, high]) => profile(w, low, high, .79);
+  shell(body, color, [[-.67, .13, .31, .48], [-.52, .24, .24, .63], [-.25, .29, .23, .66],
+    [.00, .258, .255, .59], [.24, .15, .32, .49], [.43, .11, .36, .42]], roundedProfile);
+  shell(body, color, [[-.99, .162, .32, .415], [-.88, .246, .275, .535], [-.74, .298, .18, .53],
+    [-.60, .283, .122, .425], [-.42, .20, .108, .30]], roundedProfile);
+  shell(body, blackGlass, [[-.95, .12, .43, .46], [-.84, .162, .481, .522], [-.68, .177, .535, .642],
+    [-.54, .124, .598, .737]], roundedProfile);
+  shell(body, carbon, [[-.65, .14, -.24, -.11], [-.38, .234, -.286, -.068], [.14, .23, -.277, -.14],
+    [.44, .122, -.208, -.106]], roundedProfile);
+  shell(body, color, [[.24, .153, .28, .432], [.53, .206, .277, .45], [.85, .195, .304, .529],
+    [1.12, .13, .345, .553], [1.26, .07, .39, .49]], roundedProfile);
+  shell(body, padding, [[.17, .109, .45, .476], [.30, .172, .414, .465], [.60, .186, .418, .475],
+    [.74, .164, .45, .495]], roundedProfile);
+  piece(body, satin, .135, .023, .135, 0, .676, -.271, cylinder);
+  piece(body, trim, .085, .026, .085, 0, .678, -.271, cylinder);
+  piece(body, hub, .405, .33, .52, 0, -.036, .005, trimBlock).rotation.x = -.18;
+  piece(body, trim, .37, .274, .09, 0, .041, -.434, trimBlock).rotation.x = .26;
+  for (let row = 0; row < 7; row++) piece(body, castSteel, .326, .011, .021, 0, -.056 + row*.028, -.484 - row*.006, wheelSpoke);
+  piece(body, trim, .231, .12, .035, 0, .23, 1.252, trimBlock).rotation.x = -.23;
+  license(body,'NS 03',.176,.080,.22,1.279,-.23);
+  beam(body, trim, [0, .358, 1.11], [0, .267, 1.263], .045);
+
+  const fork = new THREE.Group();
+  fork.position.z = -p.length;
+  const slider = new THREE.Group();
+  fork.add(slider);
+  body.add(fork);
+  const axleY = -.10 - p.rest;
+  shell(slider, color, [[-.34, .086, axleY + .16, axleY + .193], [-.24, .128, axleY + .29, axleY + .337],
+    [-.05, .137, axleY + .345, axleY + .402], [.14, .124, axleY + .318, axleY + .354],
+    [.27, .105, axleY + .23, axleY + .26]], roundedProfile);
+  beam(fork, castSteel, [-.158,.463,.363], [.158,.463,.363], .060);
+  beam(fork, hub, [-.154,.226,.253], [.154,.226,.253], .062);
+  beam(slider, castSteel, [-.153,axleY,0], [.153,axleY,0], .046);
+  const grip = new THREE.Vector3(.291,.561,.667);
+
   for (const side of [-1, 1]) {
-    const x = side * .16;
-    beam(body, satin, [x, -.10, -1.08], [x, .57, -.66], .077);
-    beam(body, hub, [side * .22, -.14, 1.11], [side * .22, .04, .17], .070);
-    beam(body, color, [side * .21, .06, .29], [side * .24, .48, -.45], .072);
-    beam(body, satin, [side * .30, -.12, .32], [side * .33, -.047, .95], .108);
-    beam(body, trim, [side * .33, -.047, .94], [side * .33, -.039, 1.025], .084, true);
-    beam(body, satin, [0, .655, -.55], [side * .38, .71, -.57], .048);
-    beam(body, trim, [side * .25, .69, -.57], [side * .39, .71, -.57], .077);
-    piece(body, lens, .14, .07, .083, side * .38, .84, -.61).rotation.y = side * .27;
-    beam(body, satin, [side * .30, .70, -.56], [side * .38, .84, -.61], .021);
-    beam(body, satin, [side * .14, -.04, 1.09], [side * .19, .34, .61], .062);
-    beam(body, accent, [side * .15, .075, .96], [side * .18, .26, .72], .079);
-    beam(body, trim, [side * .23, -.14, .30], [side * .35, -.14, .30], .061);
-    for (let fin = 0; fin < 5; fin++) piece(body, satin, .045, .016, .32, side * .24, fin * .042 - .022, .02);
+    const s = side;
+    // Thin light blades continue around each side of the fairing.
+    const blade = [[s*.064,.367,-1.001],[s*.139,.380,-.99],[s*.222,.416,-.921],[s*.267,.447,-.851]];
+    molding(body, trim, blade, .032);
+    molding(body, headlamp, blade.map(([x,y,z]) => [x,y+.008,z-.018]), .010);
+    piece(body, signal, .027, .034, .091, s*.287, .336, -.775, trimBlock).rotation.x = -.21;
+    molding(body, carbon, [[s*.237,.171,-.662],[s*.291,.23,-.592],[s*.294,.374,-.532],[s*.205,.455,-.467]], .023);
+    for (let fin = 0; fin < 6; fin++) {
+      piece(body, satin, .071, .014, .201, s*.210, .054+fin*.033, -.132-fin*.024, wheelSpoke).rotation.x = -.28;
+    }
+    piece(body, castSteel, .208, .052, .208, s*.217, -.066, .174, cylinder).rotation.z = Math.PI/2;
+    piece(body, hub, .142, .06, .142, s*.245, -.068, .171, cylinder).rotation.z = Math.PI/2;
+    for (let i = 0; i < 5; i++) {
+      const angle = i*Math.PI*2/5;
+      fastener(body, satin,.020,s*.266,-.066+Math.sin(angle)*.074,.171+Math.cos(angle)*.074,'x');
+    }
+    beam(body, castSteel,[s*.156,.382,-.537],[s*.202,.104,.165],.079);
+    beam(body, carbon,[s*.196,.089,.21],[s*.178,axleY,1.12],.094);
+    beam(body, satin,[s*.165,axleY,.99],[s*.176,.209,.51],.042);
+    beam(body, accent,[s*.176,.015,.85],[s*.183,.173,.562],.074);
+    beam(body, satin,[s*.176,-.101,.272],[s*.316,-.101,.272],.052);
+    beam(body, trim,[s*.252,-.101,.272],[s*.320,-.101,.272],.061);
+    molding(body, braking, [[s*.041,.444,1.27],[s*.095,.468,1.237],[s*.139,.487,1.16]],.018);
+    piece(body, signal, .076, .023, .039, s*.119, .313, 1.205, trimBlock);
+    beam(body, carbon,[s*.197,.509,-.724],[s*.338,.665,-.729],.025);
+    piece(body, color, .164, .068, .093, s*.365, .673, -.736, trimBlock).rotation.y = s*.27;
+    piece(body, lens, .128, .051, .014, s*.376, .675, -.689, trimBlock).rotation.y = s*.27;
+    const x = s*.137;
+    beam(fork, accent,[x,.109,.127],[x,.481,.374],.065);
+    beam(slider, satin,[x,axleY,.002],[x,.166,.159],.044);
+    beam(slider, hub,[x,axleY,.002],[x,axleY+.137,.045],.074);
+    piece(slider, redEnamel,.040,.102,.072,s*.112,axleY+.064,.108,trimBlock).rotation.x = -.27;
+    molding(fork, satin,[[s*.096,.494,.404],[s*.164,.548,.527],[s*.228,.557,.654],[s*.249,.56,.663]],.019);
+    beam(fork, trim,[s*.242,.56,.659],[s*.340,.563,.675],.049);
+    beam(fork, satin,[s*.254,.557,.603],[s*.343,.551,.637],.016);
   }
+
+  // Offset exhaust deliberately leaves the chain and swingarm exposed.
+  molding(body, castSteel, [[.103,-.01,-.30],[.16,-.194,-.23],[.227,-.225,.144],[.284,-.099,.55]], .036);
+  beam(body, satin,[.284,-.099,.49],[.292,.074,1.013],.125);
+  beam(body, carbon,[.29,.046,.922],[.293,.087,1.051],.134,true);
+  beam(body, castSteel,[.292,.069,.997],[.293,.087,1.055],.094,true);
+  beam(body, hub,[-.134,-.146,.208],[-.147,axleY+.119,1.12],.044);
+  beam(body, trim,[-.14,-.292,.25],[-.15,axleY-.079,1.12],.033);
+  for (let link = 0; link < 13; link++) {
+    const t = link/12;
+    piece(body, castSteel,.039,.019,.027,-.148,-.289-.16*t,.26+.86*t,wheelSpoke).rotation.x = -.18;
+  }
+  batchVehicleParts(slider);
+  batchVehicleParts(fork);
+  return { fork, slider, grip };
 }
 
 function makeTracks(body) {
@@ -210,9 +322,20 @@ function makeTracks(body) {
   path.lineTo(-1.44, -.83);
   path.quadraticCurveTo(-1.88, -.83, -1.88, -.40);
   path.quadraticCurveTo(-1.88, .018, -1.44, .018);
-  const count = 43;
+  const count = 48;
   const length = path.getLength();
-  const template = rounded.clone().scale(.39, .058, length / count * .88);
+  const pitch = length/count;
+  const shapes = [
+    trimBlock.clone().scale(.402,.055,pitch*.89),
+    wheelSpoke.clone().scale(.184,.031,pitch*.23).rotateY(.30).translate(-.094,.034,0),
+    wheelSpoke.clone().scale(.184,.031,pitch*.23).rotateY(-.30).translate(.094,.034,0),
+    wheelSpoke.clone().scale(.040,.042,pitch*.51).translate(-.184,.006,0),
+    wheelSpoke.clone().scale(.040,.042,pitch*.51).translate(.184,.006,0),
+  ];
+  const unindexed = shapes.map(shape => shape.index ? shape.toNonIndexed() : shape);
+  const template = mergeGeometries(unindexed);
+  for (const shape of new Set([...shapes, ...unindexed])) shape.dispose();
+  template.userData.vehicleOwned = true;
   const pads = [-1, 1].map(side => {
     const mesh = new THREE.InstancedMesh(template, beltRubber, count);
     mesh.position.x = side * 1.055;
@@ -229,8 +352,8 @@ function makeTracks(body) {
     phase = (phase + distance / length) % 1;
     for (let i = 0; i < count; i++) {
       const spot = (i / count + phase + 1) % 1;
-      path.getPoint(spot, here);
-      path.getPoint((spot + .001) % 1, ahead);
+      path.getPointAt(spot, here);
+      path.getPointAt((spot + .001) % 1, ahead);
       pose.position.set(0, here.y, here.x);
       pose.rotation.x = Math.atan2(here.y - ahead.y, ahead.x - here.x);
       pose.updateMatrix();
@@ -248,24 +371,43 @@ function serviceTank(body, color) {
     [.87, 1.10, -.31, .50], [1.70, 1.08, -.34, .42], [1.98, .97, -.37, .33]], ([, w, y, h]) => profile(w, y, h, .93));
   for (const side of [-1, 1]) {
     const x = side * 1.04;
-    piece(body, steel, .38, .20, 3.47, x, .125, 0);
-    piece(body, trim, .14, .13, 3.02, x + side * .037, -.23, .04);
-    piece(body, castSteel, .20, .43, 2.48, x + side * .045, -.40, 0);
-    piece(body, steel, .075, .16, 2.28, x + side * .15, -.30, 0);
-    for (const z of [-1.04, -.52, 0, .52, 1.04]) {
-      piece(body, hub, .035, .082, .17, x + side * .16, -.51, z);
+    piece(body, steel, .443, .158, 3.53, x, .147, -.009,trimBlock);
+    piece(body, hub, .079, .093, 3.25, x+side*.196, .102, 0,trimBlock);
+    piece(body, trim, .415, .13, .38, x, .077, -1.678,trimBlock).rotation.x = -.20;
+    piece(body, trim, .415, .13, .38, x, .077, 1.674,trimBlock).rotation.x = .20;
+    piece(body, trim, .316, .566, 3.12, x+side*.002, -.409, 0,trimBlock);
+    piece(body, castSteel, .226, .420, 2.52, x+side*.083, -.408, 0,trimBlock);
+    piece(body, hub, .087, .076, 2.88, x+side*.178, -.231, 0,trimBlock);
+    for (const z of [-1.07,-.542,0,.542,1.07]) {
+      piece(body, steel,.089,.254,.477,x+side*.147,-.424,z,trimBlock);
+      piece(body, trim,.033,.057,.140,x+side*.191,-.489,z,trimBlock);
+      fastener(body,castSteel,.037,x+side*.201,-.338,z-.127,'x');
+      fastener(body,castSteel,.037,x+side*.201,-.338,z+.126,'x');
     }
-    for (let slat = 0; slat < 5; slat++) piece(body, trim, .21, .021, .047, side * .65, .455, 1.14 + slat * .103);
-    piece(body, headlamp, .23, .108, .04, side * .67, .235, -1.992);
-    piece(body, braking, .22, .084, .052, side * .78, .242, 1.988);
-    piece(body, accent, .065, .036, 1.89, side * 1.17, .227, .09);
-    piece(body, castSteel, .39, .07, .45, side * .70, .442, 1.61);
-    for (const end of [-1, 1]) beam(body, castSteel,
-      [side * .69, .12, end * 1.87], [side * .69, .12, end * 2.10], .078);
-    beam(body, satin, [side * .86, .30, .81], [side * .86, .30, 1.83], .037);
+    piece(body, trim,.358,.043,.598,side*.630,.422,1.350,trimBlock).rotation.x=.070;
+    for (let slat=0;slat<8;slat++) piece(body,castSteel,.294,.026,.033,side*.63,.476-slat*.006,1.117+slat*.061,wheelSpoke).rotation.x=.32;
+    piece(body, castSteel,.383,.065,.285,side*.70,.430,1.728,trimBlock);
+    piece(body, signal,.132,.025,.020,side*.939,.275,1.846,trimBlock);
+    lightProjector(body,.144,side*.723,.210,-1.987);
+    piece(body, braking,.118,.065,.027,side*.749,.187,1.995,trimBlock);
+    piece(body, reverse,.055,.041,.027,side*.645,.182,1.998,trimBlock);
+    piece(body, ivory,.012,.049,1.39,side*1.110,.296,.073,trimBlock);
+    for (const end of [-1, 1]) {
+      const z=end*1.93;
+      beam(body,castSteel,[side*.682,.127,z-.08*end],[side*.680,.123,z+.138*end],.080);
+      piece(body,redEnamel,.139,.108,.049,side*.680,.123,z+.135*end,trimBlock);
+    }
+    molding(body,satin,[[side*.845,.462,-1.26],[side*.845,.538,-1.14],[side*.849,.567,-.70],[side*.854,.504,-.589]],.021);
+    molding(body,satin,[[side*.856,.447,.991],[side*.855,.573,1.109],[side*.855,.545,1.586],[side*.855,.439,1.725]],.021);
+    piece(body,steel,.270,.162,.456,side*.793,.526,.459,trimBlock);
+    beam(body,satin,[side*.809,.619,.353],[side*.809,.619,.521],.024);
+    for (const z of [.258,.648]) fastener(body,hub,.040,side*.793,.609,z,'y');
   }
-  piece(body, satin, .29, .11, .065, 0, .065, 2.017);
-  for (let u = -4; u <= 4; u++) piece(body, trim, .10, .012, .29, u * .13, .465, 1.27);
+  piece(body, trim,.793,.154,.055,0,.105,1.993,trimBlock);
+  for (let step=0;step<3;step++) piece(body,castSteel,.611,.024,.063,0,.061+step*.045,2.029,wheelSpoke);
+  piece(body, steel,.722,.032,.282,0,.376,-1.745,trimBlock).rotation.x=.32;
+  for (let i=-2;i<=2;i++) piece(body,trim,.089,.023,.128,i*.116,.410,-1.712,wheelSpoke).rotation.x=.29;
+  for (const x of [-.30,.30]) fastener(body,satin,.042,x,.438,-1.603,'y');
   const roll = makeTracks(body);
   const turret = new THREE.Group();
   turret.position.set(0, .55, .08);
@@ -273,25 +415,42 @@ function serviceTank(body, color) {
   piece(turret, hub, 1.43, .19, 1.43, 0, 0, 0, cylinder);
   shell(turret, steel, [[-.69, .43, .04, .34], [-.42, .64, .04, .52], [.34, .67, .05, .55], [.70, .53, .04, .41]],
     ([, w, y, h]) => profile(w, y, h, .85));
-  piece(turret, lens, .55, .056, .36, -.16, .552, .22);
-  piece(turret, hub, .29, .037, .29, .33, .549, .27, cylinder);
-  piece(turret, castSteel, .38, .048, .38, .33, .553, .27, pipe);
-  beam(turret, castSteel, [.25, .597, .26], [.40, .597, .26], .022);
+  piece(turret, trim,.551,.062,.364,-.178,.552,.224,trimBlock);
+  piece(turret, steel,.482,.043,.298,-.178,.581,.224,trimBlock).rotation.x=-.064;
+  beam(turret,satin,[-.308,.603,.229],[-.083,.603,.229],.026);
+  piece(turret,hub,.36,.041,.36,.324,.553,.27,cylinder);
+  piece(turret,castSteel,.302,.044,.302,.324,.574,.27,cylinder);
+  beam(turret,trim,[.247,.607,.27],[.411,.607,.27],.025);
+  for (let i=0;i<8;i++) {
+    const angle=i*Math.PI/4;
+    fastener(turret,satin,.022,.324+Math.cos(angle)*.169,.581,.27+Math.sin(angle)*.169,'y');
+  }
   for (const side of [-1, 1]) {
     beam(turret, trim, [side * .37, .34, -.30], [side * .32, .21, -.59], .069);
     molding(turret, hub, [[side * .32, .21, -.57], [side * .23, .12, -.34], [side * .17, .23, -.14]], .034);
+    piece(turret, color,.074,.156,.497,side*.605,.194,.164,trimBlock);
+    for (const z of [-.015,.338]) fastener(turret,castSteel,.038,side*.649,.186,z,'x');
+    molding(turret,trim,[[side*.224,.34,-.57],[side*.453,.385,-.38],[side*.488,.431,-.17]],.030);
   }
-  piece(turret, headlamp, .35, .063, .031, -.04, .40, -.642);
-  beam(turret, trim, [.47, .35, .56], [.46, .98, .61], .021);
+  piece(turret, blackGlass,.301,.121,.035,-.282,.382,-.569,trimBlock).rotation.y=-.24;
+  piece(turret, headlamp,.121,.055,.029,.318,.356,-.568,trimBlock).rotation.y=.24;
+  beam(turret, hub,[.466,.39,.54],[.47,.578,.576],.073);
+  beam(turret, trim,[.47,.52,.57],[.46,.98,.61],.021);
   const nozzle = new THREE.Group();
   nozzle.position.set(0, .34, -.46);
   turret.add(nozzle);
-  beam(nozzle, satin, [0, 0, -.10], [0, 0, -1.38], .17);
-  beam(nozzle, steel, [0, 0, -.19], [0, 0, -.60], .288);
-  beam(nozzle, satin, [0, 0, -1.34], [0, 0, -1.87], .30, true);
-  beam(nozzle, hub, [0, 0, -1.64], [0, 0, -1.92], .352, true);
-  beam(nozzle, trim, [0, 0, -1.57], [0, 0, -1.88], .207, true);
-  piece(nozzle, lens, .20, .028, .20, 0, 0, -1.741, cylinder).rotation.x = Math.PI / 2;
+  beam(nozzle, satin,[0,0,-.09],[0,0,-1.37],.173);
+  beam(nozzle, steel,[0,0,-.14],[0,0,-.665],.284);
+  for (const s of [-1,1]) {
+    beam(nozzle,castSteel,[s*.154,0,.026],[s*.154,0,-.45],.053);
+    beam(nozzle,hub,[s*.174,0,.01],[s*.118,0,.01],.173);
+  }
+  for (const z of [-.745,-1.24]) beam(nozzle,castSteel,[0,0,z+.033],[0,0,z-.033],.207);
+  beam(nozzle, satin,[0,0,-1.34],[0,0,-1.866],.287,true);
+  beam(nozzle, hub,[0,0,-1.663],[0,0,-1.91],.351,true);
+  beam(nozzle, trim,[0,0,-1.559],[0,0,-1.891],.223,true);
+  beam(nozzle, castSteel,[0,0,-1.871],[0,0,-1.921],.372,true);
+  piece(nozzle,lens,.208,.028,.208,0,0,-1.741,cylinder).rotation.x=Math.PI/2;
   batchVehicleParts(nozzle);
   batchVehicleParts(turret);
   return { turret, nozzle, roll };
@@ -299,81 +458,147 @@ function serviceTank(body, color) {
 
 function truck(body, p, color, monster) {
   const w = p.width;
-  const arch = z => Math.max(-.26, ...[-p.length, p.length].map(axle => {
-    const t = Math.abs(z - axle) / (p.radius + .17);
-    return t >= 1 ? -.26 : -.26 + (monster ? .42 : .38) * Math.sqrt(1 - t * t);
-  }));
+  const arch = z => {
+    const distance = Math.abs(Math.abs(z)-p.length)/(monster ? .82 : .63);
+    return -.26 + (monster ? .40 : .33)*Math.sqrt(Math.max(0,1-distance*distance));
+  };
   const sections = [
-    [-p.depth, .83, .36], [-1.85, .96, .39], [-1.55, 1.015, .46], [-1.19, 1, .52], [-.92, .94, .55],
-    [-.43, .91, .55], [.48, .92, .54], [.86, .96, .52], [1.17, 1.0, .50], [1.55, 1.03, .48],
-    [1.75, 1.00, .46], [1.90, .98, .44], [p.depth, .90, .39],
+    [-p.depth, .85, .385], [-1.93, .929, .438], [-1.59, 1.018, .497], [-1.28, 1.015, .538],
+    [-.95, .963, .569], [-.48, .938, .561], [.39, .932, .544], [.83, .954, .537],
+    [1.20, .997, .523], [1.56, 1.035, .503], [1.90, .954, .465], [p.depth, .894, .419],
   ];
   shell(body, color, sections, ([z, width, top]) => {
-    const contour = profile(w * width, arch(z), top, .77);
+    const contour = profile(w*width, arch(z), top, .86);
     if (!monster) return contour;
-    const dip = .22 * THREE.MathUtils.smoothstep(z, .64, .89) * (1 - THREE.MathUtils.smoothstep(z, 1.71, 1.96));
-    return [...contour.slice(0, 5), [w * width * .63, top - dip],
-      [0, top - dip + .015], [-w * width * .63, top - dip], ...contour.slice(6)];
+    const dip = .25 * THREE.MathUtils.smoothstep(z,.62,.83) * (1-THREE.MathUtils.smoothstep(z,1.85,2.05));
+    return [...contour.slice(0,5), [w*width*.68,top-dip], [0,top-dip], [-w*width*.68,top-dip], ...contour.slice(6)];
   });
-  const roofEnd = monster ? .71 : 1.53;
+  const roofEnd = monster ? .73 : 1.66;
   const cabin = [
-    [-1.19, .76, .49, .56], [-.86, .86, .52, .71], [-.49, .77, .53, 1.12],
-    [-.03, .75, .53, 1.183], [roofEnd - .18, .77, .52, 1.15], [roofEnd, .79, .50, monster ? .52 : 1.05],
+    [-1.11,.79,.516,.577], [-.84,.85,.54,.833], [-.49,.812,.54,1.092], [-.27,.808,.536,1.152],
+    [roofEnd-.32,.817,.521,1.148], [roofEnd-.14,.821,.515,1.105], [roofEnd,.809,.504,monster ? .543 : .971],
   ];
-  shell(body, lens, cabin, ([, width, base, top]) => profile(width * w, base, top, .9));
-  shell(body, color, cabin.slice(2, -1).map(([z, width, , top]) => [z, width, top]),
-    ([, width, top]) => profile(w * width * .96, top - .029, top + .044, .89), 8);
-  piece(body, trim, 1.75 * w, .17, .11, 0, .107, -p.depth + .01);
-  piece(body, trim, 1.76 * w, .21, .20, 0, .055, p.depth - .065);
-  piece(body, satin, .33, .12, .04, 0, .214, p.depth + .018);
-  piece(body, trim, .81, .20, .065, 0, .270, -p.depth - .014);
-  for (let slot = -3; slot <= 3; slot++) piece(body, hub, .057, .139, .026, slot * .109, .27, -p.depth - .055);
+  shell(body, blackGlass, cabin, ([, width, base, top]) => profile(width*w,base,top,.88));
+  shell(body, color, cabin.slice(2,-1), ([, width, , top]) => profile(w*width*.994,top-.053,top+.049,.88), 7);
+
+  const front = -p.depth;
+  const rear = p.depth;
+  piece(body, trim, w*1.734, .238, .229, 0, .071, front+.018, trimBlock);
+  piece(body, castSteel, w*(monster ? 1.58 : 1.44), .074, .211, 0, -.058, front+.057, trimBlock).rotation.x = -.16;
+  piece(body, trim, w*1.783, .228, .212, 0, .024, rear+.024, trimBlock);
+  piece(body, hub, w*1.25, .033, .20, 0, .098, rear+.028, trimBlock);
+  piece(body, trim, .338, .13, .036, 0, .200, rear+.048, trimBlock);
+  license(body,monster?'NS 02':'NS 01',.286,.088,.200,rear+.074);
+  for (const s of [-1,1]) fastener(body, trim, .014, s*.111, .229, rear+.079);
+  if (monster) {
+    piece(body, trim, 1.42, .236, .09, 0, .27, front-.029, trimBlock);
+    for (let i = 0; i < 5; i++) piece(body, hub, 1.12, .012, .012, 0, .191+i*.036, front-.082,wheelSpoke);
+    for (let i = -6; i <= 6; i++) piece(body, castSteel, .012, .18, .009, i*.083, .265, front-.087,wheelSpoke);
+    shell(body, carbon, [[-1.96,.22,.444,.47],[-1.57,.276,.481,.586],[-1.24,.244,.518,.619],[-1.08,.165,.538,.566]],
+      ([, width, low, high]) => profile(width,low,high,.84));
+    piece(body, trim, .308, .105, .032, 0,.542,-1.608,trimBlock);
+    for (let i=-2; i<=2; i++) piece(body, hub,.011,.080,.014,i*.058,.542,-1.628,wheelSpoke);
+  } else {
+    piece(body, trim, 1.082, .272, .090, 0,.258,front-.029,trimBlock);
+    for (let i=-3; i<=3; i++) {
+      const x = i*.144;
+      piece(body, satin,.111,.196,.037,x,.263,front-.079,trimBlock);
+      piece(body, trim,.081,.167,.035,x,.263,front-.093,trimBlock);
+      for (let row=0;row<4;row++) piece(body, hub,.066,.011,.009,x,.202+row*.041,front-.112,wheelSpoke);
+    }
+    piece(body, hub,.358,.106,.152,0,.042,front-.105,trimBlock);
+    beam(body, castSteel,[-.125,.049,front-.177],[.125,.049,front-.177],.046);
+    beam(body, satin,[-.10,.049,front-.197],[.10,.049,front-.197],.023);
+    piece(body, carbon,1.26,.042,.67,0,1.211,.49,trimBlock);
+    for (const z of [.23,.72]) beam(body, castSteel,[-.64,1.247,z],[.64,1.247,z],.042);
+  }
   for (const side of [-1, 1]) {
-    const x = side * w;
-    const front = -p.depth;
-    piece(body, lens, .38, .158, .072, x * .65, .278, front - .022).rotation.y = side * .13;
-    piece(body, headlamp, .30, .060, .069, x * .65, .309, front - .052).rotation.y = side * .13;
-    piece(body, accent, .060, .045, .049, x * .80, .239, front - .039);
-    piece(body, braking, .24, .16, .047, x * .77, .294, p.depth + .006);
-    piece(body, reverse, .15, .034, .029, x * .77, .252, p.depth + .032);
-    const stanchions = [[-.73, -.45, .68, 1.10], [.16, .16, .59, 1.14], [roofEnd - .10, roofEnd - .18, .55, 1.11]];
-    for (const [baseZ, topZ, low, high] of (monster ? stanchions.slice(0, 2) : stanchions)) {
-      beam(body, color, [x * .77, low, baseZ], [x * .70, high, topZ], .073);
-    }
-    piece(body, trim, .13, .10, .17, x * .95, .651, -.68);
-    piece(body, color, .23, .11, .18, x * 1.05, .693, -.70);
-    piece(body, lens, .182, .073, .033, x * 1.08, .696, -.597);
-    for (const z of (monster ? [.35] : [-.19, .73])) {
-      piece(body, trim, .024, .047, .19, x * .928, .422, z);
-      piece(body, satin, .025, .022, .135, x * .94, .424, z);
-    }
-    piece(body, trim, .10, .091, 1.58, x * .94, -.207, .03);
-    molding(body, trim, [[x * .84, .311, -1.18], [x * .891, .368, -.71],
-      [x * .920, .396, .21], [x * .930, .367, 1.08], [x * .901, .318, 1.68]], .013);
-    if (!monster) piece(body, color, .145, .25, 1.67, x * .84, -.12, .01);
-    beam(body, satin, [x * .58, 1.22, -.27], [x * .58, 1.21, roofEnd - .21], .057);
-    for (const axle of [-p.length, p.length]) {
-      const length = monster ? .62 : .54;
-      const edgeX = x * (monster ? 1.00 : 1.045);
-      molding(body, trim, [[edgeX * .94, -.17, axle - length], [edgeX, .095, axle - length * .54],
-        [edgeX, .18, axle], [edgeX, .065, axle + length * .61], [edgeX * .94, -.18, axle + length]], .038);
-    }
+    const x = side*w;
     if (monster) {
-      piece(body, trim, .059, .098, 1.16, x * .828, .49, 1.29);
-      beam(body, hub, [x * .57, .50, .66], [x * .50, .97, .91], .084);
-      beam(body, hub, [x * .50, .97, .91], [x * .62, .56, 1.52], .084);
-      for (const axle of [-p.length, p.length]) {
-        beam(body, castSteel, [x * .65, .01, axle - .06], [x * 1.18, -.51, axle + .20], .096);
-        beam(body, accent, [x * .68, -.06, axle -.025], [x * 1.13, -.44, axle + .14], .143);
+      const led = [[x*.594,.310,front-.085],[x*.773,.324,front-.071],[x*.857,.365,front+.02],[x*.903,.351,front+.19]];
+      molding(body, trim, led, .058);
+      molding(body, headlamp, led.map(([u,y,z])=>[u,y+.016,z-.017]), .019);
+      piece(body, braking,.246,.115,.064,x*.755,.305,rear+.043,trimBlock);
+      piece(body, reverse,.119,.027,.041,x*.759,.254,rear+.067,trimBlock);
+    } else {
+      lightProjector(body,.258,x*.652,.300,front-.039);
+      piece(body, signal,.102,.039,.061,x*.805,.223,front+.007,trimBlock).rotation.y = side*.24;
+      lightProjector(body,.097,x*.659,.060,front-.118);
+      piece(body, trim,.162,.251,.060,x*.81,.298,rear+.040,trimBlock);
+      for (const y of [.249,.300,.351]) piece(body, braking,.101,.038,.020,x*.815,y,rear+.077,trimBlock);
+      piece(body, reverse,.081,.026,.021,x*.813,.209,rear+.071,trimBlock);
+    }
+    beam(body, redEnamel,[x*.55,-.029,front+.045],[x*.57,-.066,front-.173],.063);
+    beam(body, castSteel,[x*.55,-.02,rear-.054],[x*.57,-.061,rear+.159],.053);
+    const seam = [[x*.81,.569,-1.10],[x*.854,.58,-.81],[x*.895,.556,-.32],[x*.894,.542,.45],[x*.866,.523,roofEnd-.06]];
+    molding(body, trim,seam,.026);
+    molding(body, color,[[x*.801,.605,-1.02],[x*.775,.865,-.726],[x*.719,1.098,-.431]],.044);
+    for (const [z, lean] of (monster ? [[.60,-.16]] : [[.17,0],[.97,-.09],[1.54,-.074]])) {
+      beam(body,color,[x*.839,.551,z],[x*.775,1.087,z+lean],.078);
+      if (monster || z<1.4) {
+        molding(body,trim,[[x*.953,.532,z],[x*.942,.304,z+.024],[x*.891,.089,z+.05]],.011);
+        piece(body,trim,.037,.049,.138,x*.932,.412,z-.132,trimBlock);
+        piece(body,satin,.024,.016,.087,x*.953,.415,z-.132,trimBlock);
       }
     }
+    beam(body,trim,[x*.821,.593,-.755],[x*1.036,.661,-.756],.064);
+    piece(body,color,.203,.113,.165,x*1.064,.677,-.750,trimBlock).rotation.y=side*.18;
+    piece(body,lens,.162,.078,.018,x*1.067,.679,-.653,trimBlock).rotation.y=side*.18;
+    piece(body,signal,.125,.018,.018,x*1.069,.665,-.836,trimBlock).rotation.y=side*.18;
+    molding(body,trim,[[x*.902,.301,-1.96],[x*.986,.369,-1.49],[x*.965,.387,-.92],
+      [x*.939,.378,.38],[x*1.009,.336,1.49],[x*.926,.305,1.97]],.014);
+    piece(body,carbon,.123,.071,1.54,x*.932,-.197,.05,trimBlock);
+    if (!monster) {
+      beam(body,castSteel,[x*.967,-.258,-.71],[x*.967,-.258,.74],.081);
+      for (const z of [-.38,.38]) {
+        piece(body,trim,.183,.046,.271,x*.975,-.228,z,trimBlock);
+        for (let i=-2;i<=2;i++) piece(body,hub,.154,.011,.015,x*.987,-.201,z+i*.041,wheelSpoke);
+      }
+      beam(body,satin,[x*.629,1.174,-.24],[x*.639,1.168,1.36],.055);
+    }
+    for (const axle of [-p.length, p.length]) {
+      const end = Math.sign(axle);
+      const edgeX = x*(monster ? 1.05 : 1.053);
+      const fender = [[edgeX*.88,-.079,axle+end*.447],[edgeX,.252,axle+end*.264],
+        [edgeX*1.032,.332,axle],[edgeX,.251,axle-end*.356],[edgeX*.960,-.157,axle-end*.56]];
+      molding(body,trim,fender,monster ? .071 : .058);
+      for (const [u,y,z] of fender.slice(1,-1)) fastener(body,castSteel,.028,u+side*.070,y,z,'x');
+      piece(body,trim,.224,.206,.045,x*.964,-.172,axle+.45,trimBlock);
+      if (monster) {
+        const wheel = [side*(p.axle-.13),-.585,axle];
+        spring(body,[x*.62,.089,axle*.88],wheel);
+        beam(body,redEnamel,[x*.55,-.155,axle-end*.58],wheel,.082);
+        beam(body,castSteel,[x*.44,-.258,axle+end*.17],wheel,.095);
+      }
+    }
+    molding(body,trim,[[x*.12,.603,-1.104],[x*.39,.669,-1.012],[x*.62,.722,-.949]],.012);
   }
-  if (!monster) {
-    piece(body, braking, .33, .028, .028, 0, 1.105, roofEnd + .021);
-    piece(body, color, w * 1.40, .15, .072, 0, .575, roofEnd + .021);
-    piece(body, trim, .45, .024, .025, .10, .679, roofEnd + .035).rotation.z = .09;
+  if (monster) {
+    for (const z of [-p.length,p.length]) {
+      beam(body,castSteel,[-1.21,-.573,z],[1.21,-.573,z],.13);
+      piece(body,hub,.385,.335,.386,0,-.569,z,trimBlock);
+      piece(body,redEnamel,.289,.221,.038,0,-.578,z+.183,trimBlock);
+    }
+    beam(body,castSteel,[0,-.57,-p.length],[0,-.57,p.length],.114);
+    piece(body,carbon,1.39,.048,.91,0,.283,1.284,trimBlock);
+    for (let i=-4;i<=4;i++) piece(body,hub,.024,.013,.79,i*.147,.315,1.26,wheelSpoke);
+    molding(body,castSteel,[[-.69,.50,.776],[-.61,.991,.863],[0,1.011,.863],[.61,.991,.863],[.69,.50,.776]],.055);
     for (const side of [-1, 1]) {
-      beam(body, color, [side * w * .73, .62, roofEnd + .025], [side * w * .62, 1.075, roofEnd + .02], .075);
+      beam(body,castSteel,[side*.61,.971,.863],[side*.725,.484,1.715],.101);
+      beam(body,trim,[side*.709,.507,1.681],[-side*.541,.899,.919],.044);
+      beam(body,satin,[side*.459,-.036,1.61],[side*.466,-.010,2.192],.088,true);
+    }
+  } else {
+    piece(body,color,1.61,.109,.085,0,.55,1.729,trimBlock);
+    piece(body,braking,.370,.026,.040,0,1.053,1.604,trimBlock);
+    molding(body,trim,[[-.424,.780,1.681],[.062,.724,1.699],[.323,.748,1.688]],.016);
+    piece(body,trim,.815,.198,.815,0,.527,2.061,cylinder).rotation.x=Math.PI/2;
+    piece(body,hub,.591,.21,.591,0,.527,2.080,cylinder).rotation.x=Math.PI/2;
+    piece(body,color,.521,.217,.521,0,.527,2.107,cylinder).rotation.x=Math.PI/2;
+    piece(body,castSteel,.208,.026,.208,0,.527,2.227,cylinder).rotation.x=Math.PI/2;
+    for (let i=0;i<24;i++) {
+      const angle = i/24*Math.PI*2;
+      piece(body,trim,.065,.020,.166,Math.cos(angle)*.41,.527+Math.sin(angle)*.41,2.065,wheelSpoke).rotation.z=angle-Math.PI/2;
     }
   }
 }
@@ -499,14 +724,73 @@ function buggy(body, color) {
 
 export function buildUtilityBody(body, kind, preset) {
   const color = paint(preset.color);
-  let equipment = null, pilot = null;
-  if (kind === 'bike') bike(body, color);
+  let equipment = null, pilot = null, frontFork = null;
+  if (kind === 'bike') frontFork = bike(body, color, preset);
   else if (kind === 'tank') equipment = serviceTank(body, color);
   else if (kind === 'formula') formula(body, color);
   else if (kind === 'buggy') pilot = buggy(body, color);
   else truck(body, preset, color, kind === 'monster');
   batchVehicleParts(body);
-  return { equipment, pilot };
+  return { equipment, pilot, frontFork };
+}
+
+const cityWheelStyles = {
+  jeep: { type: 'split', trim: hub, scale: .93, blocks: 32 },
+  monster: { type: 'deep', trim: castSteel, scale: .87, blocks: 38, hubWidth: .40 },
+  bike: { type: 'turbine', trim: castSteel, scale: 1.05 },
+};
+const rotorRing = new THREE.RingGeometry(.48, .81, 28);
+
+export function buildCityWheel(kind, radius, face, front) {
+  const pack = cityWheelStyles[kind];
+  if (!pack) return null;
+  const bike = kind === 'bike';
+  const monster = kind === 'monster';
+  const width = bike ? (front ? .171 : .252) : monster ? .66 : .347;
+  const wheel = buildWheel(radius,width,bike ? 5 : monster ? 8 : 10,face,true,false,
+    { type: pack.type, rim: pack.trim, scale: pack.scale, hubWidth: pack.hubWidth });
+  if (pack.blocks) {
+    const blocks = new THREE.InstancedMesh(trimBlock, tireRubber, pack.blocks);
+    const pose = new THREE.Object3D();
+    for (let i = 0; i < blocks.count; i++) {
+      const angle = i / blocks.count * Math.PI * 2;
+      const side = i % 2 ? -1 : 1;
+      const r = radius*(monster ? .987 : .992);
+      pose.position.set(side * width*.205, Math.cos(angle)*r, Math.sin(angle)*r);
+      pose.rotation.set(angle, 0, side*.43);
+      pose.scale.set(width*.52, radius*(monster ? .075 : .047), radius*.169);
+      pose.updateMatrix();
+      blocks.setMatrixAt(i, pose.matrix);
+    }
+    wheel.add(blocks);
+  }
+  if (monster) {
+    const beadlock = new THREE.Group();
+    const ring = radius*.699;
+    piece(beadlock,hub,.51,ring*2,ring*2,face*width*.465,0,0,whitewall);
+    for (let i=0;i<14;i++) {
+      const angle = i*Math.PI*2/14;
+      fastener(beadlock,satin,.030,face*width*.494,Math.cos(angle)*ring,Math.sin(angle)*ring,'x');
+    }
+    batchVehicleParts(beadlock);
+    wheel.add(beadlock);
+  }
+  if (bike) {
+    const discs = new THREE.Group();
+    for (const side of front ? [-1,1] : [1]) {
+      const x = side*(width*.48+.008);
+      const size = radius*(front ? .96 : .77);
+      piece(discs,satin,size,size,1,x,0,0,rotorRing).rotation.y = side*Math.PI/2;
+      for (let i=0;i<16;i++) {
+        const angle=i*Math.PI/8;
+        const r=size*(i%2 ? .663 : .737);
+        fastener(discs,trim,.012,x+side*.003,Math.sin(angle)*r,Math.cos(angle)*r,'x');
+      }
+    }
+    batchVehicleParts(discs);
+    wheel.add(discs);
+  }
+  return wheel;
 }
 
 const tireGeometry = new Map();
@@ -524,7 +808,7 @@ export function buildWheel(radius, width, spokes, face = 1, useTread = true, off
   const sides = face === 0 ? [-1, 1] : [face];
   const rim = style?.rim ?? satin;
   const metalRadius = radius * (style?.scale ?? 1);
-  piece(wheel, hub, metalRadius * 1.36, width * .69, metalRadius * 1.36, 0, 0, 0, cylinder).rotation.z = Math.PI / 2;
+  piece(wheel, hub, metalRadius * 1.36, width * (style?.hubWidth ?? .69), metalRadius * 1.36, 0, 0, 0, cylinder).rotation.z = Math.PI / 2;
   for (const side of sides) {
     const type = style?.type;
     const lipX = side * width * (style ? .451 : .415);
