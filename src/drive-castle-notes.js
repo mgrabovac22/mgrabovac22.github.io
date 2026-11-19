@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RaycastResult, Vec3 } from 'cannon-es';
 import { keepCollision, keepLevel } from './drive-castle-keep.js';
 import { batchIslandDetails } from './drive-rally-batches.js';
+import { ellipsis, wrapText } from './panel-layout.js';
 
 const desks = [
   { x: -3.42, z: -6.69, floor: 0, yaw: 0, desk: true },
@@ -51,15 +52,13 @@ export function pickCastleNotes(pages, random = Math.random) {
 }
 
 function wrapped(context, text, width, limit) {
-  const lines = [];
-  for (const word of text.trim().split(/\s+/)) {
-    const last = lines.at(-1);
-    if (last !== undefined && context.measureText(last + ' ' + word).width < width) {
-      lines[lines.length - 1] += ' ' + word;
-    } else lines.push(word);
+  const measure = value => context.measureText(value).width;
+  const lines = wrapText(text, measure, width);
+  if (lines.length > limit) {
+    lines.length = limit;
+    lines[limit - 1] = ellipsis(lines.at(-1), measure, width);
   }
-  if (lines.length > limit) lines[limit - 1] += '…';
-  return lines.slice(0, limit);
+  return lines;
 }
 
 const printWidth = 960;

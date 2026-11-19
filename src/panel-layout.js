@@ -41,9 +41,11 @@ export function wrapText(text, measure, width) {
 }
 
 export function ellipsis(text, measure, width) {
-  const characters = Array.from(text.trimEnd());
-  while (characters.length && measure(characters.join('') + '…') > width) characters.pop();
-  return characters.join('').trimEnd() + '…';
+  const marker = '...';
+  const withoutMarker = value => value.trimEnd().replace(/[.…]+$/u, '').trimEnd();
+  const characters = Array.from(withoutMarker(text));
+  while (characters.length && measure(characters.join('') + marker) > width) characters.pop();
+  return withoutMarker(characters.join('')) + marker;
 }
 
 function paragraph(context, field, text, scale) {
