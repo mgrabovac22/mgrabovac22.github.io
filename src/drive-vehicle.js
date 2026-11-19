@@ -2,14 +2,18 @@ import * as THREE from 'three';
 import { Body, Box, RaycastVehicle, Vec3 } from 'cannon-es';
 import { createPerson } from './drive-people.js';
 import { buildCityWheel, buildUtilityBody, buildWheel, fitBikeHelmet } from './drive-vehicle-art.js';
+import { buildGolfBody } from './drive-golf-art.js';
 import { crateGroup } from './drive-crates.js';
 import { modelFor, raceWheelWidth } from './drive-race-build.js';
 
 export const tankBay = { x: -4.04, z: -276.25, yaw: -.09 };
-export const vehicleTypes = ['sport', 'jeep', 'monster', 'bike'];
+export const vehicleTypes = ['sport', 'golf', 'jeep', 'monster', 'bike'];
 
 const presets = {
-  jeep: { mass: 1850, axle: .96, length: 1.55, radius: .47, rest: .44, stance: .99, power: 10500, stiffness: 33, max: 32, steer: .49, width: 1.09, depth: 2.06, color: 0x728779, bodyLift: .18, tireWidth: .347 },
+  golf: { mass: 965, axle: .713, length: 1.2375, radius: .300, rest: .303, stance: .681, wheelMount: -.078,
+    power: 5990, stiffness: 45, max: 47.5, steer: .51, width: .835, depth: 2.00, color: 0xa32129,
+    tireWidth: .197, frontDrive: 1, gears: 5, brakePower: .11 },
+  jeep: { mass: 1850, axle: .815, length: 1.504, radius: .422, rest: .389, stance: .911, power: 10500, stiffness: 33, max: 32, steer: .49, width: .95, depth: 2.13, color: 0x53675c, bodyLift: .16, tireWidth: .29 },
   monster: { mass: 2600, axle: 1.22, length: 1.56, radius: .84, rest: .55, stance: 1.46, power: 20200, stiffness: 34, max: 30, steer: .55, width: 1.22, depth: 2.10, color: 0x926244, bodyLift: .57, tireWidth: .68 },
   bike: { mass: 255, axle: 0, length: .84, radius: .31, rest: .23, stance: .577, power: 2250, stiffness: 48, max: 48, steer: .44, width: .31, depth: .96, color: 0x414e61, wheelMount: -.086, modelScale: [.92,.86,.75] },
   tank: { mass: 3150, axle: 1.02, length: 1.35, radius: .48, rest: .40, stance: .98, power: 17500, stiffness: 45, max: 22, steer: .58, width: 1.17, depth: 1.98, color: 0x497478 },
@@ -78,9 +82,11 @@ export function createUtilityVehicle(scene, world, kind, artwork) {
   const p = artwork?.model ?? (kind === 'formula' ? modelFor(kind) : presets[kind]);
   const openWheel = p.id === 'formula';
   const bike = kind === 'bike';
+  const golf = kind === 'golf';
   const race = artwork?.instantiate();
   const body = race?.view ?? new THREE.Group();
-  const { equipment, pilot, frontFork, moveAxles } = race ? {} : buildUtilityBody(body, kind, p);
+  const { equipment, pilot, frontFork, moveAxles, brakeLights } = race ? {}
+    : golf ? buildGolfBody(body, p) : buildUtilityBody(body, kind, p);
   const bikeRider = frontFork ? mountBikeRider(frontFork) : null;
   const rider = bikeRider?.view ?? pilot;
   scene.add(body);
@@ -93,9 +99,10 @@ export function createUtilityVehicle(scene, world, kind, artwork) {
   const chassis = new Body({ mass: p.mass, linearDamping: .09, angularDamping: .51, collisionFilterGroup: 4 });
   const bodyLift = p.bodyLift ?? 0;
   const wheelMount = p.wheelMount ?? -.10;
-  chassis.addShape(new Box(new Vec3(p.width, bike ? .22 : .32, p.depth)), new Vec3(0, .10 + bodyLift, 0));
-  chassis.addShape(new Box(new Vec3(p.width * .8, openWheel ? .17 : .29, bike ? .43 : 1.02)),
-    new Vec3(0, (openWheel ? .30 : artwork ? p.roof - .29 : bike ? .53 : .62) + bodyLift, bike ? .19 : .25));
+  chassis.addShape(new Box(new Vec3(p.width, bike ? .22 : golf ? .235 : .32, p.depth)),
+    new Vec3(0, (golf ? -.135 : .10) + bodyLift, 0));
+  chassis.addShape(new Box(new Vec3(p.width * .8, openWheel ? .17 : golf ? .21 : .29, bike ? .43 : golf ? .94 : 1.02)),
+    new Vec3(0, (openWheel ? .30 : artwork ? p.roof - .29 : bike ? .53 : golf ? .45 : .62) + bodyLift, bike ? .19 : .25));
   const tireContacts = [];
   if (kind === 'monster') {
     // The real tire footprint can touch a crate while the chassis passes above it.
@@ -178,6 +185,7 @@ export function createUtilityVehicle(scene, world, kind, artwork) {
     steer = THREE.MathUtils.damp(steer, turn * p.steer * (1 - .66 * Math.min(1, Math.abs(speed) / p.max)), 8, dt);
     const braking = Boolean(recovery) || input.brake || (power !== 0 && speed * power < -.8);
     brake = THREE.MathUtils.damp(brake, Number(braking), 15, dt);
+    if (brakeLights) brakeLights.emissiveIntensity = .37 + brake * 1.27;
     throttle = THREE.MathUtils.damp(throttle, braking ? 0 : power, 8, dt);
     const limit = throttle < 0 ? Math.min(13, p.max * .55) : p.max;
     const ratio = Math.abs(speed) / limit;

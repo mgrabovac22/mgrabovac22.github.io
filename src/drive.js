@@ -304,9 +304,12 @@ async function boot() {
   find('#race-position').hidden = !course?.grid;
   const starter = cityMode ? createCar(scene, world) : createUtilityVehicle(scene, world, startKind, raceArtwork);
   const initial = course?.start ?? { x: 3, z: 9, yaw: 0 };
+  const golfBay = { x: -4.12, z: -9.4, yaw: Math.PI };
   let tank = null;
   const fleet = new Map([[startKind, starter]]);
   const spawned = new Set([starter]);
+  const golf = cityMode ? getVehicle('golf') : null;
+  if (golf) parkGolf();
   const terrain = course ?? createCity(scene, world, compact, renderer.capabilities.getMaxAnisotropy(), profileParks);
   const stories = createSkyStories(scene, world, pages, course?.route);
   const effects = makeEffects(scene);
@@ -539,6 +542,10 @@ async function boot() {
     if (!fleet.has(kind)) fleet.set(kind, createUtilityVehicle(scene, world, kind));
     return fleet.get(kind);
   }
+  function parkGolf() {
+    golf.setPose(golfBay.x, golf.stance, golfBay.z, golfBay.yaw);
+    spawned.add(golf);
+  }
   function switchVehicle(kind) {
     if (!cityMode || !vehicleTypes.includes(kind)) return;
     const replacement = getVehicle(kind);
@@ -549,11 +556,14 @@ async function boot() {
     const axis = road === 'east-west' ? Math.PI / 2 : 0;
     const heading = road ? axis + Math.round((driverYaw - axis) / Math.PI) * Math.PI : driverYaw;
     let spawnX = x, spawnZ = z;
-    if (previousCar === tank && Math.hypot(x - tank.chassis.position.x, z - tank.chassis.position.z) < 5) {
+    if (previousCar === golf && replacement !== golf) parkGolf();
+    const parkingConflict = [tank,golf].some(vehicle => vehicle && vehicle !== replacement &&
+      Math.hypot(x - vehicle.chassis.position.x,z - vehicle.chassis.position.z) < 5);
+    if (parkingConflict) {
       [spawnX, spawnZ] = terrain.safeLanding(x - Math.sin(heading) * 5.5, z - Math.cos(heading) * 5.5);
     }
     for (const vehicle of spawned) {
-      if (vehicle === replacement || vehicle === tank) continue;
+      if (vehicle === replacement || vehicle === tank || vehicle === golf) continue;
       vehicle.setActive(false);
       spawned.delete(vehicle);
     }
@@ -834,7 +844,7 @@ async function boot() {
       showHud();
       updatePrompt();
       huntHud?.update(walking, walking ? lookYaw : yaw);
-      audio.engine(walking ? null : car.kind, speed, input.forward || input.reverse, car.engineSetup);
+      audio.engine(walking ? null : car.kind, speed, !input.brake && (input.forward || input.reverse), car.engineSetup);
       hudAt = time + .11;
     }
     effects.update(dt);

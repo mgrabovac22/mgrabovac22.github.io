@@ -115,13 +115,14 @@ export const raceEngineKey = build => build.engine === 'factory' ? factoryEngine
 
 export function raceSpec(build) {
   const model = modelFor(build.model);
-  const engine = engines[raceEngineKey(build)];
+  const engineKey = raceEngineKey(build);
+  const engine = engines[engineKey];
   const factory = build.engine === 'factory';
   const [ratio, limit, gears] = gearSets[build.gearing];
   const [ride, stiffness, grip, steer] = springs[build.suspension];
   const boost = build.induction === 'supercharger' ? 1.15 : build.induction === 'turbo' ? 1.18 : 1;
   return {
-    ...model, engine, gears,
+    ...model, engine, engineKey, gears, induction: build.induction,
     power: model.power * (factory ? 1 : engine.power) * ratio * boost,
     max: model.max * (factory ? 1 : engine.limit) * limit * (boost > 1 ? 1.025 : 1),
     mass: Math.round((model.mass + (factory ? 0 : engine.mass)) * weightTargets[build.weight]),
