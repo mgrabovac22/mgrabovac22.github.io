@@ -76,11 +76,14 @@ export function defineCircuit(kind) {
     return Math.min(difference, length - difference);
   }
   function boardStations(count) {
-    const eligible = [];
-    for (let meters = 25; meters < length - 5; meters += 2) {
-      if (crossings.every(crossing => separation(crossing, meters) >= 23)) eligible.push(meters);
+    const spaced = [];
+    for (let meters = 25; meters < length - 8; meters += 2) {
+      const previous = spaced.at(-1);
+      if (previous !== undefined && meters - previous < 16) continue;
+      if (kind !== 'rally' || crossings.every(crossing => separation(crossing, meters) >= 23)) spaced.push(meters);
     }
-    return Array.from({ length: count }, (_, i) => eligible[Math.floor(i * eligible.length / count)]);
+    const size = Math.min(count, spaced.length);
+    return Array.from({ length: size }, (_, i) => spaced[Math.floor(i * spaced.length / size)]);
   }
   return { kind, length, half, sample, locate, separation, boardStations, checkpoints };
 }

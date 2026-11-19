@@ -28,17 +28,19 @@ export function getLocale(source, requestedLanguage) {
   localAsset(profile.portrait?.image);
   const records = Object.fromEntries(recordGroups.map(key => [key, source[key].map(localize)]));
   const { sections, ...groups } = records;
+  const panels = (source.panels ?? []).map(localize);
   if (sections.length !== stopIds.length || stopIds.some(id => !sections.some(section => section.id === id)) ||
-      Object.values(records).flat().some(item => typeof item.id !== 'string' || !slug.test(item.id))) {
+      [...Object.values(records).flat(), ...panels].some(item => typeof item.id !== 'string' || !slug.test(item.id))) {
     throw new Error('Portfolio sections and entries must have valid IDs.');
   }
+  if (panels.some(panel => !stopIds.includes(panel.section))) throw new Error('Portfolio panels must use an existing section ID.');
   const titles = Object.fromEntries(textLists.map(key => {
     const list = source[key][language] ?? source[key].en;
     if (!Array.isArray(list)) throw new Error('Expected a portfolio list for ' + key);
     return [key, list];
   }));
   const towers = source.towers.filter(tower => typeof tower.mark === 'string' && Number.isInteger(tower.level) && tower.level >= 1 && tower.level <= 3);
-  return { language, profile, ...groups, ...titles, stops: sections, towers, homepage: source.homepage, t: source.copy[language] };
+  return { language, profile, ...groups, ...titles, panels, stops: sections, towers, homepage: source.homepage, t: source.copy[language] };
 }
 
 export async function loadPortfolio(language) {

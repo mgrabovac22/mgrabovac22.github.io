@@ -4,16 +4,21 @@ export const routeStep = [18.3, 11.8];
 
 export function storyIndexForHash(pages, hash) {
   const id = hash.slice(1);
-  return pages.findIndex(page => page.id === id || page.entryId === id);
+  const index = pages.findIndex(page => page.id === id || page.entryId === id);
+  if (index >= 0) return index;
+  const entry = id.match(/^(.+)--panel-\d+$/)?.[1];
+  return entry ? pages.findIndex(page => page.id === entry || page.entryId === entry) : -1;
 }
 
 export function createStory(data) {
   const { profile, t } = data;
-  const website = item => safeLink(item.website);
   const detail = item => ({
     id: item.id, title: item.title || item.name, meta: item.organization || item.type, date: item.dates,
     body: item.description, points: item.points, tags: item.stack,
-    links: website(item) ? [{ label: t.website, href: website(item) }] : [],
+    links: [
+      ...(item.website ? [{ label: t.website, href: item.website }] : []),
+      ...(Array.isArray(item.links) ? item.links : []),
+    ],
   });
   const pages = {
     about: [
@@ -47,12 +52,15 @@ export function createStory(data) {
   };
 
   const route = data.stops.flatMap((stop, chapter) => {
-    const entries = pages[stop.id].length ? pages[stop.id] : [{ title: stop.title, body: stop.description }];
+    const entries = [...pages[stop.id], ...(data.panels ?? []).filter(panel => panel.section === stop.id).map(detail)];
+    if (!entries.length) entries.push({ title: stop.title, body: stop.description });
     return entries.map((page, index) => ({
-      ...page, chapter, chapterId: stop.id, chapterTitle: stop.title, district: stop.place, first: index === 0,
+      ...page, title: page.title || stop.title, chapter, chapterId: stop.id, chapterTitle: stop.title, district: stop.place, first: index === 0,
       id: index === 0 ? stop.id : page.id,
       entryId: index === 0 && page.id !== stop.id ? page.id : undefined,
-      links: (page.links || []).filter(action => safeLink(action.href)),
+      links: (page.links || []).filter(action => safeLink(action?.href)).map(action => ({
+        href: action.href, label: action.label || t.website, icon: action.icon, download: action.download === true,
+      })),
       index: index + 1, total: entries.length,
     }));
   });

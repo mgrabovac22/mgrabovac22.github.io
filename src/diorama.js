@@ -612,8 +612,9 @@ export function addRoom(scene, page, index) {
   scene.add(room);
   floorMarkings(room, page.first ? page.chapterTitle : '');
   const detailMotion = officeDetails(room, page, index);
-  const districtMotion = page.title ? addOfficeDistricts(room, page, index, person) : null;
-  const infillMotion = page.title ? addOfficeInfill(room, page, index, person) : null;
+  const fullDistrict = page.title && !page.panelOwner;
+  const districtMotion = fullDistrict ? addOfficeDistricts(room, page, index, person) : null;
+  const infillMotion = fullDistrict ? addOfficeInfill(room, page, index, person) : null;
   let exhibit;
   let activity;
   let panel;

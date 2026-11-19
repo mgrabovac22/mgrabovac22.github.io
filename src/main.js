@@ -3,6 +3,7 @@ import './studio.css';
 import './world.css';
 import { mountPortrait } from './portrait.js';
 import { createStory, storyIndexForHash } from './story.js';
+import { officePanels } from './panel-layout.js';
 import { loadPortfolio, localAsset } from './portfolio.js';
 import { chapterLinks, contentCards, heroActions, mapPins, profileSummary, screenContent } from './portfolio-markup.js';
 import { studioDispatch } from './studio.js';
@@ -22,7 +23,9 @@ const blueprintReady = new Promise(resolve => {
 const snapshot = JSON.parse(document.querySelector('#portfolio-snapshot').textContent);
 const loaded = await loadPortfolio(root.lang).then(data => ({ data, pages: createStory(data) })).catch(() => null);
 const locale = loaded?.data ?? snapshot;
-const pages = loaded?.pages ?? createStory(snapshot);
+const entries = loaded?.pages ?? createStory(snapshot);
+const panelMeasure = document.createElement('canvas').getContext('2d');
+const pages = panelMeasure ? officePanels(entries, panelMeasure, locale.language) : entries;
 const { t } = locale;
 const sectionMenuLabel = t.sections ?? snapshot.t.sections;
 
@@ -63,7 +66,7 @@ function refreshPortfolio() {
   for (const node of document.querySelectorAll('.language-control')) node.setAttribute('aria-label', t.locale);
   for (const node of document.querySelectorAll('.world-hud, .world-arrows')) node.setAttribute('aria-label', t.controls);
 }
-if (loaded && JSON.stringify(locale) !== JSON.stringify(snapshot)) refreshPortfolio();
+if (pages.length !== entries.length || (loaded && JSON.stringify(locale) !== JSON.stringify(snapshot))) refreshPortfolio();
 
 const scroller = document.querySelector('#world-scroll');
 const stage = document.querySelector('#world-stage');
@@ -102,7 +105,7 @@ for (const page of pages) {
 function setIndex(index) {
   if (index !== route.index && document.activeElement?.classList.contains('map-pin')) scroller.focus({ preventScroll: true });
   route.index = index;
-  const { chapterId, chapterTitle, id } = pages[index];
+  const { chapterId, chapterTitle, id, panelOwner } = pages[index];
   counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + pages.length;
   const option = chapterOptions.get('#' + chapterId);
   if (option !== activeChapter) {
@@ -112,7 +115,7 @@ function setIndex(index) {
     option?.setAttribute('aria-current', 'location');
     activeChapter = option;
   }
-  alternateUrl.hash = id;
+  alternateUrl.hash = panelOwner ?? id;
   languageLink.href = alternateUrl.href;
   stepButtons[0].disabled = index === 0;
   stepButtons[1].disabled = index === pages.length - 1;

@@ -27,9 +27,10 @@ function waypoint(action) {
 }
 
 function contentCard(page, index) {
+  const panel = page.panelCount ? ' · ' + page.panelNumber + ' / ' + page.panelCount : '';
   return `<section id="${page.id}" class="stop" aria-labelledby="${page.id}-title">
     <article${page.entryId ? ` id="${page.entryId}"` : ''}>
-      <p class="mono fallback-index">${pageNumber(index)} / ${escape(page.chapterTitle)}</p>
+      <p class="mono fallback-index">${pageNumber(index)} / ${escape(page.chapterTitle)}${panel}</p>
       <h3 id="${page.id}-title" tabindex="-1">${escape(page.title)}</h3>
       ${page.meta || page.date ? `<p class="fallback-meta">${escape([page.meta, page.date].filter(Boolean).join(' · '))}</p>` : ''}
       ${page.body ? `<p>${escape(page.body)}</p>` : ''}

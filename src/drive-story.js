@@ -4,6 +4,7 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Body, Box, Vec3 } from 'cannon-es';
 import { blockSize } from './drive-city.js';
+import { ellipsis, wrapText } from './panel-layout.js';
 import fontData from './drive-font.json' with { type: 'json' };
 
 const font = new FontLoader().parse(fontData);
@@ -66,35 +67,23 @@ function measure(text) {
     .reduce((width, advance) => width + advance, 0) / fontData.resolution;
 }
 
-function wrap(text, size) {
-  const lines = [];
-  let current = '';
-  for (const word of text.split(/\s+/)) {
-    const candidate = current ? current + ' ' + word : word;
-    if (current && measure(candidate) * size > width) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
-
 function signRows(page, index, detailScale) {
   const rows = [];
-  const add = (text, role, size, gap = 0) => {
+  const add = (text, role, size, gap = 0, limit = Infinity) => {
     if (!text) return;
-    const lines = wrap(text, size);
+    const lines = wrapText(text, measure, width / size);
+    if (lines.length > limit) {
+      lines.length = limit;
+      lines[limit - 1] = ellipsis(lines[limit - 1], measure, width / size);
+    }
     for (const [i, line] of lines.entries()) {
       const fitted = Math.min(size, width / measure(line));
       rows.push({ line, role, size: fitted, height: fitted * 1.17 + (i === lines.length - 1 ? gap : 0) });
     }
   };
-  add(String(index + 1).padStart(2, '0') + '  /  ' + page.chapterTitle.toUpperCase(), 'chapter', .36, .10);
-  add(page.title, 'headline', .98, .11);
-  add([page.meta, page.date].filter(Boolean).join(' · '), 'body', .44 * detailScale, .11);
+  add(String(index + 1).padStart(2, '0') + '  /  ' + page.chapterTitle.toUpperCase(), 'chapter', .36, .10, 1);
+  add(page.title, 'headline', .98, .11, 2);
+  add([page.meta, page.date].filter(Boolean).join(' · '), 'body', .44 * detailScale, .11, 2);
   add(page.body, 'body', .43 * detailScale, .09);
   for (const point of page.points ?? []) add('• ' + point, 'body', .41 * detailScale, .05);
   add(page.tags?.join(' · '), 'body', .40 * detailScale, .07);
@@ -103,13 +92,22 @@ function signRows(page, index, detailScale) {
 }
 
 function letterLayout(page, index) {
-  let detailScale = 1;
-  let { rows, height } = signRows(page, index, detailScale);
-  while (height > maxHeight && detailScale > .43) {
-    detailScale -= .07;
-    ({ rows, height } = signRows(page, index, detailScale));
+  let { rows, height } = signRows(page, index, 1);
+  for (const scale of [.90, .80, .70]) {
+    if (height <= maxHeight) break;
+    ({ rows, height } = signRows(page, index, scale));
   }
-  const scale = Math.min(1, maxHeight / height);
+  if (height > maxHeight) {
+    let filled = 0;
+    const overflow = rows.findIndex(row => {
+      filled += row.height;
+      return filled > maxHeight;
+    });
+    rows = rows.slice(0, overflow);
+    const last = rows.at(-1);
+    last.line = ellipsis(last.line, measure, width / last.size);
+    height = rows.reduce((sum, row) => sum + row.height, 0);
+  }
   let y = height;
   const pieces = [];
   for (const { line, role, size, height: rowHeight } of rows) {
@@ -119,9 +117,9 @@ function letterLayout(page, index) {
       const glyph = characterGeometry(character, role);
       if (glyph.geometry) {
         pieces.push({
-          glyph, role, size: size * scale,
-          x: (x + glyph.center.x * size) * scale - width / 2,
-          y: (baseline + glyph.center.y * size) * scale,
+          glyph, role, size,
+          x: x + glyph.center.x * size - width / 2,
+          y: baseline + glyph.center.y * size,
         });
       }
       x += glyph.advance * size;
@@ -324,22 +322,28 @@ function sameCourse(a, b) {
 }
 
 export function createSkyStories(scene, world, pages, route = null) {
-  const posts = pages.map((page, index) => ({
-    page, index, course: null, model: null, impact: false, state: 'intact', pieces: [], active: false, healing: 0,
-    crossedAfterBreak: false,
-  }));
+  const capacity = route ? route.boardStations(Infinity).length : pages.length;
+  const roundCount = Math.ceil(pages.length / capacity);
+  const roundSize = Math.ceil(pages.length / roundCount);
+  function makePosts(round) {
+    const offset = round * roundSize;
+    return pages.slice(offset, offset + roundSize).map((page, slot) => ({
+      page, index: offset + slot, course: null, model: null, impact: false, state: 'intact',
+      pieces: [], active: false, healing: 0, crossedAfterBreak: false,
+    }));
+  }
+  let round = 0;
+  let previousMeters;
+  let posts = makePosts(round);
   const mainStreet = { axis: 'z', across: 'x', street: 0, direction: -1 };
   let next = 0;
   let course = mainStreet;
   let candidate = null;
   let courseFor = 0;
-  const firstSign = 25;
-  const spacing = route ? route.length / posts.length : 0;
-  const stations = route?.kind === 'rally' ? route.boardStations(posts.length) : null;
-
   function placeCircuit() {
-    for (const post of posts) {
-      const meters = stations?.[post.index] ?? firstSign + post.index * spacing;
+    const stations = route.boardStations(posts.length);
+    for (const [index, post] of posts.entries()) {
+      const meters = stations[index];
       const sample = route.sample(meters);
       const wooden = route.kind === 'rally';
       const offset = wooden ? route.half + 6.8 : 0;
@@ -440,10 +444,19 @@ export function createSkyStories(scene, world, pages, route = null) {
   function update(position, velocity, heading, viewer, dt, reduced) {
     const lap = route?.locate(position);
     if (!lap) updateCourse(position, velocity, heading, dt);
-    const nextStation = stations?.findIndex(meters => meters >= lap.meters - 6);
-    const circuitIndex = nextStation === undefined ?
-      (lap ? Math.max(0, Math.ceil((lap.meters - firstSign - 6) / spacing)) % posts.length : -1) : Math.max(0, nextStation);
-    let nearest = posts[lap ? circuitIndex : next] ?? posts.at(-1);
+    if (lap && roundCount > 1) {
+      if (previousMeters > route.length - 28 && lap.meters < 28 && lap.offset < route.half + 4 &&
+          velocity.x * lap.point.tx + velocity.z * lap.point.tz > 1) {
+        clearPosts();
+        round = (round + 1) % roundCount;
+        posts = makePosts(round);
+        placeCircuit();
+      }
+      previousMeters = lap.meters;
+    }
+    const circuitIndex = lap ? Math.max(0, posts.findIndex(post => post.meters >= lap.meters - 6)) : -1;
+    const upcoming = posts[lap ? circuitIndex : next];
+    let nearest = upcoming ?? posts.at(-1);
     let nearestScore = 13;
     let shattered = false;
     let passed = false;
@@ -473,7 +486,7 @@ export function createSkyStories(scene, world, pages, route = null) {
       }
       setSensor(world, post.model, post.state === 'intact' && distance < physicsRange);
 
-      const current = lap ? post.index === circuitIndex : post.index === next && sameCourse(course, post.course);
+      const current = post === upcoming && (lap || sameCourse(course, post.course));
       const speed = lap ? velocity.x * post.sample.tx + velocity.z * post.sample.tz : velocity[axis] * direction;
       const approaching = current && lateral < 6.15 && ahead > 2 && ahead <= THREE.MathUtils.clamp(3.5 + speed * .34, 5, 12) && speed > 2.3;
       if (post.state === 'intact' && (post.impact || (approaching && post.index % 3 !== 0 && !post.wooden))) {
@@ -512,20 +525,27 @@ export function createSkyStories(scene, world, pages, route = null) {
       const upcoming = posts[++next];
       if (upcoming) placeAhead(upcoming, position);
     }
-    return { page: nearest.page, index: nearest.index, total: posts.length, shattered };
+    return { page: nearest.page, index: nearest.index, total: pages.length, shattered };
   }
 
-  function reset() {
+  function clearPosts() {
     for (const post of posts) {
       setPhysics(post, false);
       for (const { mesh } of post.pieces) scene.remove(mesh);
       clearSign(scene, world, post);
-      Object.assign(post, { course: null, impact: false, state: 'intact', pieces: [], healing: 0, crossedAfterBreak: false });
     }
+  }
+
+  function reset() {
+    clearPosts();
+    round = 0;
+    previousMeters = undefined;
+    posts = makePosts(round);
     next = 0;
     course = mainStreet;
     candidate = null;
-    if (!route) place(posts[0], mainStreet, -17);
+    if (route) placeCircuit();
+    else place(posts[0], mainStreet, -17);
   }
 
   return { update, heal, reset };

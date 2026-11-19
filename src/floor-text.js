@@ -4,22 +4,6 @@ const width = 15.7;
 const depth = 9.1;
 const accent = ['#314831', '#50382a', '#26443e', '#354627', '#47372a', '#24443d'];
 
-function format(context, text, maxWidth) {
-  const words = text.split(/\s+/);
-  const result = [];
-  let line = '';
-  for (const word of words) {
-    if (line && context.measureText(line + ' ' + word).width > maxWidth) {
-      result.push(line);
-      line = word;
-    } else {
-      line = line ? line + ' ' + word : word;
-    }
-  }
-  if (line) result.push(line);
-  return result;
-}
-
 function panelTexture(page) {
   const canvas = document.createElement('canvas');
   const density = matchMedia('(max-width: 760px)').matches ? .60 : .8;
@@ -33,7 +17,9 @@ function panelTexture(page) {
   ctx.font = '700 29px monospace';
   ctx.fillText(String(page.chapter + 1).padStart(2, '0') + '  /  ' + page.chapterTitle.toLocaleUpperCase(), 60, 86);
   ctx.textAlign = 'right';
-  ctx.fillText(String(page.index).padStart(2, '0') + ' / ' + String(page.total).padStart(2, '0'), 1221, 86);
+  const number = page.panelNumber ?? page.index;
+  const total = page.panelCount ?? page.total;
+  ctx.fillText(String(number).padStart(2, '0') + ' / ' + String(total).padStart(2, '0'), 1221, 86);
   ctx.textAlign = 'left';
   ctx.strokeStyle = '#7a887a';
   ctx.beginPath();
@@ -41,38 +27,15 @@ function panelTexture(page) {
   ctx.lineTo(465, 112);
   ctx.stroke();
 
-  let rows = [];
-  for (const ratio of [1, .93, .86, .80]) {
-    let y = 151;
-    rows = [];
-    const add = (value, size, weight, color, gap, bullet = false) => {
-      if (!value) return;
-      const fontSize = Math.round(size * ratio);
-      const font = weight + ' ' + fontSize + 'px Arial, sans-serif';
-      ctx.font = font;
-      const indent = bullet ? 33 : 0;
-      for (const [index, line] of format(ctx, value, 1160 - indent).entries()) {
-        rows.push({ value: line, x: 60 + indent, y, font, color, bullet: bullet && index === 0 });
-        y += fontSize * 1.24;
-      }
-      y += gap;
-    };
-    add(page.title, 78, 800, '#24352b', 9);
-    add([page.meta, page.date].filter(Boolean).join('  ·  '), 42, 700, tone, 15);
-    add(page.body, 45, 400, '#27382d', 13);
-    for (const point of page.points || []) add(point, 42, 400, '#27382d', 8, true);
-    add(page.tags?.join('   ·   '), 40, 700, tone, 0);
-    if (y <= 768) break;
-  }
+  const colors = { title: '#24352b', body: '#27382d', accent: tone };
   ctx.textBaseline = 'top';
-  for (const row of rows) {
+  for (const row of page.floorRows ?? []) {
     ctx.font = row.font;
-    ctx.fillStyle = row.color;
     if (row.bullet) {
       ctx.fillStyle = tone;
       ctx.fillRect(60, row.y + 14, 11, 11);
-      ctx.fillStyle = row.color;
     }
+    ctx.fillStyle = colors[row.role];
     ctx.fillText(row.value, row.x, row.y);
   }
   const texture = new THREE.CanvasTexture(canvas);
